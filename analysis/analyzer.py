@@ -48,7 +48,7 @@ def run_analysis(market: str):
     market_latest_return = 0.0
     try:
         # 需要更長的歷史數據來計算200MA
-        market_hist = yf.Ticker(market_ticker).history(period='1y', auto_adjust=True)
+        market_hist = yf.Ticker(market_ticker).history(period='max', auto_adjust=True)
         if market_hist.empty or len(market_hist) < 200:
             raise ValueError("大盤歷史數據不足以計算200MA")
         
@@ -82,7 +82,8 @@ def run_analysis(market: str):
         print(f"\r進度: [{int(progress * 20) * '#'}{int((1 - progress) * 20) * '-'}] {i+1}/{total_stocks} - 正在分析 {symbol}...", end='')
 
         try:
-            hist = yf.Ticker(symbol).history(period="6mo", auto_adjust=True)
+            hist = yf.Ticker(symbol).history(period="max", auto_adjust=True)
+            print(f" - {len(hist)} 條數據", end='')
             if hist.empty or len(hist) < 2:
                 continue
 

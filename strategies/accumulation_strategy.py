@@ -14,104 +14,104 @@ class MainForceAccumulationStrategy(BaseStrategy):
     def __init__(self,
                  long_ma_period=100,
                  short_ma_period=20,
-                 vol_ma_period=60,
                  obv_slope_period=10,
                  obv_ma_period=10,
-                 atr_period=14,
-                 vol_multiplier=2.0,
-                 max_atr_ratio=0.05,
-                 min_close_pos=0.5,
-                 max_ma_bias_ratio=0.20):
+                 # New BB Squeeze params
+                 bb_period=20,
+                 bb_squeeze_lookback=120,
+                 bb_squeeze_percentile=0.1,
+                 # Volume params
+                 vol_ma_period=60,
+                 vol_shrink_lookback=10,
+                 vol_lower_multiplier=1.1,
+                 vol_upper_multiplier=1.8,
+                 # Price behavior params
+                 max_ma_bias_ratio=0.10, # Tightened from 0.20
+                 min_close_pos=0.5):
         # Periods
         self.long_ma_period = long_ma_period
         self.short_ma_period = short_ma_period
-        self.vol_ma_period = vol_ma_period
         self.obv_slope_period = obv_slope_period
         self.obv_ma_period = obv_ma_period
-        self.atr_period = atr_period
+        self.bb_period = bb_period
+        self.bb_squeeze_lookback = bb_squeeze_lookback
+        self.vol_ma_period = vol_ma_period
+        self.vol_shrink_lookback = vol_shrink_lookback
         # Thresholds
-        self.vol_multiplier = vol_multiplier
-        self.max_atr_ratio = max_atr_ratio
-        self.min_close_pos = min_close_pos
+        self.bb_squeeze_percentile = bb_squeeze_percentile
+        self.vol_lower_multiplier = vol_lower_multiplier
+        self.vol_upper_multiplier = vol_upper_multiplier
         self.max_ma_bias_ratio = max_ma_bias_ratio
+        self.min_close_pos = min_close_pos
 
-    def _calculate_atr(self, high: pd.Series, low: pd.Series, close: pd.Series, period: int) -> pd.Series:
-        """更簡潔且使用span的ATR計算"""
-        prev_close = close.shift(1)
-        tr_df = pd.DataFrame({
-            'tr1': high - low,
-            'tr2': abs(high - prev_close),
-            'tr3': abs(low - prev_close)
-        })
-        tr = tr_df.max(axis=1)
-        atr = tr.ewm(span=period, adjust=False).mean()
-        return atr
 
     def run(self, hist: pd.DataFrame, **kwargs) -> bool:
         # --- 1. 基本數據長度檢查 ---
-        if len(hist) < self.long_ma_period:
+        if len(hist) < max(self.long_ma_period, self.bb_squeeze_lookback):
             return False
 
         # --- 2. 計算所需指標 ---
+        # 趨勢指標
         hist['MA100'] = hist['Close'].rolling(window=self.long_ma_period).mean()
         hist['MA20'] = hist['Close'].rolling(window=self.short_ma_period).mean()
+        
+        # 資金流指標
         hist['OBV'] = (np.sign(hist['Close'].diff()) * hist['Volume']).fillna(0).cumsum()
         hist['OBV_MA10'] = hist['OBV'].rolling(window=self.obv_ma_period).mean()
-        hist['Avg_Vol_60'] = hist['Volume'].rolling(window=self.vol_ma_period).mean()
-        hist['ATR14'] = self._calculate_atr(hist['High'], hist['Low'], hist['Close'], self.atr_period)
         
+        # 波動率指標
+        hist['SMA_BB'] = hist['Close'].rolling(window=self.bb_period).mean()
+        hist['StdDev'] = hist['Close'].rolling(window=self.bb_period).std()
+        hist['UpperBand'] = hist['SMA_BB'] + (hist['StdDev'] * 2)
+        hist['LowerBand'] = hist['SMA_BB'] - (hist['StdDev'] * 2)
+        hist['BandWidth'] = (hist['UpperBand'] - hist['LowerBand']) / hist['SMA_BB']
+
+        # 成交量指標
+        hist['Avg_Vol_60'] = hist['Volume'].rolling(window=self.vol_ma_period).mean()
+        
+        # --- 3. 識別數據點並檢查有效性 ---
+        latest = hist.iloc[-1]
+        previous = hist.iloc[-2]
+
+        required_cols = ['MA100', 'MA20', 'OBV_MA10', 'BandWidth', 'Avg_Vol_60']
+        if hist.iloc[-self.vol_shrink_lookback-1:][required_cols].isnull().values.any():
+            return False
+
+        # --- 4. 執行策略條件篩選 (專注於"吸籌"特徵) ---
+
+        # 閘門 0: 波動率必須處於收縮狀態 (檢查前一天)
+        squeeze_threshold = hist['BandWidth'].rolling(window=self.bb_squeeze_lookback).quantile(self.bb_squeeze_percentile).iloc[-1]
+        if previous['BandWidth'] > squeeze_threshold:
+            return False
+
+        # 閘門 1: 長期與短期趨勢健康
+        if not (latest['Close'] > latest['MA100'] and latest['Close'] > latest['MA20']):
+            return False
+        if abs(latest['Close'] / latest['MA100'] - 1) > self.max_ma_bias_ratio:
+            return False
+
+        # 閘門 2: 資金持續流入 (OBV)
         y = hist['OBV'].dropna()
         if len(y) < self.obv_slope_period: return False
         x = np.arange(len(y))
         obv_slope = np.polyfit(x[-self.obv_slope_period:], y[-self.obv_slope_period:], 1)[0]
-
-        latest = hist.iloc[-1]
-        previous = hist.iloc[-2]
-
-        required_cols = ['MA100', 'MA20', 'OBV_MA10', 'Avg_Vol_60', 'ATR14']
-        if hist.iloc[-1:][required_cols].isnull().values.any():
+        if obv_slope <= 0 or latest['OBV'] < latest['OBV_MA10']:
             return False
 
-        # --- 3. 執行策略條件篩選 ---
-
-        # 閘門 1.1: 長期趨勢 (股價在100MA之上)
-        if latest['Close'] < latest['MA100']:
-            return False
-        
-        # 閘門 1.2: 長期趨勢 (乖離率不能過大)
-        if abs(latest['Close'] / latest['MA100'] - 1) > self.max_ma_bias_ratio:
+        # 閘門 3: 成交量呈現「萎縮後溫和放量」
+        was_volume_down = (hist['Volume'].iloc[-self.vol_shrink_lookback:-1] < hist['Avg_Vol_60'].iloc[-self.vol_shrink_lookback:-1]).any()
+        is_volume_gentle_up = (latest['Avg_Vol_60'] * self.vol_lower_multiplier < latest['Volume'] < latest['Avg_Vol_60'] * self.vol_upper_multiplier)
+        if not (was_volume_down and is_volume_gentle_up):
             return False
 
-        # 閘門 1.3: 短期趨勢 (股價在20MA之上)
-        if latest['Close'] < latest['MA20']:
-            return False
-
-        # 閘門 2.1: OBV趨勢向上 (斜率)
-        if obv_slope <= 0:
-            return False
-            
-        # 閘門 2.2: OBV位於均線之上 (雙重確認)
-        if latest['OBV'] < latest['OBV_MA10']:
-            return False
-
-        # 閘門 3: 近期成交量放大
-        if latest['Volume'] < latest['Avg_Vol_60'] * self.vol_multiplier:
-            return False
-
-        # 閘門 4: 價格波動受控
-        atr_ratio = latest['ATR14'] / latest['Close']
-        if atr_ratio > self.max_atr_ratio:
-            return False
-
-        # 閘門 5: 當日買盤強勁
+        # 閘門 4: 當日買盤強勁 (收在K線上半部)
         daily_range = latest['High'] - latest['Low']
-        if daily_range == 0:
-            if not (latest['Close'] > previous['Close']):
-                return False # 如果是一字跌停或平盤，則不滿足
-        else:
+        if daily_range > 0:
             close_position_in_range = (latest['Close'] - latest['Low']) / daily_range
             if close_position_in_range < self.min_close_pos:
                 return False
+        elif not (latest['Close'] > previous['Close']):
+             return False # 針對一字板情況
 
         # --- 所有條件均滿足 ---
         return True
