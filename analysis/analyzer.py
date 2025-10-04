@@ -44,15 +44,27 @@ def run_analysis(market: str):
         return []
 
     # 獲取大盤基準數據
+    is_market_healthy = False # 預設為不健康
+    market_latest_return = 0.0
     try:
-        market_hist = yf.Ticker(market_ticker).history(period='6mo', auto_adjust=True)
-        if market_hist.empty:
-            raise ValueError("大盤數據下載為空")
+        # 需要更長的歷史數據來計算200MA
+        market_hist = yf.Ticker(market_ticker).history(period='1y', auto_adjust=True)
+        if market_hist.empty or len(market_hist) < 200:
+            raise ValueError("大盤歷史數據不足以計算200MA")
+        
         market_latest_return = market_hist['Close'].pct_change().iloc[-1] * 100
-        print(f"已成功獲取大盤({market_ticker})數據，今日漲跌: {market_latest_return:.2f}%")
+        
+        # 計算大盤200日均線
+        market_hist['MA200'] = market_hist['Close'].rolling(window=200).mean()
+        latest_market_data = market_hist.iloc[-1]
+        
+        is_market_healthy = latest_market_data['Close'] > latest_market_data['MA200']
+        
+        market_status_str = "多頭" if is_market_healthy else "空頭"
+        print(f"已成功獲取大盤({market_ticker})數據。今日漲跌: {market_latest_return:.2f}%。市場趨勢: {market_status_str}")
+
     except Exception as e:
-        print(f"無法下載大盤數據 ({market_ticker})，將使用 0 作為基準。錯誤: {e}")
-        market_latest_return = 0.0
+        print(f"無法下載或分析大盤數據 ({market_ticker})，策略中的大盤濾網將不會啟用。錯誤: {e}")
 
     # 動態加載所有策略
     strategies_to_run = get_strategies()
@@ -77,7 +89,7 @@ def run_analysis(market: str):
             passed_strategies = []
             for strategy in strategies_to_run:
                 # 傳遞 hist 的副本以避免副作用
-                if strategy.run(hist.copy(), market_return=market_latest_return):
+                if strategy.run(hist.copy(), market_return=market_latest_return, is_market_healthy=is_market_healthy):
                     passed_strategies.append(strategy.name)
             
             if passed_strategies:

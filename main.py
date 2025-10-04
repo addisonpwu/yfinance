@@ -1,5 +1,6 @@
 
 import argparse
+from datetime import datetime
 from analysis import analyzer
 
 def main():
@@ -12,7 +13,8 @@ def main():
 
     print("\n--- 最終篩選結果 ---")
     if final_list:
-        output_filename = f"{args.market.lower()}_stocks.txt"
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
         
         # 交易所代碼對照表
         exchange_map = {

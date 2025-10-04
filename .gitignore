@@ -6,6 +6,6 @@ __pycache__/
 *.pyc
 
 # Output files
-us.txt
-hk.txt
+*.txt
+*.txt
 debug_output.html
