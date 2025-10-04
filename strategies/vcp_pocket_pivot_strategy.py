@@ -42,7 +42,7 @@ class VCP_PocketPivotStrategy(BaseStrategy):
             hist[f'MA{period}'] = hist['Close'].rolling(window=period).mean()
         hist['MA200_slope'] = hist['MA200'].diff(5)
 
-        hist['pct_change'] = hist['Close'].pct_change()
+        hist['pct_change'] = hist['Close'].pct_change(fill_method=None)
         for window in self.volatility_windows:
             hist[f'volatility_{window}'] = hist['pct_change'].rolling(window=window).std()
 

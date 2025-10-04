@@ -14,9 +14,35 @@ def main():
     print("\n--- 最終篩選結果 ---")
     if final_list:
         today_str = datetime.now().strftime('%Y-%m-%d')
-        output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
+
+        # --- 產生並儲存詳細報告 ---
+        detailed_output_filename = f"{args.market.lower()}_stocks_{today_str}_details.txt"
+        detailed_output_lines = ["--- 最終篩選結果 (詳細) ---"]
+
+        for stock in final_list:
+            info = stock.get('info', {})
+            market_cap_str = f"{info.get('marketCap', 0) / 1e8:.2f} 億" if info.get('marketCap') else "N/A"
+
+            detailed_output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
+            detailed_output_lines.append(f"   - 符合策略: {stock['strategies']}")
+            detailed_output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
+            detailed_output_lines.append(f"   - 市值: {market_cap_str}")
+            detailed_output_lines.append(f"   - 市盈率 (PE): {info.get('trailingPE', 'N/A'):.2f}")
+            detailed_output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
         
-        # 交易所代碼對照表
+        detailed_output_string = "\n".join(detailed_output_lines)
+        
+        print(detailed_output_string) # 仍在控制台打印詳細報告
+
+        try:
+            with open(detailed_output_filename, 'w', encoding='utf-8') as f:
+                f.write(detailed_output_string)
+            print(f"\n--- 詳細報告已儲存至 {detailed_output_filename} ---")
+        except Exception as e:
+            print(f"寫入詳細報告 {detailed_output_filename} 時發生錯誤: {e}")
+
+        # --- 產生並儲存原有的簡潔列表 ---
+        output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
         exchange_map = {
             'NMS': 'NASDAQ',
             'NGM': 'NASDAQ',
@@ -32,7 +58,6 @@ def main():
             exchange_name = exchange_map.get(stock['exchange'], stock['exchange'])
             symbol = stock['symbol']
             
-            # 格式化港股代碼 (移除 .HK 並補零)
             if args.market.upper() == 'HK':
                 symbol = str(int(symbol.replace('.HK', '')))
 
@@ -43,8 +68,7 @@ def main():
         try:
             with open(output_filename, 'w', encoding='utf-8') as f:
                 f.write(output_string)
-            print(f"已將 {len(final_list)} 支符合條件的股票輸出至 {output_filename}")
-            print("\n--- 符合條件的股票列表 ---")
+            print(f"\n--- 摘要列表 (已儲存至 {output_filename}) ---")
             print(output_string)
         except Exception as e:
             print(f"寫入檔案 {output_filename} 時發生錯誤: {e}")
