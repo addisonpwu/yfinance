@@ -26,6 +26,7 @@ def get_hk_tickers():
 
         tickers = df_hkd['股份代號'].astype(int).astype(str).str.zfill(4) + '.HK'
         ticker_list = tickers.dropna().tolist()
+        # ticker_list = ['0255.HK']
         print(f"成功篩選出 {len(ticker_list)} 支港股。")
         return ticker_list
 

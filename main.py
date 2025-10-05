@@ -15,13 +15,12 @@ def main():
     if final_list:
         today_str = datetime.now().strftime('%Y-%m-%d')
 
-        # --- 產生並儲存詳細報告 ---
+        # --- 產生並儲存詳細報告 (已移除新聞) ---
         detailed_output_filename = f"{args.market.lower()}_stocks_{today_str}_details.txt"
         detailed_output_lines = ["--- 最終篩選結果 (詳細) ---"]
 
         for stock in final_list:
             info = stock.get('info', {})
-            news = stock.get('news', [])
             
             # 安全地格式化市值和PE
             market_cap = info.get('marketCap')
@@ -36,16 +35,9 @@ def main():
             detailed_output_lines.append(f"   - 市值: {market_cap_str}")
             detailed_output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
             detailed_output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
-
-            if news:
-                detailed_output_lines.append(f"   - 近期新聞:")
-                for i, news_item in enumerate(news[:3]): # 只顯示最新的3條
-                    detailed_output_lines.append(f"     {i+1}. {news_item['title']}")
-                    detailed_output_lines.append(f"        {news_item['link']}")
         
         detailed_output_string = "\n".join(detailed_output_lines)
-        
-        print(detailed_output_string) # 仍在控制台打印詳細報告
+        print(detailed_output_string)
 
         try:
             with open(detailed_output_filename, 'w', encoding='utf-8') as f:
@@ -54,7 +46,7 @@ def main():
         except Exception as e:
             print(f"寫入詳細報告 {detailed_output_filename} 時發生錯誤: {e}")
 
-        # --- 產生並儲存原有的簡潔列表 ---
+        # --- 產生並儲存新的摘要列表 (包含股票名稱) ---
         output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
         exchange_map = {
             'NMS': 'NASDAQ',
@@ -68,15 +60,17 @@ def main():
 
         formatted_stocks = []
         for stock in final_list:
+            info = stock.get('info', {})
+            long_name = info.get('longName', stock['symbol'])
             exchange_name = exchange_map.get(stock['exchange'], stock['exchange'])
             symbol = stock['symbol']
             
             if args.market.upper() == 'HK':
                 symbol = str(int(symbol.replace('.HK', '')))
 
-            formatted_stocks.append(f"{exchange_name}:{symbol}")
+            formatted_stocks.append(f"{exchange_name}:{symbol} ({long_name})")
         
-        output_string = ",".join(formatted_stocks)
+        output_string = ", ".join(formatted_stocks) # 使用 ", " 增加可讀性
 
         try:
             with open(output_filename, 'w', encoding='utf-8') as f:
