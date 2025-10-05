@@ -21,14 +21,27 @@ def main():
 
         for stock in final_list:
             info = stock.get('info', {})
-            market_cap_str = f"{info.get('marketCap', 0) / 1e8:.2f} 億" if info.get('marketCap') else "N/A"
+            news = stock.get('news', [])
+            
+            # 安全地格式化市值和PE
+            market_cap = info.get('marketCap')
+            market_cap_str = f"{market_cap / 1e8:.2f} 億" if isinstance(market_cap, (int, float)) else "N/A"
+
+            pe_ratio = info.get('trailingPE')
+            pe_ratio_str = f"{pe_ratio:.2f}" if isinstance(pe_ratio, (int, float)) else "N/A"
 
             detailed_output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
             detailed_output_lines.append(f"   - 符合策略: {stock['strategies']}")
             detailed_output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
             detailed_output_lines.append(f"   - 市值: {market_cap_str}")
-            detailed_output_lines.append(f"   - 市盈率 (PE): {info.get('trailingPE', 'N/A'):.2f}")
+            detailed_output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
             detailed_output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
+
+            if news:
+                detailed_output_lines.append(f"   - 近期新聞:")
+                for i, news_item in enumerate(news[:3]): # 只顯示最新的3條
+                    detailed_output_lines.append(f"     {i+1}. {news_item['title']}")
+                    detailed_output_lines.append(f"        {news_item['link']}")
         
         detailed_output_string = "\n".join(detailed_output_lines)
         

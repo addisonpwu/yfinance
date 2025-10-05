@@ -94,13 +94,16 @@ def run_analysis(market: str):
                     passed_strategies.append(strategy.name)
             
             if passed_strategies:
-                info = yf.Ticker(symbol).info
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                news = ticker.news
                 exchange = info.get('exchange', 'UNKNOWN')
                 qualified_stocks.append({
                     'symbol': symbol,
                     'exchange': exchange,
                     'strategies': passed_strategies,
-                    'info': info
+                    'info': info,
+                    'news': news
                 })
                 # 清除進度條並打印結果
                 print(f"\r{'' * 80}\r✅ {symbol} 符合策略: {passed_strategies}")
