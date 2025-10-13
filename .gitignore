@@ -10,3 +10,4 @@ __pycache__/
 hk_stocks*.txt
 us_stocks*.txt
 debug_output.html
+book/
