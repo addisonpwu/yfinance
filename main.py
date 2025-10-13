@@ -32,11 +32,15 @@ def main():
             float_shares = info.get('floatShares')
             float_shares_str = f"{float_shares:,.0f}" if isinstance(float_shares, (int, float)) else "N/A"
 
+            volume = info.get('volume')
+            volume_str = f"{volume:,.0f}" if isinstance(volume, (int, float)) else "N/A"
+
             detailed_output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
             detailed_output_lines.append(f"   - 符合策略: {stock['strategies']}")
             detailed_output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
             detailed_output_lines.append(f"   - 市值: {market_cap_str}")
             detailed_output_lines.append(f"   - 流通股本: {float_shares_str}")
+            detailed_output_lines.append(f"   - 成交量: {volume_str}")
             detailed_output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
             detailed_output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
         
