@@ -2,6 +2,7 @@
 import argparse
 from datetime import datetime
 from analysis import analyzer
+from news_analyzer import get_and_analyze_news
 
 def main():
     parser = argparse.ArgumentParser(description="靈活的股票篩選器，支援多種策略")
@@ -11,7 +12,12 @@ def main():
     print(f"--- 開始對 {args.market.upper()} 市場進行分析 ---")
     final_list = analyzer.run_analysis(args.market)
 
-    print("\n--- 最終篩選結果 ---")
+    print("\n--- 開始進行新聞情感分析 ---")
+    for stock in final_list:
+        # 為每支股票獲取並分析新聞
+        stock['analyzed_news'] = get_and_analyze_news(stock['symbol'], args.market)
+
+    print("\n--- 最終篩選結果 (已包含新聞分析) ---")
     if final_list:
         today_str = datetime.now().strftime('%Y-%m-%d')
 
@@ -21,6 +27,7 @@ def main():
 
         for stock in final_list:
             info = stock.get('info', {})
+            kronos_prediction = stock.get('kronos_prediction', 'N/A') # <-- 獲取預測值
             
             # 安全地格式化市值和PE
             market_cap = info.get('marketCap')
@@ -37,12 +44,24 @@ def main():
 
             detailed_output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
             detailed_output_lines.append(f"   - 符合策略: {stock['strategies']}")
+            detailed_output_lines.append(f"   - Kronos 預測: {kronos_prediction}") # <-- 新增此行以顯示預測
             detailed_output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
             detailed_output_lines.append(f"   - 市值: {market_cap_str}")
             detailed_output_lines.append(f"   - 流通股本: {float_shares_str}")
             detailed_output_lines.append(f"   - 成交量: {volume_str}")
             detailed_output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
             detailed_output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
+
+            # --- 新增新聞分析結果的輸出 ---
+            if stock.get('analyzed_news'):
+                detailed_output_lines.append("   --- 最新新聞分析 ---")
+                for news in stock['analyzed_news']:
+                    sentiment_icon = {'利好': '🟢', '利空': '🔴', '中性': '⚪️'}.get(news['sentiment'], '⚪️')
+                    detailed_output_lines.append(f"     {sentiment_icon} [{news['sentiment']}] {news['title']}")
+                    # detailed_output_lines.append(f"        理由: {news['reason']}") # 可以選擇性加入理由
+                    detailed_output_lines.append(f"        連結: {news['link']}")
+            else:
+                detailed_output_lines.append("   --- 未找到相關新聞 ---")
         
         detailed_output_string = "\n".join(detailed_output_lines)
         print(detailed_output_string)

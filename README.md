@@ -22,6 +22,13 @@
     -   **詳細報告**：程式會生成一份詳細報告檔案 (`..._details.txt`)，其中包含每支入選股票的基本面資訊（市值、市盈率等）和最新的相關新聞，方便進行深度分析。
     -   **簡潔摘要**：同時，一個簡潔的摘要列表也會被儲存到對應市場的 `.txt` 檔案中，方便直接複製貼上至其他軟體使用。
 
+## Kronos 預測模型整合 (新)
+
+本專案已整合 Kronos 預測模型，為通過篩選的香港股票提供額外的預測信息。
+
+-   **自動預測**: 對於符合篩選條件的香港股票，系統將自動調用 Kronos 模型進行預測。
+-   **結果顯示**: Kronos 的預測結果將顯示在控制台輸出和詳細報告中，為您的投資決策提供更多維度的參考。
+
 ## 數據緩存與性能 (新)
 
 為了極大化效率並減少不必要的網絡請求，本項目實現了一套智能數據緩存系統。
@@ -66,9 +73,27 @@
 
 ## 安裝與設定
 
-1.  **建立虛擬環境**: `python3 -m venv venv`
-2.  **啟用虛擬環境**: `source venv/bin/activate` (macOS/Linux) 或 `.\venv\Scripts\activate` (Windows)
-3.  **安裝所需套件**: `pip install -r requirements.txt`
+為了確保所有依賴項的兼容性，建議使用 Python 3.12 建立虛擬環境。
+
+1.  **建立虛擬環境 (使用 Python 3.12)**:
+    ```bash
+    python3.12 -m venv venv
+    ```
+2.  **啟用虛擬環境**:
+    ```bash
+    source venv/bin/activate  # macOS/Linux
+    # 或 .\venv\Scripts\activate  # Windows
+    ```
+3.  **安裝 PyTorch (單獨安裝)**:
+    由於 PyTorch 在某些 Python 版本和平台上可能需要特定的安裝方式，請使用以下命令單獨安裝：
+    ```bash
+    pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
+    ```
+4.  **安裝其餘所需套件**:
+    ```bash
+    pip install -r requirements.txt
+    pip install -r Kronos/requirements.txt
+    ```
 
 ## 使用方法
 

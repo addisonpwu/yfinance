@@ -5,6 +5,7 @@ import importlib
 import inspect
 import os
 import json
+import subprocess
 from datetime import datetime, timedelta
 from strategies.base_strategy import BaseStrategy
 from data_loader import us_loader, hk_loader
@@ -162,15 +163,49 @@ def run_analysis(market: str):
                         passed_strategies.append(strategy.name)
                 
                 if passed_strategies:
+                    # --- ▼▼▼ 新增代碼塊：調用 Kronos 預測 ▼▼▼ ---
+                    kronos_prediction = "N/A" # 默認值
+                    # ! 請務必確認並修改為 Kronos 項目的真實路徑
+                    KRONOS_SCRIPT_PATH = "/Users/addison/Develop/yfinace/Kronos/scripts/prediction_hk.py"
+
+                    # 假設 prediction_hk.py 是港股專用腳本
+                    if market.upper() == 'HK':
+                        try:
+                            # 構建並執行命令
+                            command = ["python3", KRONOS_SCRIPT_PATH, symbol]
+                            # 使用 subprocess 執行外部腳本
+                            process = subprocess.run(
+                                command,
+                                capture_output=True,
+                                text=True,
+                                check=True,  # 如果返回非零退出碼，則引發 CalledProcessError
+                                timeout=300  # 設置5分鐘超時
+                            )
+                            kronos_prediction = process.stdout.strip()
+
+                        except subprocess.CalledProcessError as e:
+                            # 腳本執行失敗（例如，返回非零退出碼）
+                            error_output = e.stderr.strip()
+                            kronos_prediction = f"預測失敗: {error_output}"
+                        except subprocess.TimeoutExpired:
+                            # 腳本執行超時
+                            kronos_prediction = "預測超時"
+                        except Exception as pred_e:
+                            # 其他潛在錯誤（例如，文件未找到）
+                            kronos_prediction = f"調用外部腳本時出錯: {pred_e}"
+                    # --- ▲▲▲ 新增代碼塊結束 ▲▲▲ ---
+
                     exchange = info.get('exchange', 'UNKNOWN')
                     qualified_stocks.append({
                         'symbol': symbol,
                         'exchange': exchange,
                         'strategies': passed_strategies,
                         'info': info,
-                        'news': news
+                        'news': news,
+                        'kronos_prediction': kronos_prediction # <-- 新增鍵值對
                     })
-                    print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}")
+                    # 更新打印信息，立即顯示預測結果
+                    print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, Kronos預測: {kronos_prediction}")
 
             except Exception as e:
                 print(f"\r{' ' * 80}\r❌ 分析 {symbol} 時發生錯誤: {e}")
