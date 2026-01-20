@@ -8,12 +8,24 @@ def main():
     parser = argparse.ArgumentParser(description="靈活的股票篩選器，支援多種策略")
     parser.add_argument('--market', type=str, required=True, choices=['US', 'HK'], help="要分析的市場 (US 或 HK)")
     parser.add_argument('--no-cache-update', action='store_true', help="跳過緩存更新，直接使用現有緩存數據")
+    parser.add_argument('--no-kronos', action='store_true', help="跳過 Kronos 預測（僅適用於港股）")
+    parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
     args = parser.parse_args()
 
     print(f"--- 開始對 {args.market.upper()} 市場進行分析 ---")
     if args.no_cache_update:
         print("--- 已啟用快速模式：跳過緩存更新 ---")
-    final_list = analyzer.run_analysis(args.market, force_fast_mode=args.no_cache_update)
+    if args.no_kronos:
+        print("--- 已跳過 Kronos 預測 ---")
+    if args.symbol:
+        print(f"--- 分析指定股票: {args.symbol} ---")
+
+    final_list = analyzer.run_analysis(
+        args.market,
+        force_fast_mode=args.no_cache_update,
+        use_kronos=not args.no_kronos,
+        symbol_filter=args.symbol
+    )
 
     print("\n--- 開始進行新聞情感分析 ---")
     for stock in final_list:
@@ -48,6 +60,11 @@ def main():
             detailed_output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
             detailed_output_lines.append(f"   - 符合策略: {stock['strategies']}")
             detailed_output_lines.append(f"   - Kronos 預測: {kronos_prediction}") # <-- 新增此行以顯示預測
+            # 显示上升/下跌机率
+            rise_prob = stock.get('rise_prob', 0)
+            fall_prob = stock.get('fall_prob', 0)
+            if rise_prob > 0 or fall_prob > 0:
+                detailed_output_lines.append(f"   - 預測機率: 上升 {rise_prob:.2f}% vs 下跌 {fall_prob:.2f}%")
             detailed_output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
             detailed_output_lines.append(f"   - 市值: {market_cap_str}")
             detailed_output_lines.append(f"   - 流通股本: {float_shares_str}")
@@ -65,6 +82,14 @@ def main():
                     detailed_output_lines.append(f"        連結: {news['link']}")
             else:
                 detailed_output_lines.append("   --- 未找到相關新聞 ---")
+
+            # --- 新增 AI 綜合分析結果的輸出 ---
+            if stock.get('ai_analysis'):
+                detailed_output_lines.append("   --- AI 綜合分析 ---")
+                detailed_output_lines.append(f"     {stock['ai_analysis']['summary']}")
+                detailed_output_lines.append(f"     模型: {stock['ai_analysis']['model_used']}")
+            else:
+                detailed_output_lines.append("   --- AI 分析未完成 ---")
         
         detailed_output_string = "\n".join(detailed_output_lines)
         print(detailed_output_string)

@@ -6,9 +6,36 @@ import inspect
 import os
 import json
 import subprocess
+import re
 from datetime import datetime, timedelta
 from strategies.base_strategy import BaseStrategy
 from data_loader import us_loader, hk_loader
+from ai_analyzer import analyze_stock_with_ai
+
+def parse_kronos_prediction(prediction_text: str) -> tuple[float, float]:
+    """
+    解析 Kronos 预测输出，提取上升和下跌机率
+
+    Args:
+        prediction_text: Kronos 预测脚本的输出文本
+
+    Returns:
+        (上升机率, 下跌机率) 的元组，如果解析失败返回 (0, 0)
+    """
+    try:
+        # 使用正则表达式提取机率
+        rise_match = re.search(r'價格上升機率:\s*([\d.]+)%', prediction_text)
+        fall_match = re.search(r'價格下跌機率:\s*([\d.]+)%', prediction_text)
+
+        if rise_match and fall_match:
+            rise_prob = float(rise_match.group(1))
+            fall_prob = float(fall_match.group(1))
+            return rise_prob, fall_prob
+        else:
+            return 0.0, 0.0
+    except Exception as e:
+        print(f"解析 Kronos 预测机率时出错: {e}")
+        return 0.0, 0.0
 
 def get_strategies():
     """
@@ -91,19 +118,21 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False) -> (p
             
     return hist, info, news
 
-def run_analysis(market: str, force_fast_mode: bool = False):
+def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, symbol_filter: str = None):
     """
     對指定市場執行所有選股策略分析
-    
+
     Args:
         market: 市場代碼 ('US' 或 'HK')
         force_fast_mode: 是否強制跳過緩存更新，直接使用快速模式
+        use_kronos: 是否使用 Kronos 預測（僅適用於港股）
+        symbol_filter: 指定分析單一股票代碼（例如：0017.HK）
     """
     # --- 全局緩存版本檢查 ---
     version_file = os.path.join('data_cache', market.upper(), 'version.txt')
     today_str = datetime.now().date().isoformat()
     is_sync_needed = True
-    
+
     if force_fast_mode:
         is_sync_needed = False
         print(f"--- 強制快速模式：跳過緩存更新檢查 ---")
@@ -119,15 +148,26 @@ def run_analysis(market: str, force_fast_mode: bool = False):
         except FileNotFoundError:
             print("--- 未找到緩存版本文件，將執行首次同步 ---")
 
+    # --- 獲取股票列表 ---
+    # 先定義 market_ticker
     if market.upper() == 'US':
-        tickers = us_loader.get_us_tickers()
         market_ticker = '^GSPC'
     elif market.upper() == 'HK':
-        tickers = hk_loader.get_hk_tickers()
         market_ticker = '^HSI'
     else:
         print(f"錯誤: 不支援的市場 '{market}'。請使用 'US' 或 'HK'。")
         return []
+
+    if symbol_filter:
+        # 如果指定了單一股票，直接使用該股票
+        tickers = [symbol_filter]
+        print(f"--- 使用指定股票: {symbol_filter} ---")
+    else:
+        # 否則獲取整個市場的股票列表
+        if market.upper() == 'US':
+            tickers = us_loader.get_us_tickers()
+        elif market.upper() == 'HK':
+            tickers = hk_loader.get_hk_tickers()
 
     is_market_healthy = False
     market_latest_return = 0.0
@@ -177,11 +217,25 @@ def run_analysis(market: str, force_fast_mode: bool = False):
                     passed_strategies.append(strategy.name)
             
             if passed_strategies:
-                # 調用 Kronos 預測（僅港股）
+                # 步骤 1: AI 分析（在 Kronos 预测之前）
+                ai_analysis = None
+                try:
+                    ai_analysis = analyze_stock_with_ai({
+                        'symbol': symbol,
+                        'strategies': passed_strategies,
+                        'info': info,
+                        'market': market
+                    }, hist)
+                except Exception as ai_e:
+                    print(f" - AI 分析出错: {ai_e}", end='')
+
+                # 步骤 2: 调用 Kronos 预测（仅港股且启用 Kronos）
                 kronos_prediction = "N/A"
+                rise_prob = 0.0
+                fall_prob = 0.0
                 KRONOS_SCRIPT_PATH = "/Users/addison/Develop/yfinace/Kronos/scripts/prediction_hk.py"
 
-                if market.upper() == 'HK':
+                if market.upper() == 'HK' and use_kronos:
                     try:
                         command = ["python3", KRONOS_SCRIPT_PATH, symbol]
                         process = subprocess.run(
@@ -192,6 +246,8 @@ def run_analysis(market: str, force_fast_mode: bool = False):
                             timeout=300
                         )
                         kronos_prediction = process.stdout.strip()
+                        # 解析上升/下跌机率
+                        rise_prob, fall_prob = parse_kronos_prediction(kronos_prediction)
                     except subprocess.CalledProcessError as e:
                         error_output = e.stderr.strip()
                         kronos_prediction = f"預測失敗: {error_output}"
@@ -200,16 +256,33 @@ def run_analysis(market: str, force_fast_mode: bool = False):
                     except Exception as pred_e:
                         kronos_prediction = f"調用外部腳本時出錯: {pred_e}"
 
-                exchange = info.get('exchange', 'UNKNOWN')
-                qualified_stocks.append({
-                    'symbol': symbol,
-                    'exchange': exchange,
-                    'strategies': passed_strategies,
-                    'info': info,
-                    'news': news,
-                    'kronos_prediction': kronos_prediction
-                })
-                print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, Kronos預測: {kronos_prediction}")
+                # 步骤 3: 仅当上升机率 > 下跌机率时才加入 qualified_stocks（如果启用了 Kronos）
+                # 如果未启用 Kronos，则直接加入 qualified_stocks
+                if not use_kronos or rise_prob > fall_prob:
+                    exchange = info.get('exchange', 'UNKNOWN')
+                    qualified_stocks.append({
+                        'symbol': symbol,
+                        'exchange': exchange,
+                        'strategies': passed_strategies,
+                        'info': info,
+                        'news': news,
+                        'kronos_prediction': kronos_prediction,
+                        'rise_prob': rise_prob,
+                        'fall_prob': fall_prob,
+                        'ai_analysis': ai_analysis
+                    })
+                    if use_kronos:
+                        print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, 上升機率: {rise_prob:.2f}% vs 下跌機率: {fall_prob:.2f}%")
+                    else:
+                        print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}")
+                    # 输出 AI 分析结果到 console
+                    if ai_analysis:
+                        print(f"   🤖 AI 分析: {ai_analysis['summary']}")
+                        print(f"   🤖 AI 模型: {ai_analysis['model_used']}")
+                    else:
+                        print(f"   🤖 AI 分析: 未能完成")
+                else:
+                    print(f"\r{' ' * 80}\r⏭️  {symbol} 符合策略但上升機率({rise_prob:.2f}%) ≤ 下跌機率({fall_prob:.2f}%)，已跳過")
 
         except Exception as e:
             print(f"\r{' ' * 80}\r❌ 分析 {symbol} 時發生錯誤: {e}")

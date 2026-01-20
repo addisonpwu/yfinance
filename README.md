@@ -120,11 +120,22 @@ python3 main.py --market HK
 
 # 強制快速模式（跳過緩存更新，直接使用現有緩存數據）
 python3 main.py --market HK --no-cache-update
+
+# 跳過 Kronos 預測（僅適用於港股）
+python3 main.py --market HK --no-kronos
+
+# 分析指定單一股票
+python3 main.py --market HK --symbol 0017.HK
+
+# 組合使用：分析指定股票並跳過 Kronos 預測
+python3 main.py --market HK --symbol 0017.HK --no-kronos
 ```
 
 ### 參數說明
 - `--market`: 必需參數，指定要分析的市場 (`US` 或 `HK`)
 - `--no-cache-update`: 可選參數，跳過緩存更新，直接使用現有緩存數據（適用於當天已同步過數據的情況）
+- `--no-kronos`: 可選參數，跳過 Kronos 預測（僅適用於港股）。使用此參數時，符合策略的股票將直接進入最終篩選結果，不會經過 Kronos 機率過濾
+- `--symbol`: 可選參數，指定分析單一股票代碼（例如：0017.HK）。使用此參數時，只會分析該股票，不會掃描整個市場
 
 ## 如何擴充 (增加新策略)
 
