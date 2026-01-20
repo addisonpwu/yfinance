@@ -91,24 +91,33 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False) -> (p
             
     return hist, info, news
 
-def run_analysis(market: str):
+def run_analysis(market: str, force_fast_mode: bool = False):
     """
     對指定市場執行所有選股策略分析
+    
+    Args:
+        market: 市場代碼 ('US' 或 'HK')
+        force_fast_mode: 是否強制跳過緩存更新，直接使用快速模式
     """
     # --- 全局緩存版本檢查 ---
     version_file = os.path.join('data_cache', market.upper(), 'version.txt')
     today_str = datetime.now().date().isoformat()
     is_sync_needed = True
-    try:
-        with open(version_file, 'r') as f:
-            last_sync_date = f.read().strip()
-        if last_sync_date == today_str:
-            is_sync_needed = False
-            print(f"--- 數據緩存已是最新 ({today_str})，將以快速模式運行 ---")
-        else:
-            print(f"--- 數據緩存不是最新 (版本: {last_sync_date})，將執行增量同步 ---")
-    except FileNotFoundError:
-        print("--- 未找到緩存版本文件，將執行首次同步 ---")
+    
+    if force_fast_mode:
+        is_sync_needed = False
+        print(f"--- 強制快速模式：跳過緩存更新檢查 ---")
+    else:
+        try:
+            with open(version_file, 'r') as f:
+                last_sync_date = f.read().strip()
+            if last_sync_date == today_str:
+                is_sync_needed = False
+                print(f"--- 數據緩存已是最新 ({today_str})，將以快速模式運行 ---")
+            else:
+                print(f"--- 數據緩存不是最新 (版本: {last_sync_date})，將執行增量同步 ---")
+        except FileNotFoundError:
+            print("--- 未找到緩存版本文件，將執行首次同步 ---")
 
     if market.upper() == 'US':
         tickers = us_loader.get_us_tickers()
@@ -142,84 +151,75 @@ def run_analysis(market: str):
         return []
     print(f"已加載 {len(strategies_to_run)} 個策略: {[s.name for s in strategies_to_run]}")
 
+    # --- 逐個股票進行分析和預測 ---
+    print(f"\n--- 開始逐個股票進行分析和預測 ---")
     qualified_stocks = []
     total_stocks = len(tickers)
-    analysis_successful = False
+    analyzed_count = 0
+    
+    for i, symbol in enumerate(tickers):
+        progress = (i + 1) / total_stocks
+        print(f"\r分析進度: [{int(progress * 20) * '#'}{int((1 - progress) * 20) * '-'}] {i+1}/{total_stocks} - 正在分析 {symbol}...", end='')
 
-    try:
-        for i, symbol in enumerate(tickers):
-            progress = (i + 1) / total_stocks
-            print(f"\r進度: [{int(progress * 20) * '#'}{int((1 - progress) * 20) * '-'}] {i+1}/{total_stocks} - 正在分析 {symbol}...", end='')
+        try:
+            # 獲取股票數據（會自動處理緩存）
+            hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed)
+            
+            if hist.empty or len(hist) < 2 or not info:
+                continue
+            
+            analyzed_count += 1
+            
+            # 執行所有策略
+            passed_strategies = []
+            for strategy in strategies_to_run:
+                if strategy.run(hist.copy(), info=info, market_return=market_latest_return, is_market_healthy=is_market_healthy):
+                    passed_strategies.append(strategy.name)
+            
+            if passed_strategies:
+                # 調用 Kronos 預測（僅港股）
+                kronos_prediction = "N/A"
+                KRONOS_SCRIPT_PATH = "/Users/addison/Develop/yfinace/Kronos/scripts/prediction_hk.py"
 
-            try:
-                hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed)
-                
-                if hist.empty or len(hist) < 2 or not info:
-                    continue
+                if market.upper() == 'HK':
+                    try:
+                        command = ["python3", KRONOS_SCRIPT_PATH, symbol]
+                        process = subprocess.run(
+                            command,
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                            timeout=300
+                        )
+                        kronos_prediction = process.stdout.strip()
+                    except subprocess.CalledProcessError as e:
+                        error_output = e.stderr.strip()
+                        kronos_prediction = f"預測失敗: {error_output}"
+                    except subprocess.TimeoutExpired:
+                        kronos_prediction = "預測超時"
+                    except Exception as pred_e:
+                        kronos_prediction = f"調用外部腳本時出錯: {pred_e}"
 
-                passed_strategies = []
-                for strategy in strategies_to_run:
-                    if strategy.run(hist.copy(), info=info, market_return=market_latest_return, is_market_healthy=is_market_healthy):
-                        passed_strategies.append(strategy.name)
-                
-                if passed_strategies:
-                    # --- ▼▼▼ 新增代碼塊：調用 Kronos 預測 ▼▼▼ ---
-                    kronos_prediction = "N/A" # 默認值
-                    # ! 請務必確認並修改為 Kronos 項目的真實路徑
-                    KRONOS_SCRIPT_PATH = "/Users/addison/Develop/yfinace/Kronos/scripts/prediction_hk.py"
+                exchange = info.get('exchange', 'UNKNOWN')
+                qualified_stocks.append({
+                    'symbol': symbol,
+                    'exchange': exchange,
+                    'strategies': passed_strategies,
+                    'info': info,
+                    'news': news,
+                    'kronos_prediction': kronos_prediction
+                })
+                print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, Kronos預測: {kronos_prediction}")
 
-                    # 假設 prediction_hk.py 是港股專用腳本
-                    if market.upper() == 'HK':
-                        try:
-                            # 構建並執行命令
-                            command = ["python3", KRONOS_SCRIPT_PATH, symbol]
-                            # 使用 subprocess 執行外部腳本
-                            process = subprocess.run(
-                                command,
-                                capture_output=True,
-                                text=True,
-                                check=True,  # 如果返回非零退出碼，則引發 CalledProcessError
-                                timeout=300  # 設置5分鐘超時
-                            )
-                            kronos_prediction = process.stdout.strip()
-
-                        except subprocess.CalledProcessError as e:
-                            # 腳本執行失敗（例如，返回非零退出碼）
-                            error_output = e.stderr.strip()
-                            kronos_prediction = f"預測失敗: {error_output}"
-                        except subprocess.TimeoutExpired:
-                            # 腳本執行超時
-                            kronos_prediction = "預測超時"
-                        except Exception as pred_e:
-                            # 其他潛在錯誤（例如，文件未找到）
-                            kronos_prediction = f"調用外部腳本時出錯: {pred_e}"
-                    # --- ▲▲▲ 新增代碼塊結束 ▲▲▲ ---
-
-                    exchange = info.get('exchange', 'UNKNOWN')
-                    qualified_stocks.append({
-                        'symbol': symbol,
-                        'exchange': exchange,
-                        'strategies': passed_strategies,
-                        'info': info,
-                        'news': news,
-                        'kronos_prediction': kronos_prediction # <-- 新增鍵值對
-                    })
-                    # 更新打印信息，立即顯示預測結果
-                    print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, Kronos預測: {kronos_prediction}")
-
-            except Exception as e:
-                print(f"\r{' ' * 80}\r❌ 分析 {symbol} 時發生錯誤: {e}")
-                pass
-        
-        analysis_successful = True # 循環成功完成
-
-    finally:
-        if analysis_successful and is_sync_needed:
-            print(f"--- 同步完成，更新緩存版本至 {today_str} ---")
-            with open(version_file, 'w') as f:
-                f.write(today_str)
-        elif not analysis_successful:
-            print("--- 分析未成功完成，緩存版本將不被更新 ---")
-        
-        print("\n分析完成！")
-        return qualified_stocks
+        except Exception as e:
+            print(f"\r{' ' * 80}\r❌ 分析 {symbol} 時發生錯誤: {e}")
+            pass
+    
+    # --- 更新緩存版本文件 ---
+    if is_sync_needed:
+        print(f"\n--- 更新緩存版本至 {today_str} ---")
+        with open(version_file, 'w') as f:
+            f.write(today_str)
+    
+    print(f"\n--- 分析完成！成功分析 {analyzed_count}/{total_stocks} 支股票，找到 {len(qualified_stocks)} 支符合條件的股票 ---")
+    return qualified_stocks

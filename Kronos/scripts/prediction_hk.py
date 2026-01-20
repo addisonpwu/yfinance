@@ -2,12 +2,20 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import sys
+import argparse
 from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model import Kronos, KronosTokenizer, KronosPredictor
-from config.config_hk import *
+from config.config_hk import MODEL_ID, TOKENIZER_ID, CONTEXT_LENGTH, PRED_LEN, LOOKBACK, INTERVAL, DEVICE
 from utils.data_loader import load_hk_stock_data
+
+# 解析命令行參數
+parser = argparse.ArgumentParser(description='Kronos 股票預測腳本')
+parser.add_argument('ticker', type=str, help='要預測的股票代碼 (例如: 0081.HK)')
+args = parser.parse_args()
+
+TICKER = args.ticker
 
 def plot_prediction(kline_df, pred_df, ticker, rise_prob):
     """
@@ -103,9 +111,9 @@ def plot_prediction(kline_df, pred_df, ticker, rise_prob):
     # 儲存圖檔
     plt.savefig(filepath, dpi=120)
     print(f"\n圖表已儲存至: {filepath}")
-
-    # 顯示圖表
-    plt.show()
+    
+    # 關閉圖形，釋放內存
+    plt.close(fig)
 
 
 def main():

@@ -7,10 +7,13 @@ from news_analyzer import get_and_analyze_news
 def main():
     parser = argparse.ArgumentParser(description="靈活的股票篩選器，支援多種策略")
     parser.add_argument('--market', type=str, required=True, choices=['US', 'HK'], help="要分析的市場 (US 或 HK)")
+    parser.add_argument('--no-cache-update', action='store_true', help="跳過緩存更新，直接使用現有緩存數據")
     args = parser.parse_args()
 
     print(f"--- 開始對 {args.market.upper()} 市場進行分析 ---")
-    final_list = analyzer.run_analysis(args.market)
+    if args.no_cache_update:
+        print("--- 已啟用快速模式：跳過緩存更新 ---")
+    final_list = analyzer.run_analysis(args.market, force_fast_mode=args.no_cache_update)
 
     print("\n--- 開始進行新聞情感分析 ---")
     for stock in final_list:
