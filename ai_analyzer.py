@@ -12,10 +12,10 @@ IFLOW_API_KEY = os.environ.get("IFLOW_API_KEY", "")
 MODEL_NAME = "deepseek-v3.2"
 
 
-def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None) -> Optional[Dict]:
+def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval: str = '1d') -> Optional[Dict]:
     """
     使用心流 AI 对股票进行综合分析
-    
+
     Args:
         stock_data: 包含股票信息的字典，包括：
             - symbol: 股票代码
@@ -23,17 +23,18 @@ def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None) -> Option
             - info: 股票基本信息（市值、PE 等）
             - analyzed_news: 新闻分析结果
         hist: 股票历史数据 DataFrame（可选，如果不提供则从缓存读取）
-    
+        interval: 数据时段类型 ('1d' 日线, '1h' 小时线, '1m' 分钟线)
+
     Returns:
         包含 AI 分析结果的字典，或 None（如果分析失败）
     """
     if not IFLOW_API_KEY:
         print(f" - [AI分析] 未找到 IFLOW_API_KEY 环境变量，跳过 AI 分析")
         return None
-    
+
     # 如果没有提供 hist，尝试从缓存读取
     if hist is None:
-        hist = _load_stock_data_from_cache(stock_data['symbol'], stock_data.get('market', 'HK'))
+        hist = _load_stock_data_from_cache(stock_data['symbol'], stock_data.get('market', 'HK'), interval)
         if hist is None or hist.empty:
             print(f" - [AI分析] 无法加载 {stock_data['symbol']} 的历史数据，跳过 AI 分析")
             return None
@@ -60,27 +61,55 @@ def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None) -> Option
         return None
 
 
-def _load_stock_data_from_cache(symbol: str, market: str) -> Optional[pd.DataFrame]:
+def _load_stock_data_from_cache(symbol: str, market: str, interval: str = '1d') -> Optional[pd.DataFrame]:
     """
     从 data_cache 加载股票历史数据
-    
+
     Args:
         symbol: 股票代码
         market: 市场代码 ('US' 或 'HK')
-    
+        interval: 数据时段类型 ('1d' 日线, '1h' 小时线, '1m' 分钟线)
+
     Returns:
         股票历史数据 DataFrame，或 None（如果加载失败）
     """
+    def _read_csv_with_auto_index(csv_file: str) -> pd.DataFrame:
+        """
+        读取 CSV 文件，自动检测并使用正确的索引列名（Date 或 Datetime）
+        """
+        # 先读取第一行来检测列名
+        with open(csv_file, 'r') as f:
+            first_line = f.readline()
+        
+        # 检测索引列名
+        if 'Datetime,' in first_line:
+            index_col = 'Datetime'
+        else:
+            index_col = 'Date'
+        
+        # 使用正确的索引列名读取
+        return pd.read_csv(csv_file, index_col=index_col, parse_dates=True)
+
     try:
         cache_dir = os.path.join('data_cache', market.upper())
         safe_symbol = symbol.replace(":", "_")
-        csv_file = os.path.join(cache_dir, f"{safe_symbol}.csv")
-        
+        csv_file = os.path.join(cache_dir, f"{safe_symbol}_{interval}.csv")
+
         if os.path.exists(csv_file):
-            hist = pd.read_csv(csv_file, index_col='Date', parse_dates=True)
-            # 只返回最近 60 天的数据，避免 token 过多
-            if len(hist) > 60:
-                hist = hist.tail(60)
+            hist = _read_csv_with_auto_index(csv_file)
+            # 根据不同的 interval 返回对应 100 天的数据量
+            if interval == '1m':
+                # 分钟线：100天 * 24小时 * 60分钟 = 144000条
+                limit = 144000
+            elif interval == '1h':
+                # 小时线：100天 * 24小时 = 2400条
+                limit = 2400
+            else:
+                # 日线：100天 = 100条
+                limit = 100
+
+            if len(hist) > limit:
+                hist = hist.tail(limit)
             return hist
         else:
             return None
@@ -121,7 +150,7 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
         hist_summary = "无历史数据"
     
     # 构建完整提示词
-    prompt = f"""你是一位专业的股票分析师。请基于以下信息对股票进行综合分析，并给出投资建议。
+    prompt = f"""你是一位专业的短期股票分析师。请基于以下信息对股票进行综合分析，并给出短期投资建议（1-4周内）。
 
 股票代码: {symbol}
 公司名称: {info.get('longName', 'N/A')}
@@ -140,7 +169,7 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 {hist_summary}
 
 【分析要求】
-请从以下几个维度进行深入分析：
+请从以下几个维度进行深入分析，重点关注短期走势：
 
 1. 综合评分（1-10分）：
    - 技术面评分（1-10分）：基于价格走势、成交量变化、技术指标等
@@ -170,18 +199,22 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 6. 风险评估：
    - 主要风险点（市场风险、行业风险、个股风险）
    - 风险等级（低/中/高）
-   - 止损和止盈建议
+   - 止损和止盈建议（严格止损）
 
-7. 投资建议：
+7. 投资建议（以短期投资为主）：
    - 明确建议：强烈买入/买入/持有/卖出/强烈卖出
-   - 建议理由：基于以上分析的详细解释
-   - 建议仓位：建议投入资金比例
-   - 建议持仓周期：短期/中期/长期
+   - 建议理由：基于以上分析的详细解释，重点关注短期走势
+   - 建议仓位：建议投入资金比例（短期仓位）
+   - 建议持仓周期：短期（1-7天）/短期（1-2周）/中期（2-4周）
+   - 如果建议是买入或强烈买入，必须给出：
+     * 建议买入价位：具体的买入价格区间或价格点
+     * 建议卖出价位：具体的卖出目标价格（短期目标）
+     * 止损价位：具体的止损价格（严格止损）
 
-8. 关键观察点：
-   - 需要重点关注的指标或事件
-   - 可能触发买入或卖出的信号
-   - 需要持续跟踪的市场动态
+8. 短期走势预测（1-4周）：
+   - 未来1-2周的价格走势判断
+   - 关键突破点和回调点
+   - 交易时机建议
 
 【输出格式要求】
 请严格按照以下格式输出分析结果，不要使用 Markdown 格式（如 #### **1. 或 - **）：
@@ -205,11 +238,12 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 
 投资建议：
 [分析内容]
+（如果是买入建议，请包含：建议买入价位、建议卖出价位、止损价位）
 
-关键观察点：
+短期走势预测（1-4周）：
 [分析内容]
 
-请以专业、详细的语言给出分析结果，控制在 600 字以内。"""
+请以专业、详细的语言给出分析结果，控制在 800 字以内。"""
 
     return prompt
 
@@ -238,7 +272,7 @@ def _call_iflow_api(prompt: str) -> tuple[Optional[str], Optional[str]]:
             }
         ],
         "stream": False,
-        "max_tokens": 512,
+        "max_tokens": 800,
         "temperature": 0.0,
         "top_p": 0.7
     }

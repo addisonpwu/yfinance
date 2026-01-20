@@ -53,28 +53,58 @@ def get_strategies():
                     strategies.append(item())
     return strategies
 
-def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False) -> (pd.DataFrame, dict, dict):
+def _read_csv_with_auto_index(csv_file: str) -> pd.DataFrame:
+    """
+    读取 CSV 文件，自动检测并使用正确的索引列名（Date 或 Datetime）
+
+    Args:
+        csv_file: CSV 文件路径
+
+    Returns:
+        DataFrame
+    """
+    # 先读取第一行来检测列名
+    with open(csv_file, 'r') as f:
+        first_line = f.readline()
+    
+    # 检测索引列名
+    if 'Datetime,' in first_line:
+        index_col = 'Datetime'
+    else:
+        index_col = 'Date'
+    
+    # 使用正确的索引列名读取
+    return pd.read_csv(csv_file, index_col=index_col, parse_dates=True)
+
+def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, interval: str = '1d') -> (pd.DataFrame, dict, dict):
     """
     獲取股票數據，根據模式選擇快速加載或同步更新。
+
+    Args:
+        symbol: 股票代碼
+        market: 市場代碼 ('US' 或 'HK')
+        fast_mode: 是否使用快速模式
+        interval: 數據時段類型 ('1d' 日線, '1h' 小時線, '1m' 分鐘線)
     """
     cache_dir = os.path.join('data_cache', market.upper())
     safe_symbol = symbol.replace(":", "_")
-    csv_file = os.path.join(cache_dir, f"{safe_symbol}.csv")
+    csv_file = os.path.join(cache_dir, f"{safe_symbol}_{interval}.csv")  # 添加 interval 到文件名
     json_file = os.path.join(cache_dir, f"{safe_symbol}.json")
-    
+
     ticker = yf.Ticker(symbol)
 
     if fast_mode:
         try:
             # print(f" - [快速模式] 從緩存加載", end='')
-            hist = pd.read_csv(csv_file, index_col='Date', parse_dates=True)
+            # 自动检测索引列名（Date 或 Datetime）
+            hist = _read_csv_with_auto_index(csv_file)
             with open(json_file, 'r', encoding='utf-8') as f:
                 info = json.load(f)
             news = ticker.news # 新聞總是獲取最新的
             return hist, info, news
         except FileNotFoundError:
             # print(f" - [快速模式] 緩存文件未找到，切換到正常模式下載", end='')
-            return get_data_with_cache(symbol, market, fast_mode=False)
+            return get_data_with_cache(symbol, market, fast_mode=False, interval=interval)
 
     # --- 正常同步模式 ---
     today = datetime.now().date()
@@ -87,15 +117,16 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False) -> (p
         print(f" - 無法獲取 {symbol} 的 info/news: {e}", end='')
 
     if os.path.exists(csv_file):
-        hist = pd.read_csv(csv_file, index_col='Date', parse_dates=True)
+        # 自动检测索引列名（Date 或 Datetime）
+        hist = _read_csv_with_auto_index(csv_file)
         last_cached_date = hist.index.max().date()
-        
+
         if last_cached_date >= today:
             print(f" - 從緩存加載 {len(hist)} 條數據", end='')
         else:
             start_date = last_cached_date + timedelta(days=1)
             print(f" - 緩存數據過舊，正在從 {start_date.strftime('%Y-%m-%d')} 下載增量數據...", end='')
-            new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), auto_adjust=True)
+            new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), interval=interval, auto_adjust=True)
             if not new_hist.empty:
                 hist = pd.concat([hist, new_hist])
                 print(f"下載了 {len(new_hist)} 條新數據", end='')
@@ -103,7 +134,14 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False) -> (p
                 print("沒有新的數據可下載", end='')
     else:
         print(" - 緩存不存在，正在下載全部歷史數據...", end='')
-        hist = ticker.history(period="max", auto_adjust=True)
+        # 根據 interval 設置不同的 period
+        if interval == '1m':
+            period = '7d'  # 分鐘線只下載最近7天
+        elif interval == '1h':
+            period = '730d'  # 小時線下載最近2年
+        else:
+            period = 'max'  # 日線下載全部歷史
+        hist = ticker.history(period=period, interval=interval, auto_adjust=True)
         print(f"下載了 {len(hist)} 條數據", end='')
 
     # 無論是更新還是新增，都用最新的數據覆蓋緩存
@@ -111,14 +149,14 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False) -> (p
         float_shares = info.get('floatShares', None)
         hist['FloatShares'] = float_shares
         hist.to_csv(csv_file)
-    
+
     if info:
         with open(json_file, 'w', encoding='utf-8') as f:
             json.dump(info, f, ensure_ascii=False, indent=4)
-            
+
     return hist, info, news
 
-def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, symbol_filter: str = None):
+def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, symbol_filter: str = None, interval: str = '1d'):
     """
     對指定市場執行所有選股策略分析
 
@@ -127,6 +165,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
         force_fast_mode: 是否強制跳過緩存更新，直接使用快速模式
         use_kronos: 是否使用 Kronos 預測（僅適用於港股）
         symbol_filter: 指定分析單一股票代碼（例如：0017.HK）
+        interval: 數據時段類型 ('1d' 日線, '1h' 小時線, '1m' 分鐘線)
     """
     # --- 全局緩存版本檢查 ---
     version_file = os.path.join('data_cache', market.upper(), 'version.txt')
@@ -203,7 +242,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
 
         try:
             # 獲取股票數據（會自動處理緩存）
-            hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed)
+            hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed, interval=interval)
             
             if hist.empty or len(hist) < 2 or not info:
                 continue
@@ -225,7 +264,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                         'strategies': passed_strategies,
                         'info': info,
                         'market': market
-                    }, hist)
+                    }, hist, interval)
                 except Exception as ai_e:
                     print(f" - AI 分析出错: {ai_e}", end='')
 

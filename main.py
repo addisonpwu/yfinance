@@ -10,6 +10,7 @@ def main():
     parser.add_argument('--no-cache-update', action='store_true', help="跳過緩存更新，直接使用現有緩存數據")
     parser.add_argument('--no-kronos', action='store_true', help="跳過 Kronos 預測（僅適用於港股）")
     parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
+    parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
     args = parser.parse_args()
 
     print(f"--- 開始對 {args.market.upper()} 市場進行分析 ---")
@@ -19,12 +20,14 @@ def main():
         print("--- 已跳過 Kronos 預測 ---")
     if args.symbol:
         print(f"--- 分析指定股票: {args.symbol} ---")
+    print(f"--- 數據時段類型: {args.interval} ---")
 
     final_list = analyzer.run_analysis(
         args.market,
         force_fast_mode=args.no_cache_update,
         use_kronos=not args.no_kronos,
-        symbol_filter=args.symbol
+        symbol_filter=args.symbol,
+        interval=args.interval
     )
 
     print("\n--- 開始進行新聞情感分析 ---")
