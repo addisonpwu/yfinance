@@ -77,6 +77,61 @@ def _read_csv_with_auto_index(csv_file: str) -> pd.DataFrame:
     # 使用正确的索引列名读取
     return pd.read_csv(csv_file, index_col=index_col, parse_dates=True)
 
+def get_enhanced_financial_data(ticker: yf.Ticker) -> dict:
+    """
+    获取增强的财务数据，包括财务报表和关键指标
+
+    Args:
+        ticker: yfinance Ticker 对象
+
+    Returns:
+        包含增强财务数据的字典
+    """
+    enhanced_data = {}
+
+    try:
+        # 获取财务报表数据
+        financials = ticker.financials
+        if not financials.empty:
+            enhanced_data['financials'] = financials.to_dict()
+
+        balance_sheet = ticker.balance_sheet
+        if not balance_sheet.empty:
+            enhanced_data['balance_sheet'] = balance_sheet.to_dict()
+
+        cashflow = ticker.cashflow
+        if not cashflow.empty:
+            enhanced_data['cashflow'] = cashflow.to_dict()
+
+        # 获取季度财务报表
+        quarterly_financials = ticker.quarterly_financials
+        if not quarterly_financials.empty:
+            enhanced_data['quarterly_financials'] = quarterly_financials.to_dict()
+
+        # 获取股票持有者信息
+        major_holders = ticker.major_holders
+        if not major_holders.empty:
+            enhanced_data['major_holders'] = major_holders.to_dict()
+
+        institutional_holders = ticker.institutional_holders
+        if not institutional_holders.empty:
+            enhanced_data['institutional_holders'] = institutional_holders.to_dict()
+
+        # 获取推荐信息
+        recommendations = ticker.recommendations
+        if recommendations is not None and not recommendations.empty:
+            enhanced_data['recommendations'] = recommendations.to_dict()
+
+        # 获取可持续性数据（ESG）
+        sustainability = ticker.sustainability
+        if sustainability is not None and not sustainability.empty:
+            enhanced_data['sustainability'] = sustainability.to_dict()
+
+    except Exception as e:
+        print(f" - [增强数据] 获取失败: {e}", end='')
+
+    return enhanced_data
+
 def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, interval: str = '1d') -> (pd.DataFrame, dict, dict):
     """
     獲取股票數據，根據模式選擇快速加載或同步更新。
@@ -103,10 +158,25 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
             hist = _read_csv_with_auto_index(csv_file)
             with open(json_file, 'r', encoding='utf-8') as f:
                 info = json.load(f)
+
+            # 验证关键字段
+            required_fields = [
+                'marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook',
+                'profitMargins', 'returnOnEquity', 'revenueGrowth', 'earningsGrowth',
+                'dividendYield', 'beta', '52WeekChange', 'targetMeanPrice',
+                'volume', 'floatShares', 'shortRatio'
+            ]
+            for field in required_fields:
+                if field not in info:
+                    info[field] = None
+
             news = ticker.news # 新聞總是獲取最新的
             return hist, info, news
         except FileNotFoundError:
             # print(f" - [快速模式] 緩存文件未找到，切換到正常模式下載", end='')
+            return get_data_with_cache(symbol, market, fast_mode=False, interval=interval)
+        except json.JSONDecodeError as e:
+            print(f" - [快速模式] JSON 解析失败: {e}，重新下載", end='')
             return get_data_with_cache(symbol, market, fast_mode=False, interval=interval)
 
     # --- 正常同步模式 ---
@@ -115,9 +185,32 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
 
     try:
         info = ticker.info
+        # 确保 info 不为空
+        if not info:
+            print(f" - {symbol} 的 info 数据为空", end='')
+            info = {}
+
+        # 验证关键字段是否存在，如果不存在则设置为 None
+        required_fields = [
+            'marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook',
+            'profitMargins', 'returnOnEquity', 'revenueGrowth', 'earningsGrowth',
+            'dividendYield', 'beta', '52WeekChange', 'targetMeanPrice',
+            'volume', 'floatShares', 'shortRatio'
+        ]
+        for field in required_fields:
+            if field not in info:
+                info[field] = None
+
+        # 获取增强的财务数据
+        enhanced_data = get_enhanced_financial_data(ticker)
+        if enhanced_data:
+            info['enhanced_financial_data'] = enhanced_data
+
         news = ticker.news
     except Exception as e:
         print(f" - 無法獲取 {symbol} 的 info/news: {e}", end='')
+        info = {}
+        news = []
 
     if os.path.exists(csv_file):
         # 自动检测索引列名（Date 或 Datetime）
@@ -155,7 +248,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
 
     if info:
         with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(info, f, ensure_ascii=False, indent=4)
+            json.dump(info, f, ensure_ascii=False, indent=4, default=str)  # 添加 default=str 处理特殊类型
 
     return hist, info, news
 
