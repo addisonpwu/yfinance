@@ -20,7 +20,7 @@ class VCP_PocketPivotStrategy(BaseStrategy):
                  min_dist_from_52w_high=0.85,
                  # Pocket Pivot Params
                  pp_lookback_period=10,
-                 pp_vol_multiplier=1.0, # 要求 > 均量即可
+                 pp_vol_multiplier=1.2, # 提高到 1.2 倍
                  pp_max_bias_ratio=0.08):
         
         self.ma_periods = sorted(ma_periods, reverse=True)
@@ -50,9 +50,20 @@ class VCP_PocketPivotStrategy(BaseStrategy):
         hist['Avg_Vol_10'] = hist['Volume'].rolling(window=10).mean()
         hist['52w_high'] = hist['Close'].rolling(window=252).max()
 
+        # 新增：價格振幅檢測
+        hist['price_range'] = (hist['High'] - hist['Low']) / hist['Close']
+        hist['price_range_ma'] = hist['price_range'].rolling(20).mean()
+
         # --- 3. 定義數據點並檢查有效性 ---
         latest = hist.iloc[-1]
         previous = hist.iloc[-2]
+
+        # 獲取市場環境
+        market_return = kwargs.get('market_return', 0)
+        if market_return > 2:  # 大盤強勢
+            current_min_dist = 0.90
+        else:
+            current_min_dist = self.min_dist_from_52w_high
         
         required_cols = [f'MA{p}' for p in self.ma_periods] + ['MA200_slope'] + \
                         [f'volatility_{w}' for w in self.volatility_windows] + \
@@ -62,8 +73,12 @@ class VCP_PocketPivotStrategy(BaseStrategy):
             return False
 
         # --- 4. VCP 背景條件篩選 ---
-        # 閘門 0: 接近52週高點 (修正)
-        if latest['Close'] < (latest['52w_high'] * self.min_dist_from_52w_high):
+        # 閘門 0: 接近52週高點 (根據市場環境動態調整)
+        if latest['Close'] < (latest['52w_high'] * current_min_dist):
+            return False
+
+        # 閘門 0.5: 價格振幅也應收縮
+        if latest['price_range'] > latest['price_range_ma']:
             return False
 
         # 閘門 1: 強勢趨勢 (均線多頭排列 + 長期均線向上)
@@ -88,15 +103,15 @@ class VCP_PocketPivotStrategy(BaseStrategy):
         # 閘門 5.1: 口袋支點成交量訊號 (壓倒近期賣壓 + 絕對強度)
         lookback_data = hist.iloc[-self.pp_lookback_period-1:-1]
         down_days_volume = lookback_data[lookback_data['Close'] < lookback_data['Open']]['Volume']
-        
+
         volume_check_passed = False
         if down_days_volume.empty: # 如果近期沒有下跌日，本身就是極強勢
             volume_check_passed = True
         else:
             max_down_volume = down_days_volume.max()
-            if latest['Volume'] > max_down_volume:
+            if latest['Volume'] > max_down_volume * 1.2:  # 要求壓倒近期最大下跌日成交量1.2倍
                 volume_check_passed = True
-        
+
         if not (volume_check_passed and latest['Volume'] > latest['Avg_Vol_50'] * self.pp_vol_multiplier):
             return False
 
@@ -110,6 +125,13 @@ class VCP_PocketPivotStrategy(BaseStrategy):
         bias_ratio = (latest['Close'] - ma50) / ma50
         if bias_ratio > self.pp_max_bias_ratio:
             return False
+
+        # 閘門 5.4: 支點確認機制（如果數據足夠）
+        if len(hist) > 3:
+            pivot_high = hist.iloc[-3]['High']
+            confirmation_close = hist.iloc[-2]['Close']
+            if confirmation_close < pivot_high * 0.98:  # 允許2%的回撤
+                return False
 
         # --- 所有條件均滿足 ---
         return True

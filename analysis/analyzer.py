@@ -7,6 +7,7 @@ import os
 import json
 import subprocess
 import re
+import time
 from datetime import datetime, timedelta
 from strategies.base_strategy import BaseStrategy
 from data_loader import us_loader, hk_loader
@@ -87,6 +88,8 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         interval: 數據時段類型 ('1d' 日線, '1h' 小時線, '1m' 分鐘線)
     """
     cache_dir = os.path.join('data_cache', market.upper())
+    # 确保缓存目录存在
+    os.makedirs(cache_dir, exist_ok=True)
     safe_symbol = symbol.replace(":", "_")
     csv_file = os.path.join(cache_dir, f"{safe_symbol}_{interval}.csv")  # 添加 interval 到文件名
     json_file = os.path.join(cache_dir, f"{safe_symbol}.json")
@@ -241,6 +244,9 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
         print(f"\r分析進度: [{int(progress * 20) * '#'}{int((1 - progress) * 20) * '-'}] {i+1}/{total_stocks} - 正在分析 {symbol}...", end='')
 
         try:
+            # 添加请求延迟，避免触发 yfinance API 速率限制
+            time.sleep(1.0)
+            
             # 獲取股票數據（會自動處理緩存）
             hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed, interval=interval)
             

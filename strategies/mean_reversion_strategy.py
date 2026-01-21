@@ -72,21 +72,43 @@ class MeanReversionStrategy(BaseStrategy):
         if latest['Close'] < latest['SMA200'] and slope < 0:
             return False
 
-        # 閘門 2: 確認「止跌」而不是「繼續破」 (增加紅K確認)
+        # 閘門 2: 確認「止跌」而不是「繼續破」 (連續2天止跌)
         is_below_band = latest['Close'] < latest['LowerBand']
-        is_higher_low = latest['Low'] > previous['Low']
+        is_higher_low_2days = (
+            latest['Low'] > previous['Low'] and
+            previous['Low'] > hist.iloc[-3]['Low']
+        )
         is_green_candle = latest['Close'] > latest['Open']
-        if not (is_below_band and is_higher_low and is_green_candle):
+        if not (is_below_band and is_higher_low_2days and is_green_candle):
             return False
 
-        # 閘門 3: 價格「太遠」不追 (使用威廉指標)
-        if not (self.willr_lower < latest['WillR'] < self.willr_upper):
+        # 閘門 2.5: 底背離檢測（加分項）
+        price_new_low = latest['Low'] < hist['Low'].iloc[-20:].min()
+        willr_not_new_low = latest['WillR'] > hist['WillR'].iloc[-20:].min()
+        # 底背離不是必要條件，但可以作為加分項
+
+        # 閘門 3: 價格「太遠」不追 (使用威廉指標，動態調整)
+        # 根據波動率動態調整威廉指標閾值
+        hist['BandWidth'] = (hist['UpperBand'] - hist['LowerBand']) / hist['SMA20']
+        current_willr_upper = self.willr_upper
+        if latest['BandWidth'] < hist['BandWidth'].quantile(0.3):
+            current_willr_upper = -75  # 波動率低時，放寬要求
+        else:
+            current_willr_upper = -80
+
+        if not (self.willr_lower < latest['WillR'] < current_willr_upper):
             return False
 
         # 閘門 4: 量縮→量增 確認「最後一跌」
         is_volume_up = latest['Volume'] > latest['Avg_Volume_20']
         was_volume_down = (hist['Volume'].iloc[-4:-1] < self.vol_shrink_ratio * hist['Avg_Volume_20'].iloc[-4:-1]).any()
         if not (is_volume_up and was_volume_down):
+            return False
+
+        # 閘門 5: 支撐位檢測
+        recent_support = hist['Low'].iloc[-20:].min()
+        distance_to_support = (latest['Close'] - recent_support) / recent_support
+        if distance_to_support > 0.05:  # 距離支撐位超過5%
             return False
 
         # --- 所有條件均滿足 ---

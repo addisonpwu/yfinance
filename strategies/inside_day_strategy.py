@@ -57,14 +57,25 @@ class InsideDayStrategy(BaseStrategy):
             
         # --- 4. 執行策略條件篩選 (根據專家建議精緻化) ---
 
-        # 閘門 1: 識別內部日形態
+        # 閘門 1: 識別內部日形態（實體也在內部）
         is_inside_day = (inside_day['High'] < engulfing_day['High']) and \
                         (inside_day['Low'] > engulfing_day['Low'])
-        if not is_inside_day:
+        is_body_inside = (
+            inside_day['Close'] < engulfing_day['Close'] and
+            inside_day['Open'] > engulfing_day['Open']
+        )
+        if not (is_inside_day and is_body_inside):
             return False
-            
+
         # 新增閘門 1.5: 母線必須為黑K (經典Harami定義)
         if engulfing_day['Close'] >= engulfing_day['Open']:
+            return False
+
+        # 閘門 1.6: 內部日影線長度過濾
+        inside_body_size = abs(inside_day['Close'] - inside_day['Open'])
+        inside_upper_shadow = inside_day['High'] - inside_day[['Open', 'Close']].max()
+        inside_lower_shadow = inside_day[['Open', 'Close']].min() - inside_day['Low']
+        if inside_upper_shadow > inside_body_size * 2 or inside_lower_shadow > inside_body_size * 2:
             return False
 
         # 閘門 2: 必須發生在短期下跌趨勢中
@@ -74,7 +85,7 @@ class InsideDayStrategy(BaseStrategy):
         trend_slope = np.polyfit(x[-(self.trend_slope_period+3):-3], y[-(self.trend_slope_period+3):-3], 1)[0]
         if trend_slope >= 0:
             return False
-            
+
         # 新增閘門 2.5: 但必須處於長期上升趨勢中 (牛市回檔)
         if inside_day['Close'] < inside_day['SMA200']:
             return False
@@ -86,14 +97,22 @@ class InsideDayStrategy(BaseStrategy):
         # 閘門 4 (優化): 在賣壓高潮(母線)時處於RSI超賣區
         if engulfing_day['RSI14'] > self.rsi_oversold_threshold:
             return False
-            
-        # 閘門 5: 突破確認 (核心觸發條件)
+
+        # 閘門 5: 突破確認 (核心觸發條件) - 增加突破力度檢測
         is_breakout_confirmed = confirmation_day['Close'] > inside_day['High']
-        if not is_breakout_confirmed:
+        inside_day_range = inside_day['High'] - inside_day['Low']
+        breakout_magnitude = (confirmation_day['Close'] - inside_day['High']) / inside_day_range if inside_day_range > 0 else 0
+        if not (is_breakout_confirmed and breakout_magnitude >= 0.5):
             return False
-            
+
         # 閘門 6: 突破時成交量放大
         if confirmation_day['Volume'] <= inside_day['Volume']:
+            return False
+
+        # 閘門 7: 假突破過濾（檢查確認日是否留下長上影線）
+        confirmation_body = abs(confirmation_day['Close'] - confirmation_day['Open'])
+        confirmation_upper_shadow = confirmation_day['High'] - confirmation_day[['Open', 'Close']].max()
+        if confirmation_upper_shadow > confirmation_body:
             return False
 
         # --- 所有條件均滿足 ---

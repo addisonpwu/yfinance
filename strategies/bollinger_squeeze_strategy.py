@@ -66,19 +66,34 @@ class BollingerSqueezeStrategy(BaseStrategy):
         if not is_in_prolonged_squeeze:
             return False
 
+        # 閘門 1.5: 價格振幅也應收縮
+        hist['price_range'] = (hist['High'] - hist['Low']) / hist['Close']
+        hist['price_range_ma'] = hist['price_range'].rolling(20).mean()
+        is_price_range_contracting = hist['price_range'].iloc[-self.prolonged_squeeze_period-1:-1] < hist['price_range_ma'].iloc[-self.prolonged_squeeze_period-1:-1].mean()
+        if not is_price_range_contracting:
+            return False
+
         # 閘門 2: 長期趨勢過濾 (趨勢向上且價格在趨勢之上)
         is_long_trend_healthy = (latest['Close'] > latest['SMA200']) and (latest['SMA200_slope'] >= 0)
         if not is_long_trend_healthy:
             return False
 
-        # 閘門 3: 向上突破的品質 (核心觸發條件)
+        # 閘門 3: 向上突破的品質 (核心觸發條件) - 增加突破力度檢測
         is_breakout = latest['Close'] > latest['UpperBand']
         is_strong_candle = latest['Close'] > latest['Open'] # 要求是紅K
-        if not (is_breakout and is_strong_candle):
+        breakout_strength = (latest['Close'] - latest['UpperBand']) / latest['UpperBand'] if latest['UpperBand'] > 0 else 0
+        if not (is_breakout and is_strong_candle and breakout_strength >= 0.01):
             return False
 
-        # 閘門 4: 成交量確認
+        # 閘門 4: 成交量確認（連續2天放量）
         if latest['Volume'] < latest['Avg_Volume'] * self.volume_multiplier:
+            return False
+        if hist['Volume'].iloc[-2] < hist['Avg_Volume'].iloc[-2] * self.volume_multiplier:
+            return False
+
+        # 閘門 5: 假突破過濾（檢查突破後是否快速回落）
+        close_to_band = (latest['UpperBand'] - latest['Close']) / latest['UpperBand'] if latest['UpperBand'] > 0 else 1
+        if close_to_band < 0.005:  # 收盤價太接近上軌
             return False
 
         # --- 所有條件均滿足 ---

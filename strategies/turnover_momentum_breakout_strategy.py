@@ -52,20 +52,26 @@ class TurnoverMomentumBreakoutStrategy(BaseStrategy):
         # 檢查指標有效性
         if pd.isna(latest['TurnoverRate_MA20']):
             return False
-            
-        # 計算換手率變化率
-        if latest['TurnoverRate_MA20'] == 0:
-            turnover_change_rate = float('inf') # 如果均值是0，任何正的換手率都是無限大增長
+
+        # 計算換手率變化率 - 使用Z-Score標準化
+        turnover_std = hist['TurnoverRate'].rolling(20).std()
+        if turnover_std > 0:
+            turnover_zscore = (latest['TurnoverRate'] - latest['TurnoverRate_MA20']) / turnover_std
         else:
-            turnover_change_rate = (latest['TurnoverRate'] - latest['TurnoverRate_MA20']) / latest['TurnoverRate_MA20'] * 100
+            turnover_zscore = 0
 
         # --- 4. 執行選股條件 ---
-        # 條件 1: 換手率變化率 > 20%
-        if turnover_change_rate <= self.turnover_change_threshold:
+        # 條件 1: 換手率Z-Score > 2（要求至少2個標準差）
+        if turnover_zscore < 2:
             return False
 
         # 條件 2: 當日換手率 > 3%
         if latest['TurnoverRate'] <= self.min_turnover_rate:
+            return False
+
+        # 條件 2.5: 換手率持續性檢測（不是單日爆發）
+        hist['TurnoverRate_MA5'] = hist['TurnoverRate'].rolling(5).mean()
+        if latest['TurnoverRate_MA5'] < latest['TurnoverRate_MA20'] * 1.5:
             return False
 
         # 條件 3: 收盤價 > 5日移動平均
@@ -73,14 +79,26 @@ class TurnoverMomentumBreakoutStrategy(BaseStrategy):
         if pd.isna(hist['MA5'].iloc[-1]) or latest['Close'] <= hist['MA5'].iloc[-1]:
             return False
 
-        # 條件 4: 市值過濾
+        # 條件 4: 市值過濾（優化：5億-500億USD）
         market_cap = info.get('marketCap')
-        if market_cap is None or market_cap < self.min_market_cap:
+        if market_cap is None or market_cap < 500_000_000:  # 小於5億USD，流動性差
+            return False
+        elif market_cap > 50_000_000_000:  # 大於500億USD，難以拉升
             return False
 
         # 條件 5: 價格過濾
-        # yfinance返回的價格總是對應於上市地的貨幣，所以可以直接比較
         if latest['Close'] < self.min_price:
+            return False
+
+        # 條件 6: 價格位置過濾（避免追高）
+        hist['52w_high'] = hist['Close'].rolling(252).max()
+        distance_to_52w_high = (hist['52w_high'].iloc[-1] - latest['Close']) / hist['52w_high'].iloc[-1]
+        if distance_to_52w_high < 0.1:  # 距離52周高點小於10%
+            return False
+
+        # 條件 7: 量價配合檢測
+        price_change = latest['Close'].pct_change()
+        if price_change < 0.03:  # 價格漲幅小於3%
             return False
 
         # --- 所有條件均滿足 ---

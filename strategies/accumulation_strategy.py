@@ -90,17 +90,36 @@ class MainForceAccumulationStrategy(BaseStrategy):
         if abs(latest['Close'] / latest['MA100'] - 1) > self.max_ma_bias_ratio:
             return False
 
-        # 閘門 2: 資金持續流入 (OBV)
+        # 閘門 2: 資金持續流入 (OBV) - 使用加權回歸
         y = hist['OBV'].dropna()
         if len(y) < self.obv_slope_period: return False
         x = np.arange(len(y))
-        obv_slope = np.polyfit(x[-self.obv_slope_period:], y[-self.obv_slope_period:], 1)[0]
+        # 使用加權回歸，近期權重更高
+        weights = np.exp(np.linspace(-1, 0, len(y[-self.obv_slope_period:])))
+        obv_slope = np.polyfit(x[-self.obv_slope_period:], y[-self.obv_slope_period:], 1, w=weights)[0]
         if obv_slope <= 0 or latest['OBV'] < latest['OBV_MA10']:
             return False
 
-        # 閘門 3: 成交量呈現「萎縮後溫和放量」
+        # 閘門 2.5: 檢測吸籌結束信號（OBV加速度）
+        hist['OBV_acceleration'] = hist['OBV'].diff().diff()
+        if hist['OBV_acceleration'].iloc[-1] < 0:  # OBV加速度轉負
+            return False
+
+        # 閘門 2.6: 筹码锁定检测（放量不涨）
+        hist['price_change_per_volume'] = hist['Close'].pct_change() / hist['Volume']
+        if hist['price_change_per_volume'].iloc[-5:].mean() < 0:
+            return False  # 放量不涨，可能主力出貨
+
+        # 閘門 3: 成交量呈現「萎縮後溫和放量」 - 根據波動率動態調整
         was_volume_down = (hist['Volume'].iloc[-self.vol_shrink_lookback:-1] < hist['Avg_Vol_60'].iloc[-self.vol_shrink_lookback:-1]).any()
-        is_volume_gentle_up = (latest['Avg_Vol_60'] * self.vol_lower_multiplier < latest['Volume'] < latest['Avg_Vol_60'] * self.vol_upper_multiplier)
+
+        # 根據波動率動態調整成交量放大上限
+        volatility_ratio = previous['BandWidth'] / squeeze_threshold
+        current_vol_upper_multiplier = self.vol_upper_multiplier
+        if volatility_ratio < 0.8:  # 波動率仍很低
+            current_vol_upper_multiplier = 2.0  # 允許更大的放量
+
+        is_volume_gentle_up = (latest['Avg_Vol_60'] * self.vol_lower_multiplier < latest['Volume'] < latest['Avg_Vol_60'] * current_vol_upper_multiplier)
         if not (was_volume_down and is_volume_gentle_up):
             return False
 

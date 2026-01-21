@@ -81,23 +81,36 @@ class GoldenCrossStrategy(BaseStrategy):
         if not (in_golden_cross_state and cross_occurred_recently):
             return False
 
+        # 閘門 0.5: 檢測新鮮金叉（金叉剛剛完成）
+        ma50_prev = hist['MA50'].iloc[-2]
+        ma200_prev = hist['MA200'].iloc[-2]
+        is_fresh_cross = (ma50_prev <= ma200_prev) and (latest['MA50'] > latest['MA200'])
+        if not is_fresh_cross:
+            return False  # 只接受新鮮的金叉
+
+        # 閘門 0.6: 金叉角度檢測（兩條線的夾角）
+        cross_angle = np.arctan2(ma200_slope - 0, 1) * 180 / np.pi
+        if abs(cross_angle) < 5:  # 角度太小，可能是假金叉
+            return False
+
         # 閘門 1: 趨勢強度 (200MA本身要走平或向上)
         if ma200_slope <= 0:
             return False
 
-        # 閘門 2: 成交量 (金叉當日要放量)
-        if latest['Volume'] < latest['Vol_avg20'] * self.vol_multiplier:
-            return False
+        # 閘門 2: 成交量 (連續3天放量)
+        for i in range(3):
+            if hist['Volume'].iloc[-(i+1)] < hist['Vol_avg20'].iloc[-(i+1)] * self.vol_multiplier:
+                return False
 
         # 閘門 3: 短線不追買 (RSI)
         if latest['RSI14'] > self.rsi_threshold:
             return False
-            
+
         # 閘門 4: 價格離 200MA 太遠不追 (乖離率)
         bias_ratio = abs(latest['Close'] / latest['MA200'] - 1)
         if bias_ratio > self.max_bias_ratio:
             return False
-            
+
         # 閘門 5: 價格行為確認 (K線形態)
         daily_range = latest['High'] - latest['Low']
         if daily_range > 0:
@@ -107,6 +120,13 @@ class GoldenCrossStrategy(BaseStrategy):
         # 如果 daily_range is 0, 只要是上漲就接受 (一字漲停)
         elif not (latest['Close'] > hist.iloc[-2]['Close']):
              return False
+
+        # 閘門 6: 回踩確認機制（如果數據足夠）
+        if len(hist) > self.short_window + 5:
+            recent_low = hist['Low'].iloc[-5:].min()
+            ma50_at_low = hist['MA50'].iloc[-5:].min()
+            if recent_low < ma50_at_low * 0.98:  # 回踩跌破50MA
+                return False
 
         # --- 所有條件均滿足 ---
         return True
