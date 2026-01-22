@@ -1,0 +1,18 @@
+{
+  "api": {
+    "base_delay": 1,
+    "max_delay": 2.0,
+    "min_delay": 1,
+    "retry_attempts": 3,
+    "max_workers": 2
+  },
+  "data": {
+    "max_cache_days": 7,
+    "float_dtype": "float32"
+  },
+  "analysis": {
+    "enable_realtime_output": true,
+    "enable_data_preprocessing": true,
+    "min_volume_threshold": 100000
+  }
+}

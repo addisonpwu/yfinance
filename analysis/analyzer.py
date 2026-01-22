@@ -12,6 +12,9 @@ from datetime import datetime, timedelta, date
 from strategies.base_strategy import BaseStrategy
 from data_loader import us_loader, hk_loader
 from ai_analyzer import analyze_stock_with_ai
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+import numpy as np
 
 def parse_kronos_prediction(prediction_text: str) -> tuple[float, float]:
     """
@@ -76,6 +79,71 @@ def _read_csv_with_auto_index(csv_file: str) -> pd.DataFrame:
     
     # 使用正确的索引列名读取
     return pd.read_csv(csv_file, index_col=index_col, parse_dates=True)
+
+def load_config():
+    """
+    加载配置文件
+    """
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"配置文件 {config_path} 未找到，使用默认配置")
+        return {
+            "api": {
+                "base_delay": 0.5,
+                "max_delay": 2.0,
+                "min_delay": 0.1,
+                "retry_attempts": 3,
+                "max_workers": 4
+            },
+            "data": {
+                "max_cache_days": 7,
+                "float_dtype": "float32"
+            },
+            "analysis": {
+                "enable_realtime_output": true,
+                "enable_data_preprocessing": true,
+                "min_volume_threshold": 100000
+            }
+        }
+
+def optimize_dataframe_memory(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    优化 DataFrame 的内存使用，通过使用更高效的数据类型
+
+    Args:
+        df: 原始 DataFrame
+
+    Returns:
+        优化后的 DataFrame
+    """
+    df_optimized = df.copy()
+    
+    for col in df_optimized.columns:
+        col_type = df_optimized[col].dtype
+        
+        if col_type != 'object':
+            c_min = df_optimized[col].min()
+            c_max = df_optimized[col].max()
+            
+            if str(col_type)[:3] == 'int':
+                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                    df_optimized[col] = df_optimized[col].astype(np.int8)
+                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                    df_optimized[col] = df_optimized[col].astype(np.int16)
+                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                    df_optimized[col] = df_optimized[col].astype(np.int32)
+                else:
+                    df_optimized[col] = df_optimized[col].astype(np.int64)
+            else:
+                if c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                    df_optimized[col] = df_optimized[col].astype(np.float32)
+                else:
+                    df_optimized[col] = df_optimized[col].astype(np.float64)
+    
+    return df_optimized
 
 def serialize_for_json(obj):
     """
@@ -211,6 +279,8 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
 
             # 移除 news 调用以减少 API 请求
             news = []
+            # 优化内存使用 - 转换数据类型
+            hist = optimize_dataframe_memory(hist)
             return hist, info, news
         except FileNotFoundError:
             # print(f" - [快速模式] 緩存文件未找到，切換到正常模式下載", end='')
@@ -257,8 +327,9 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         hist = ticker.history(period=period, interval=interval, auto_adjust=True)
         print(f"下載了 {len(hist)} 條數據", end='')
 
-    # 无論是更新還是新增，都用最新的數據覆蓋緩存
+    # 优化内存使用 - 转换数据类型
     if not hist.empty:
+        hist = optimize_dataframe_memory(hist)
         float_shares = None  # 暂时设置为 None
         hist['FloatShares'] = float_shares
         hist.to_csv(csv_file)
@@ -340,8 +411,9 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         hist = ticker.history(period=period, interval=interval, auto_adjust=True)
         print(f"下載了 {len(hist)} 條數據", end='')
 
-    # 無論是更新還是新增，都用最新的數據覆蓋緩存
+    # 优化内存使用 - 转换数据类型
     if not hist.empty:
+        hist = optimize_dataframe_memory(hist)
         float_shares = info.get('floatShares', None)
         hist['FloatShares'] = float_shares
         hist.to_csv(csv_file)
@@ -355,7 +427,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
 
     return hist, info, news
 
-def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, symbol_filter: str = None, interval: str = '1d'):
+def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, symbol_filter: str = None, interval: str = '1d', max_workers: int = None):
     """
     對指定市場執行所有選股策略分析
 
@@ -365,7 +437,15 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
         use_kronos: 是否使用 Kronos 預測（僅適用於港股）
         symbol_filter: 指定分析單一股票代碼（例如：0017.HK）
         interval: 數據時段類型 ('1d' 日線, '1h' 小時線, '1m' 分鐘線)
+        max_workers: 最大并行工作线程数，默认为None（从配置文件读取）
     """
+    # 加载配置
+    config = load_config()
+    
+    # 如果未指定max_workers，从配置中获取
+    if max_workers is None:
+        max_workers = config['api']['max_workers']
+    
     # --- 全局緩存版本檢查 ---
     version_file = os.path.join('data_cache', market.upper(), 'version.txt')
     today_str = datetime.now().date().isoformat()
@@ -433,23 +513,44 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
     print(f"\n--- 開始逐個股票進行分析和預測 ---")
     qualified_stocks = []
     total_stocks = len(tickers)
-    analyzed_count = 0
     
-    for i, symbol in enumerate(tickers):
-        progress = (i + 1) / total_stocks
-        print(f"\r分析進度: [{int(progress * 20) * '#'}{int((1 - progress) * 20) * '-'}] {i+1}/{total_stocks} - 正在分析 {symbol}...", end='')
-
+    # 实时输出符合条件的股票到文件
+    realtime_output_enabled = config['analysis']['enable_realtime_output']
+    if realtime_output_enabled:
+        output_file = f"{datetime.now().strftime('%Y-%m-%d')}_{market.lower()}_qualified_stocks.txt"
+    
+    # 使用线程池并行处理股票
+    def analyze_single_stock(symbol):
+        """分析单个股票的函数"""
         try:
-            # 添加请求延迟，避免触发 yfinance API 速率限制
-            time.sleep(1)
-
-            # 獲取股票數據（會自動處理緩存）
+            # 获取股票數據（會自動處理緩存）
             hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed, interval=interval)
             
+            # 数据质量检查
             if hist.empty or len(hist) < 2 or info is None or (isinstance(info, dict) and len(info) == 0):
-                continue
+                return None, 0  # 返回None表示该股票未通过筛选，0表示未分析成功
             
-            analyzed_count += 1
+            # 数据预处理优化：基础筛选
+            config = load_config()
+            enable_preprocessing = config['analysis']['enable_data_preprocessing']
+            min_volume_threshold = config['analysis']['min_volume_threshold']
+            
+            if enable_preprocessing:
+                # 基础数据质量检查
+                if 'Volume' in hist.columns and not hist['Volume'].empty:
+                    recent_volume = hist['Volume'].tail(5).mean()  # 最近5天平均成交量
+                    if recent_volume < min_volume_threshold:
+                        return None, 1  # 成交量过低，跳过分析，但计入已分析计数
+                
+                # 检查价格数据是否有效
+                if 'Close' in hist.columns:
+                    recent_prices = hist['Close'].tail(10)  # 最近10天价格
+                    if recent_prices.isna().all() or (recent_prices <= 0).any():
+                        return None, 1  # 价格数据无效，跳过分析
+                
+                # 检查是否有足够的有效数据点
+                if len(hist.dropna()) < 20:  # 至少需要20个有效数据点
+                    return None, 1  # 数据点不足，跳过分析
             
             # 執行所有策略
             passed_strategies = []
@@ -501,7 +602,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                 # 如果未启用 Kronos，则直接加入 qualified_stocks
                 if not use_kronos or rise_prob > fall_prob:
                     exchange = info.get('exchange', 'UNKNOWN')
-                    qualified_stocks.append({
+                    stock_result = {
                         'symbol': symbol,
                         'exchange': exchange,
                         'strategies': passed_strategies,
@@ -511,7 +612,17 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                         'rise_prob': rise_prob,
                         'fall_prob': fall_prob,
                         'ai_analysis': ai_analysis
-                    })
+                    }
+                    
+                    # 实时输出符合条件的股票
+                    if realtime_output_enabled:
+                        with threading.Lock():
+                            with open(output_file, 'a', encoding='utf-8') as f:
+                                f.write(f"{symbol} 符合策略: {passed_strategies}\n")
+                                if ai_analysis:
+                                    f.write(f"AI 分析: {ai_analysis['summary']}\n")
+                                f.write("-" * 50 + "\n")
+                    
                     if use_kronos:
                         print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, 上升機率: {rise_prob:.2f}% vs 下跌機率: {fall_prob:.2f}%")
                     else:
@@ -522,13 +633,55 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                         print(f"   🤖 AI 模型: {ai_analysis['model_used']}")
                     else:
                         print(f"   🤖 AI 分析: 未能完成")
+                    return stock_result, 1
                 else:
                     print(f"\r{' ' * 80}\r⏭️  {symbol} 符合策略但上升機率({rise_prob:.2f}%) ≤ 下跌機率({fall_prob:.2f}%)，已跳過")
-
+                    return None, 1
+            else:
+                return None, 1  # 返回None表示该股票未通过策略，但已分析成功
         except Exception as e:
             print(f"\r{' ' * 80}\r❌ 分析 {symbol} 時發生錯誤: {e}")
-            pass
+            return None, 0  # 返回0表示分析失败
+
+    # 使用线程池并行处理所有股票
+    analyzed_count = 0
+    qualified_count = 0
+    start_time = time.time()
     
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # 提交所有任务
+        future_to_symbol = {executor.submit(analyze_single_stock, symbol): symbol for symbol in tickers}
+        
+        # 处理完成的任务
+        for future in as_completed(future_to_symbol):
+            symbol = future_to_symbol[future]
+            try:
+                result, count = future.result()
+                if result is not None:
+                    qualified_stocks.append(result)
+                    qualified_count += 1
+                if count > 0:
+                    analyzed_count += count
+            except Exception as e:
+                print(f"\r{' ' * 80}\r❌ 處理 {symbol} 的結果時發生錯誤: {e}")
+            
+            # 计算预估完成时间
+            elapsed_time = time.time() - start_time
+            if analyzed_count > 0:
+                avg_time_per_stock = elapsed_time / analyzed_count
+                estimated_total_time = avg_time_per_stock * total_stocks
+                remaining_time = estimated_total_time - elapsed_time
+                remaining_minutes = max(0, int(remaining_time / 60))
+            else:
+                remaining_minutes = -1  # 未开始计算
+            
+            # 更新进度
+            progress = analyzed_count / total_stocks
+            if remaining_minutes >= 0:
+                print(f"\r分析進度: [{int(progress * 20) * '#'}{int((1 - progress) * 20) * '-'}] {analyzed_count}/{total_stocks} 已分析, {qualified_count} 符合條件, 預估剩餘: {remaining_minutes} 分鐘", end='')
+            else:
+                print(f"\r分析進度: [{int(progress * 20) * '#'}{int((1 - progress) * 20) * '-'}] {analyzed_count}/{total_stocks} 已分析, {qualified_count} 符合條件", end='')
+
     # --- 更新緩存版本文件 ---
     if is_sync_needed:
         print(f"\n--- 更新緩存版本至 {today_str} ---")
@@ -536,4 +689,5 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
             f.write(today_str)
     
     print(f"\n--- 分析完成！成功分析 {analyzed_count}/{total_stocks} 支股票，找到 {len(qualified_stocks)} 支符合條件的股票 ---")
+    print(f"--- 總耗時: {int((time.time() - start_time) / 60)} 分鐘 {int((time.time() - start_time) % 60)} 秒 ---")
     return qualified_stocks
