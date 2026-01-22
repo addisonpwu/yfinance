@@ -26,9 +26,10 @@ class TurnoverMomentumBreakoutStrategy(BaseStrategy):
         self.min_price = min_price
 
     def run(self, hist: pd.DataFrame, **kwargs) -> bool:
-        # --- 1. 獲取 info 對象 --- 
+        # --- 1. 獲取 info 對象 ---
         info = kwargs.get('info', {})
         if not info:
+            # 如果没有 info 数据，跳过此策略
             return False
 
         # --- 2. 基本數據長度檢查 ---
