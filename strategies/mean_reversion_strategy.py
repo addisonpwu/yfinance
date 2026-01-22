@@ -44,6 +44,7 @@ class MeanReversionStrategy(BaseStrategy):
         hist['SMA20'] = hist['Close'].rolling(window=self.period).mean()
         hist['StdDev'] = hist['Close'].rolling(window=self.period).std()
         hist['LowerBand'] = hist['SMA20'] - (hist['StdDev'] * self.std_dev)
+        hist['UpperBand'] = hist['SMA20'] + (hist['StdDev'] * self.std_dev)
         
         hist['SMA200'] = hist['Close'].rolling(window=self.long_ma_period).mean()
         

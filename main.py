@@ -2,7 +2,6 @@
 import argparse
 from datetime import datetime
 from analysis import analyzer
-from news_analyzer import get_and_analyze_news
 
 def main():
     parser = argparse.ArgumentParser(description="靈活的股票篩選器，支援多種策略")
@@ -30,12 +29,7 @@ def main():
         interval=args.interval
     )
 
-    print("\n--- 開始進行新聞情感分析 ---")
-    for stock in final_list:
-        # 為每支股票獲取並分析新聞
-        stock['analyzed_news'] = get_and_analyze_news(stock['symbol'], args.market)
-
-    print("\n--- 最終篩選結果 (已包含新聞分析) ---")
+    print("\n--- 最終篩選結果 ---")
     if final_list:
         today_str = datetime.now().strftime('%Y-%m-%d')
 
@@ -75,18 +69,7 @@ def main():
             detailed_output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
             detailed_output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
 
-            # --- 新增新聞分析結果的輸出 ---
-            if stock.get('analyzed_news'):
-                detailed_output_lines.append("   --- 最新新聞分析 ---")
-                for news in stock['analyzed_news']:
-                    sentiment_icon = {'利好': '🟢', '利空': '🔴', '中性': '⚪️'}.get(news['sentiment'], '⚪️')
-                    detailed_output_lines.append(f"     {sentiment_icon} [{news['sentiment']}] {news['title']}")
-                    # detailed_output_lines.append(f"        理由: {news['reason']}") # 可以選擇性加入理由
-                    detailed_output_lines.append(f"        連結: {news['link']}")
-            else:
-                detailed_output_lines.append("   --- 未找到相關新聞 ---")
-
-            # --- 新增 AI 綜合分析結果的輸出 ---
+            # --- AI 綜合分析結果的輸出 ---
             if stock.get('ai_analysis'):
                 detailed_output_lines.append("   --- AI 綜合分析 ---")
                 detailed_output_lines.append(f"     {stock['ai_analysis']['summary']}")

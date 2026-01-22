@@ -8,7 +8,7 @@ import json
 import subprocess
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from strategies.base_strategy import BaseStrategy
 from data_loader import us_loader, hk_loader
 from ai_analyzer import analyze_stock_with_ai
@@ -77,6 +77,63 @@ def _read_csv_with_auto_index(csv_file: str) -> pd.DataFrame:
     # 使用正确的索引列名读取
     return pd.read_csv(csv_file, index_col=index_col, parse_dates=True)
 
+def serialize_for_json(obj):
+    """
+    将对象转换为可 JSON 序列化的格式（递归处理所有层级）
+
+    Args:
+        obj: 要序列化的对象
+
+    Returns:
+        可 JSON 序列化的对象
+    """
+    import pandas as pd
+    import numpy as np
+    from datetime import datetime, date
+
+    # 首先检查是否为 NaN（标量）
+    try:
+        if isinstance(obj, (float, int)) and np.isnan(obj):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    # 处理日期时间对象
+    if isinstance(obj, (pd.Timestamp, datetime, date)):
+        return obj.isoformat()
+
+    # 处理 Series 或 DataFrame - 先转换为字典，然后递归处理
+    elif isinstance(obj, (pd.Series, pd.DataFrame)):
+        result_dict = obj.to_dict()
+        return serialize_for_json(result_dict)  # 关键：递归处理转换后的字典
+
+    # 处理字典 - 递归处理键和值
+    elif isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            # 处理键
+            if isinstance(k, (pd.Timestamp, datetime, date)):
+                k = k.isoformat()
+            # 递归处理值
+            result[k] = serialize_for_json(v)
+        return result
+
+    # 处理列表/元组 - 递归处理每个元素
+    elif isinstance(obj, (list, tuple)):
+        return [serialize_for_json(item) for item in obj]
+
+    # 处理 numpy 类型
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+
+    # 其他类型直接返回
+    else:
+        return obj
+
 def get_enhanced_financial_data(ticker: yf.Ticker) -> dict:
     """
     获取增强的财务数据，包括财务报表和关键指标
@@ -90,42 +147,20 @@ def get_enhanced_financial_data(ticker: yf.Ticker) -> dict:
     enhanced_data = {}
 
     try:
-        # 获取财务报表数据
+        # 只获取最关键的财务报表数据，减少 API 调用
         financials = ticker.financials
-        if not financials.empty:
+        if financials is not None and isinstance(financials, pd.DataFrame) and not financials.empty:
             enhanced_data['financials'] = financials.to_dict()
 
+        # 获取资产负债表
         balance_sheet = ticker.balance_sheet
-        if not balance_sheet.empty:
+        if balance_sheet is not None and isinstance(balance_sheet, pd.DataFrame) and not balance_sheet.empty:
             enhanced_data['balance_sheet'] = balance_sheet.to_dict()
 
+        # 获取现金流量表
         cashflow = ticker.cashflow
-        if not cashflow.empty:
+        if cashflow is not None and isinstance(cashflow, pd.DataFrame) and not cashflow.empty:
             enhanced_data['cashflow'] = cashflow.to_dict()
-
-        # 获取季度财务报表
-        quarterly_financials = ticker.quarterly_financials
-        if not quarterly_financials.empty:
-            enhanced_data['quarterly_financials'] = quarterly_financials.to_dict()
-
-        # 获取股票持有者信息
-        major_holders = ticker.major_holders
-        if not major_holders.empty:
-            enhanced_data['major_holders'] = major_holders.to_dict()
-
-        institutional_holders = ticker.institutional_holders
-        if not institutional_holders.empty:
-            enhanced_data['institutional_holders'] = institutional_holders.to_dict()
-
-        # 获取推荐信息
-        recommendations = ticker.recommendations
-        if recommendations is not None and not recommendations.empty:
-            enhanced_data['recommendations'] = recommendations.to_dict()
-
-        # 获取可持续性数据（ESG）
-        sustainability = ticker.sustainability
-        if sustainability is not None and not sustainability.empty:
-            enhanced_data['sustainability'] = sustainability.to_dict()
 
     except Exception as e:
         print(f" - [增强数据] 获取失败: {e}", end='')
@@ -159,6 +194,10 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
             with open(json_file, 'r', encoding='utf-8') as f:
                 info = json.load(f)
 
+            # 确保 info 是字典
+            if not isinstance(info, dict):
+                info = {}
+
             # 验证关键字段
             required_fields = [
                 'marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook',
@@ -170,25 +209,74 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
                 if field not in info:
                     info[field] = None
 
-            news = ticker.news # 新聞總是獲取最新的
+            # 移除 news 调用以减少 API 请求
+            news = []
             return hist, info, news
         except FileNotFoundError:
             # print(f" - [快速模式] 緩存文件未找到，切換到正常模式下載", end='')
             return get_data_with_cache(symbol, market, fast_mode=False, interval=interval)
-        except json.JSONDecodeError as e:
+        except (json.JSONDecodeError, ValueError) as e:
             print(f" - [快速模式] JSON 解析失败: {e}，重新下載", end='')
+            # 删除损坏的缓存文件
+            try:
+                os.remove(json_file)
+            except:
+                pass
             return get_data_with_cache(symbol, market, fast_mode=False, interval=interval)
 
     # --- 正常同步模式 ---
     today = datetime.now().date()
     hist, info, news = pd.DataFrame(), {}, []
 
+    # 首先获取历史价格数据（这个通常比 info 更容易获取）
+    if os.path.exists(csv_file):
+        # 自动检测索引列名（Date 或 Datetime）
+        hist = _read_csv_with_auto_index(csv_file)
+        last_cached_date = hist.index.max().date()
+
+        if last_cached_date >= today:
+            print(f" - 從緩存加載 {len(hist)} 條數據", end='')
+        else:
+            start_date = last_cached_date + timedelta(days=1)
+            print(f" - 緩存數據過舊，正在從 {start_date.strftime('%Y-%m-%d')} 下載增量數據...", end='')
+            new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), interval=interval, auto_adjust=True)
+            if not new_hist.empty:
+                hist = pd.concat([hist, new_hist])
+                print(f"下載了 {len(new_hist)} 條新數據", end='')
+            else:
+                print("沒有新的數據可下載", end='')
+    else:
+        print(" - 緩存不存在，正在下載全部歷史數據...", end='')
+        # 根據 interval 設置不同的 period
+        if interval == '1m':
+            period = '7d'  # 分鐘線只下載最近7天
+        elif interval == '1h':
+            period = '730d'  # 小時線下載最近2年
+        else:
+            period = 'max'  # 日線下載全部歷史
+        hist = ticker.history(period=period, interval=interval, auto_adjust=True)
+        print(f"下載了 {len(hist)} 條數據", end='')
+
+    # 无論是更新還是新增，都用最新的數據覆蓋緩存
+    if not hist.empty:
+        float_shares = None  # 暂时设置为 None
+        hist['FloatShares'] = float_shares
+        hist.to_csv(csv_file)
+
+    # 尝试获取 info 数据（如果失败则使用空字典）
     try:
         info = ticker.info
-        # 确保 info 不为空
-        if not info:
-            print(f" - {symbol} 的 info 数据为空", end='')
+        # 确保 info 不为空 - 使用更安全的方式
+        if info is None:
+            print(f" - info 数据为空", end='')
             info = {}
+        elif not isinstance(info, dict):
+            # 如果 info 不是字典，转换为字典
+            print(f" - info 格式异常，转换为字典", end='')
+            info = {}
+        elif isinstance(info, dict) and len(info) == 0:
+            print(f" - info 字典为空", end='')
+            # 保持为空字典，继续尝试获取增强数据
 
         # 验证关键字段是否存在，如果不存在则设置为 None
         required_fields = [
@@ -206,11 +294,23 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         if enhanced_data:
             info['enhanced_financial_data'] = enhanced_data
 
-        news = ticker.news
+        # 保存 info 到缓存 - 只在有有效数据时保存
+        if isinstance(info, dict) and len(info) > 0:
+            try:
+                # 使用递归的 serialize_for_json 处理所有嵌套层级
+                processed_info = serialize_for_json(info)
+
+                with open(json_file, 'w', encoding='utf-8') as f:
+                    json.dump(processed_info, f, ensure_ascii=False, indent=4)
+            except Exception as save_error:
+                print(f" - 保存 info 失败: {save_error}", end='')
+                # 保存失败不影响主流程
+
     except Exception as e:
-        print(f" - 無法獲取 {symbol} 的 info/news: {e}", end='')
+        print(f" - 無法獲取 info: {e}，將使用空數據", end='')
         info = {}
-        news = []
+
+    news = []
 
     if os.path.exists(csv_file):
         # 自动检测索引列名（Date 或 Datetime）
@@ -247,8 +347,11 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         hist.to_csv(csv_file)
 
     if info:
+        # 使用递归的 serialize_for_json 处理所有嵌套层级
+        processed_info = serialize_for_json(info)
+
         with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(info, f, ensure_ascii=False, indent=4, default=str)  # 添加 default=str 处理特殊类型
+            json.dump(processed_info, f, ensure_ascii=False, indent=4)
 
     return hist, info, news
 
@@ -338,12 +441,12 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
 
         try:
             # 添加请求延迟，避免触发 yfinance API 速率限制
-            time.sleep(1.0)
-            
+            time.sleep(1)
+
             # 獲取股票數據（會自動處理緩存）
             hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed, interval=interval)
             
-            if hist.empty or len(hist) < 2 or not info:
+            if hist.empty or len(hist) < 2 or info is None or (isinstance(info, dict) and len(info) == 0):
                 continue
             
             analyzed_count += 1

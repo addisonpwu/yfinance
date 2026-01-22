@@ -56,8 +56,8 @@ class TurnoverMomentumBreakoutStrategy(BaseStrategy):
 
         # 計算換手率變化率 - 使用Z-Score標準化
         turnover_std = hist['TurnoverRate'].rolling(20).std()
-        if turnover_std > 0:
-            turnover_zscore = (latest['TurnoverRate'] - latest['TurnoverRate_MA20']) / turnover_std
+        if pd.notna(turnover_std.iloc[-1]) and turnover_std.iloc[-1] > 0:
+            turnover_zscore = (latest['TurnoverRate'] - latest['TurnoverRate_MA20']) / turnover_std.iloc[-1]
         else:
             turnover_zscore = 0
 

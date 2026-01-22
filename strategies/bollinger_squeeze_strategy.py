@@ -69,7 +69,7 @@ class BollingerSqueezeStrategy(BaseStrategy):
         # 閘門 1.5: 價格振幅也應收縮
         hist['price_range'] = (hist['High'] - hist['Low']) / hist['Close']
         hist['price_range_ma'] = hist['price_range'].rolling(20).mean()
-        is_price_range_contracting = hist['price_range'].iloc[-self.prolonged_squeeze_period-1:-1] < hist['price_range_ma'].iloc[-self.prolonged_squeeze_period-1:-1].mean()
+        is_price_range_contracting = (hist['price_range'].iloc[-self.prolonged_squeeze_period-1:-1] < hist['price_range_ma'].iloc[-self.prolonged_squeeze_period-1:-1].mean()).all()
         if not is_price_range_contracting:
             return False
 
