@@ -87,7 +87,37 @@ def load_config():
     config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            config = json.load(f)
+            
+        # 确保所有必要的配置项都存在，如果不存在则使用默认值
+        default_config = {
+            "api": {
+                "base_delay": 0.5,
+                "max_delay": 2.0,
+                "min_delay": 0.1,
+                "retry_attempts": 3,
+                "max_workers": 4
+            },
+            "data": {
+                "max_cache_days": 7,
+                "float_dtype": "float32"
+            },
+            "analysis": {
+                "enable_realtime_output": True,
+                "enable_data_preprocessing": True,
+                "min_volume_threshold": 100000
+            }
+        }
+        
+        # 合并配置：使用配置文件中的值，对于缺失的配置使用默认值
+        for section, section_data in default_config.items():
+            if section not in config:
+                config[section] = {}
+            for key, value in section_data.items():
+                if key not in config[section]:
+                    config[section][key] = value
+        
+        return config
     except FileNotFoundError:
         print(f"配置文件 {config_path} 未找到，使用默认配置")
         return {
@@ -103,8 +133,8 @@ def load_config():
                 "float_dtype": "float32"
             },
             "analysis": {
-                "enable_realtime_output": true,
-                "enable_data_preprocessing": true,
+                "enable_realtime_output": True,
+                "enable_data_preprocessing": True,
                 "min_volume_threshold": 100000
             }
         }
@@ -252,6 +282,14 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
     csv_file = os.path.join(cache_dir, f"{safe_symbol}_{interval}.csv")  # 添加 interval 到文件名
     json_file = os.path.join(cache_dir, f"{safe_symbol}.json")
 
+    # 获取配置
+    config = load_config()
+    api_config = config['api']
+    base_delay = api_config['base_delay']
+    max_delay = api_config['max_delay']
+    min_delay = api_config['min_delay']
+    retry_attempts = api_config['retry_attempts']
+
     ticker = yf.Ticker(symbol)
 
     if fast_mode:
@@ -309,6 +347,11 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         else:
             start_date = last_cached_date + timedelta(days=1)
             print(f" - 緩存數據過舊，正在從 {start_date.strftime('%Y-%m-%d')} 下載增量數據...", end='')
+            
+            # 应用API延迟
+            delay = max(min_delay, min(base_delay, max_delay))
+            time.sleep(delay)
+            
             new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), interval=interval, auto_adjust=True)
             if not new_hist.empty:
                 hist = pd.concat([hist, new_hist])
@@ -335,51 +378,61 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         hist.to_csv(csv_file)
 
     # 尝试获取 info 数据（如果失败则使用空字典）
-    try:
-        info = ticker.info
-        # 确保 info 不为空 - 使用更安全的方式
-        if info is None:
-            print(f" - info 数据为空", end='')
-            info = {}
-        elif not isinstance(info, dict):
-            # 如果 info 不是字典，转换为字典
-            print(f" - info 格式异常，转换为字典", end='')
-            info = {}
-        elif isinstance(info, dict) and len(info) == 0:
-            print(f" - info 字典为空", end='')
-            # 保持为空字典，继续尝试获取增强数据
+    for attempt in range(retry_attempts):
+        try:
+            # 应用API延迟
+            delay = max(min_delay, min(base_delay, max_delay))
+            time.sleep(delay)
+            
+            info = ticker.info
+            # 确保 info 不为空 - 使用更安全的方式
+            if info is None:
+                print(f" - info 数据为空", end='')
+                info = {}
+            elif not isinstance(info, dict):
+                # 如果 info 不是字典，转换为字典
+                print(f" - info 格式异常，转换为字典", end='')
+                info = {}
+            elif isinstance(info, dict) and len(info) == 0:
+                print(f" - info 字典为空", end='')
+                # 保持为空字典，继续尝试获取增强数据
 
-        # 验证关键字段是否存在，如果不存在则设置为 None
-        required_fields = [
-            'marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook',
-            'profitMargins', 'returnOnEquity', 'revenueGrowth', 'earningsGrowth',
-            'dividendYield', 'beta', '52WeekChange', 'targetMeanPrice',
-            'volume', 'floatShares', 'shortRatio'
-        ]
-        for field in required_fields:
-            if field not in info:
-                info[field] = None
+            # 验证关键字段是否存在，如果不存在则设置为 None
+            required_fields = [
+                'marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook',
+                'profitMargins', 'returnOnEquity', 'revenueGrowth', 'earningsGrowth',
+                'dividendYield', 'beta', '52WeekChange', 'targetMeanPrice',
+                'volume', 'floatShares', 'shortRatio'
+            ]
+            for field in required_fields:
+                if field not in info:
+                    info[field] = None
 
-        # 获取增强的财务数据
-        enhanced_data = get_enhanced_financial_data(ticker)
-        if enhanced_data:
-            info['enhanced_financial_data'] = enhanced_data
+            # 获取增强的财务数据
+            enhanced_data = get_enhanced_financial_data(ticker)
+            if enhanced_data:
+                info['enhanced_financial_data'] = enhanced_data
 
-        # 保存 info 到缓存 - 只在有有效数据时保存
-        if isinstance(info, dict) and len(info) > 0:
-            try:
-                # 使用递归的 serialize_for_json 处理所有嵌套层级
-                processed_info = serialize_for_json(info)
+            # 保存 info 到缓存 - 只在有有效数据时保存
+            if isinstance(info, dict) and len(info) > 0:
+                try:
+                    # 使用递归的 serialize_for_json 处理所有嵌套层级
+                    processed_info = serialize_for_json(info)
 
-                with open(json_file, 'w', encoding='utf-8') as f:
-                    json.dump(processed_info, f, ensure_ascii=False, indent=4)
-            except Exception as save_error:
-                print(f" - 保存 info 失败: {save_error}", end='')
-                # 保存失败不影响主流程
+                    with open(json_file, 'w', encoding='utf-8') as f:
+                        json.dump(processed_info, f, ensure_ascii=False, indent=4)
+                except Exception as save_error:
+                    print(f" - 保存 info 失败: {save_error}", end='')
+                    # 保存失败不影响主流程
 
-    except Exception as e:
-        print(f" - 無法獲取 info: {e}，將使用空數據", end='')
-        info = {}
+            break  # 成功获取info，跳出重试循环
+        except Exception as e:
+            print(f" - 無法獲取 info (尝试 {attempt + 1}/{retry_attempts}): {e}", end='')
+            if attempt < retry_attempts - 1:
+                time.sleep(delay)  # 重试前等待
+            else:
+                print("，將使用空數據", end='')
+                info = {}
 
     news = []
 
@@ -393,6 +446,11 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         else:
             start_date = last_cached_date + timedelta(days=1)
             print(f" - 緩存數據過舊，正在從 {start_date.strftime('%Y-%m-%d')} 下載增量數據...", end='')
+            
+            # 应用API延迟
+            delay = max(min_delay, min(base_delay, max_delay))
+            time.sleep(delay)
+            
             new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), interval=interval, auto_adjust=True)
             if not new_hist.empty:
                 hist = pd.concat([hist, new_hist])
@@ -522,6 +580,8 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
     # 使用线程池并行处理股票
     def analyze_single_stock(symbol):
         """分析单个股票的函数"""
+        # 加载配置（在内部加载以供多线程使用）
+        config = load_config()
         try:
             # 获取股票數據（會自動處理緩存）
             hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed, interval=interval)
@@ -531,7 +591,6 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                 return None, 0  # 返回None表示该股票未通过筛选，0表示未分析成功
             
             # 数据预处理优化：基础筛选
-            config = load_config()
             enable_preprocessing = config['analysis']['enable_data_preprocessing']
             min_volume_threshold = config['analysis']['min_volume_threshold']
             
