@@ -8,6 +8,7 @@ def main():
     parser.add_argument('--market', type=str, required=True, choices=['US', 'HK'], help="要分析的市場 (US 或 HK)")
     parser.add_argument('--no-cache-update', action='store_true', help="跳過緩存更新，直接使用現有緩存數據")
     parser.add_argument('--no-kronos', action='store_true', help="跳過 Kronos 預測（僅適用於港股）")
+    parser.add_argument('--skip-strategies', action='store_true', help="跳過策略篩選，所有股票都進行AI分析")
     parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
     parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
     args = parser.parse_args()
@@ -17,6 +18,8 @@ def main():
         print("--- 已啟用快速模式：跳過緩存更新 ---")
     if args.no_kronos:
         print("--- 已跳過 Kronos 預測 ---")
+    if args.skip_strategies:
+        print("--- 已啟用跳過策略模式：所有股票都進行AI分析 ---")
     if args.symbol:
         print(f"--- 分析指定股票: {args.symbol} ---")
     print(f"--- 數據時段類型: {args.interval} ---")
@@ -25,6 +28,7 @@ def main():
         args.market,
         force_fast_mode=args.no_cache_update,
         use_kronos=not args.no_kronos,
+        skip_strategies=args.skip_strategies,
         symbol_filter=args.symbol,
         interval=args.interval
     )

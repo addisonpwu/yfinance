@@ -17,6 +17,7 @@
 - **AI分析结果缓存**：避免重复的API调用
 - **预计算技术指标**：避免重复计算技术指标
 - **改进的错误处理和日志记录**：提供详细的运行日志
+- **跳过策略功能**：支持跳过策略筛选，对所有股票进行AI分析
 
 ## 项目架构
 
@@ -33,7 +34,14 @@ yfinace/
 │   └── hk_loader.py        # 港股加载器
 ├── strategies/             # 策略模块
 │   ├── base_strategy.py    # 策略基类
-│   └── [具体策略文件]
+│   ├── accumulation_strategy.py    # 主力吸筹策略
+│   ├── bollinger_squeeze_strategy.py  # 布林带挤压突破策略
+│   ├── golden_cross_strategy.py    # 黄金交叉策略
+│   ├── inside_day_strategy.py      # 内部日反转策略
+│   ├── mean_reversion_strategy.py  # 均值回归策略
+│   ├── turnover_momentum_breakout_strategy.py  # 换手率动量突破策略
+│   ├── vcp_pocket_pivot_strategy.py  # VCP口袋支点策略
+│   └── [其他策略文件]
 ├── Kronos/                 # AI 预测模型
 ├── data_cache/             # 数据缓存目录
 ├── logs/                   # 日志文件目录
@@ -72,13 +80,13 @@ yfinace/
 策略系统采用动态加载机制，自动从 `strategies/` 目录加载所有继承自 `BaseStrategy` 的类。
 
 #### 现有策略
-- **VCP_PocketPivotStrategy**: VCP口袋支点策略，寻找"口袋支点"作为早期介入信号
-- **MainForceAccumulationStrategy**: 主力吸筹策略，捕捉机构投资者吸筹阶段
-- **GoldenCrossStrategy**: 黄金交叉策略，经典长线趋势反转策略
-- **MeanReversionStrategy**: 均值回归策略，捕捉超跌反弹机会
-- **InsideDayStrategy**: 内部日反转策略，捕捉下降趋势中的转折点
-- **BollingerSqueezeStrategy**: 布林带挤压突破策略，捕捉波动率压缩后的突破
-- **TurnoverMomentumBreakoutStrategy**: 换手率动量突破策略，寻找换手率激增的股票
+- **VCP_PocketPivotStrategy**: VCP口袋支点策略，寻找"口袋支点"作为早期介入信号 (vcp_pocket_pivot_strategy.py)
+- **MainForceAccumulationStrategy**: 主力吸筹策略，捕捉机构投资者吸筹阶段 (accumulation_strategy.py)
+- **GoldenCrossStrategy**: 黄金交叉策略，经典长线趋势反转策略 (golden_cross_strategy.py)
+- **MeanReversionStrategy**: 均值回归策略，捕捉超跌反弹机会 (mean_reversion_strategy.py)
+- **InsideDayStrategy**: 内部日反转策略，捕捉下降趋势中的转折点 (inside_day_strategy.py)
+- **BollingerSqueezeStrategy**: 布林带挤压突破策略，捕捉波动率压缩后的突破 (bollinger_squeeze_strategy.py)
+- **TurnoverMomentumBreakoutStrategy**: 换手率动量突破策略，寻找换手率激增的股票 (turnover_momentum_breakout_strategy.py)
 
 #### 策略基类 (BaseStrategy)
 ```python
@@ -122,7 +130,15 @@ class MyNewStrategy(BaseStrategy):
 - 按天缓存，缓存有效期为7天
 - 缓存路径在 `data_cache/ai_analysis/` 目录下
 
-### 4. Kronos AI 预测系统
+### 4. 跳过策略功能
+
+新增的跳过策略功能允许用户跳过所有选股策略，直接对所有股票进行AI分析：
+- **全股票AI分析**：所有股票都绕过策略筛选，直接进入AI分析流程
+- **保持数据质量检查**：仍然执行基本的数据质量验证（成交量、价格有效性等）
+- **可选的Kronos预测**：根据参数决定是否执行Kronos预测（仅适用于港股）
+- **灵活组合使用**：可与其他参数（如 `--no-cache-update`, `--no-kronos`, `--interval`）组合使用
+
+### 5. Kronos AI 预测系统
 
 为港股提供 AI 预测模型：
 - **Transformer 架构**：基于自回归模型
@@ -153,12 +169,16 @@ python3 main.py --market HK --interval 1h
 
 # 使用分钟线数据进行分析
 python3 main.py --market HK --interval 1m
+
+# 跳过策略筛选，所有股票都进行AI分析
+python3 main.py --market HK --skip-strategies
 ```
 
 ### 参数说明
 - `--market`: 必需参数，指定要分析的市场 (`US` 或 `HK`)
 - `--no-cache-update`: 可选参数，跳过缓存更新，直接使用现有缓存数据
 - `--no-kronos`: 可选参数，跳过 Kronos 预测（仅适用于港股）
+- `--skip-strategies`: 可选参数，跳过策略筛选，所有股票都进行AI分析
 - `--symbol`: 可选参数，指定分析单一股票代码
 - `--interval`: 可选参数，指定数据时段类型（`1d`/`1h`/`1m`）
 
@@ -205,10 +225,10 @@ playwright
 ### 数据处理流程
 1. **数据获取**：从 Yahoo Finance 获取股票数据
 2. **缓存管理**：根据模式选择快速加载或增量同步
-3. **策略执行**：对每只股票运行所有策略
-4. **AI 分析**：对符合条件的股票进行 AI 技术分析
+3. **策略执行**：对每只股票运行所有策略（如果未启用 `--skip-strategies` 参数）
+4. **AI 分析**：对符合条件的股票进行 AI 技术分析（或对所有股票进行AI分析，如果启用 `--skip-strategies` 参数）
 5. **Kronos 预测**：对港股进行 AI 预测（如启用）
-6. **结果筛选**：根据预测结果筛选最终股票列表
+6. **结果筛选**：根据预测结果筛选最终股票列表（如果启用 `--skip-strategies` 参数，所有通过基础筛选的股票都包含在结果中）
 
 ### 性能优化
 - **配置缓存机制**：避免在多线程环境中重复加载配置文件
@@ -223,6 +243,13 @@ playwright
 - **并行处理**：使用 ThreadPoolExecutor 并行分析股票
 - **数据预处理**：基础数据质量检查，过滤低质量股票
 - **缓存机制**：智能缓存减少重复网络请求
+- **跳过策略优化**：支持跳过策略筛选，对所有股票进行AI分析
+
+### 跳过策略功能开发
+- **参数传递**：从 main.py 的命令行参数到 analyzer.py 的函数调用
+- **条件逻辑**：在 analyze_single_stock 函数中实现条件判断
+- **AI分析集成**：确保所有股票都能进入AI分析流程
+- **结果处理**：根据 skip_strategies 参数调整结果筛选逻辑
 
 ## 输出格式
 
@@ -235,9 +262,10 @@ playwright
 - 基本面数据（市值、PE等）
 
 ### 摘要列表
-生成 `..._details.txt` 文件，包含：
+生成 `..._stocks_YYYY-MM-DD.txt` 文件，包含：
 - 格式化的股票代码列表
 - 便于复制到其他软件使用
+- 当启用 `--skip-strategies` 参数时，列表将包含所有经过AI分析的股票
 
 ## 故障排除
 
@@ -247,6 +275,8 @@ playwright
 3. **内存不足**：减少并行线程数或使用快速模式
 4. **Kronos 预测失败**：检查 Kronos 环境配置和模型路径
 5. **配置验证错误**：检查 config.json 中的配置值是否在合理范围内
+6. **跳过策略功能异常**：启用 `--skip-strategies` 参数后，确保系统有足够的资源处理所有股票的AI分析
+7. **函数返回值错误**：修复了 `analyze_single_stock` 函数中的缩进问题，确保在跳过策略模式下正确返回结果
 
 ### 调试方法
 - 使用 `--symbol` 参数分析特定股票进行调试
@@ -254,3 +284,5 @@ playwright
 - 查看缓存文件是否正确生成
 - 监控系统资源使用情况
 - 查看日志文件 (位于 logs/ 目录下) 以获取详细运行信息
+- 使用 `--skip-strategies` 参数测试AI分析流程
+- 使用 `--symbol` 和 `--skip-strategies` 组合进行功能验证

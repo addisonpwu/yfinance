@@ -721,7 +721,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
     logger.info(f"成功获取 {symbol} 数据: {len(hist)} 条记录, info字段数: {len(info) if info else 0}")
     return hist, info, news
 
-def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, symbol_filter: str = None, interval: str = '1d', max_workers: int = None):
+def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, skip_strategies: bool = False, symbol_filter: str = None, interval: str = '1d', max_workers: int = None):
     """
     對指定市場執行所有選股策略分析
 
@@ -814,12 +814,13 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
         output_file = f"{datetime.now().strftime('%Y-%m-%d')}_{market.lower()}_qualified_stocks.txt"
     
     # 使用线程池并行处理股票
-    def analyze_single_stock(symbol, config):
+    def analyze_single_stock(symbol, config, skip_strategies=False):
         """分析单个股票的函数，接受配置参数
         
         Args:
             symbol: 股票代码
             config: 配置对象
+            skip_strategies: 是否跳过策略筛选，所有股票都进行AI分析
         """
         try:
             # 获取股票數據（會自動處理緩存）
@@ -850,15 +851,24 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                 if len(hist.dropna()) < 20:  # 至少需要20个有效数据点
                     return None, 1  # 数据点不足，跳过分析
             
-            # 執行所有策略
+            # 執行所有策略或跳過策略
             passed_strategies = []
-            for strategy in strategies_to_run:
-                if strategy.run(hist.copy(), info=info, market_return=market_latest_return, is_market_healthy=is_market_healthy):
-                    passed_strategies.append(strategy.name)
+            if skip_strategies:
+                # 如果跳過策略，則所有股票都標記為通過空策略列表
+                passed_strategies = ["跳過策略"]
+                print(f"\r{' ' * 80}\r🔍 {symbol} 已跳過策略篩選，直接進行AI分析")
+            else:
+                # 執行所有策略
+                for strategy in strategies_to_run:
+                    if strategy.run(hist.copy(), info=info, market_return=market_latest_return, is_market_healthy=is_market_healthy):
+                        passed_strategies.append(strategy.name)
             
-            if passed_strategies:
+            # 无论是否跳过策略，只要通过了基础筛选，都需要进行AI分析
+            if passed_strategies or skip_strategies:
+            
                 # 步骤 1: AI 分析（在 Kronos 预测之前）
                 ai_analysis = None
+                
                 try:
                     ai_analysis = analyze_stock_with_ai({
                         'symbol': symbol,
@@ -888,6 +898,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                         kronos_prediction = process.stdout.strip()
                         # 解析上升/下跌机率
                         rise_prob, fall_prob = parse_kronos_prediction(kronos_prediction)
+
                     except subprocess.CalledProcessError as e:
                         error_output = e.stderr.strip()
                         kronos_prediction = f"預測失敗: {error_output}"
@@ -896,9 +907,10 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                     except Exception as pred_e:
                         kronos_prediction = f"調用外部腳本時出錯: {pred_e}"
 
-                # 步骤 3: 仅当上升机率 > 下跌机率时才加入 qualified_stocks（如果启用了 Kronos）
-                # 如果未启用 Kronos，则直接加入 qualified_stocks
-                if not use_kronos or rise_prob > fall_prob:
+                # 步骤 3: 将股票添加到结果中（当启用 skip_strategies 时，所有股票都添加；否则仅当上升机率 > 下跌机率或未启用 Kronos 时）
+                # 如果启用了 skip_strategies，所有通过基础筛选的股票都添加到结果中
+                # 如果未启用 skip_strategies，保持原有的 Kronos 预测筛选逻辑
+                if skip_strategies or not use_kronos or rise_prob > fall_prob:
                     exchange = info.get('exchange', 'UNKNOWN')
                     stock_result = {
                         'symbol': symbol,
@@ -921,7 +933,9 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                                     f.write(f"AI 分析: {ai_analysis['summary']}\n")
                                 f.write("-" * 50 + "\n")
                     
-                    if use_kronos:
+                    if skip_strategies:
+                        print(f"\r{' ' * 80}\r✅ {symbol} 跳過策略篩選，已進行AI分析")
+                    elif use_kronos:
                         print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, 上升機率: {rise_prob:.2f}% vs 下跌機率: {fall_prob:.2f}%")
                     else:
                         print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}")
@@ -947,8 +961,8 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
     start_time = time.time()
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # 提交所有任务，传递配置参数
-        future_to_symbol = {executor.submit(analyze_single_stock, symbol, config): symbol for symbol in tickers}
+        # 提交所有任务，传递配置参数和skip_strategies参数
+        future_to_symbol = {executor.submit(analyze_single_stock, symbol, config, skip_strategies): symbol for symbol in tickers}
         
         # 处理完成的任务
         for future in as_completed(future_to_symbol):
