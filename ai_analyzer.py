@@ -2,14 +2,112 @@
 
 import os
 import json
+import hashlib
 import requests
 import pandas as pd
 from typing import Dict, List, Optional
+from datetime import datetime, timedelta
 
 # 心流 API 配置
 IFLOW_API_URL = "https://apis.iflow.cn/v1/chat/completions"
 IFLOW_API_KEY = os.environ.get("IFLOW_API_KEY", "")
 MODEL_NAME = "deepseek-v3.2"
+
+# AI分析结果缓存路径
+AI_CACHE_DIR = os.path.join('data_cache', 'ai_analysis')
+os.makedirs(AI_CACHE_DIR, exist_ok=True)
+
+
+def _get_cache_key(stock_data: Dict, hist: pd.DataFrame, interval: str) -> str:
+    """
+    生成AI分析结果的缓存键，基于股票数据和历史数据的哈希值
+    
+    Args:
+        stock_data: 股票数据字典
+        hist: 历史数据DataFrame
+        interval: 数据时段类型
+    
+    Returns:
+        缓存键字符串
+    """
+    # 创建一个包含股票数据和历史数据关键信息的字典
+    cache_content = {
+        'symbol': stock_data.get('symbol', ''),
+        'strategies': sorted(stock_data.get('strategies', [])),
+        'market': stock_data.get('market', 'HK'),
+        'interval': interval,
+        'data_timestamp': datetime.now().strftime('%Y-%m-%d'),  # 按天缓存，每天的数据可能不同
+        'hist_shape': hist.shape if hist is not None else None,
+        'hist_last_date': str(hist.index[-1]) if hist is not None and not hist.empty else None,
+        'info_keys': {k: v for k, v in stock_data.get('info', {}).items() 
+                      if k in ['marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook', 
+                               'profitMargins', 'returnOnEquity', 'revenueGrowth', 'earningsGrowth',
+                               'dividendYield', 'beta', '52WeekChange', 'targetMeanPrice']}
+    }
+    
+    # 将字典转换为JSON字符串并生成哈希
+    cache_str = json.dumps(cache_content, sort_keys=True, default=str)
+    return hashlib.md5(cache_str.encode()).hexdigest()
+
+
+def _get_cached_result(cache_key: str) -> Optional[Dict]:
+    """
+    尝试从缓存中获取AI分析结果
+    
+    Args:
+        cache_key: 缓存键
+    
+    Returns:
+        缓存的分析结果，如果不存在或已过期则返回None
+    """
+    cache_file = os.path.join(AI_CACHE_DIR, f"{cache_key}.json")
+    
+    try:
+        if os.path.exists(cache_file):
+            # 检查缓存文件是否在有效期内（默认7天）
+            cache_time = datetime.fromtimestamp(os.path.getmtime(cache_file))
+            if datetime.now() - cache_time < timedelta(days=7):
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cached_result = json.load(f)
+                print(f" - [AI分析] 从缓存加载 {cached_result.get('symbol', 'Unknown')} 的分析结果")
+                return cached_result
+            else:
+                # 缓存已过期，删除旧文件
+                os.remove(cache_file)
+                print(f" - [AI分析] 缓存已过期，删除 {cache_key} 的缓存文件")
+    except Exception as e:
+        print(f" - [AI分析] 读取缓存时出错: {e}")
+    
+    return None
+
+
+def _save_result_to_cache(cache_key: str, stock_data: Dict, result: Dict) -> None:
+    """
+    将AI分析结果保存到缓存
+    
+    Args:
+        cache_key: 缓存键
+        stock_data: 原始股票数据
+        result: AI分析结果
+    """
+    try:
+        cache_file = os.path.join(AI_CACHE_DIR, f"{cache_key}.json")
+        cache_data = {
+            'symbol': stock_data.get('symbol', ''),
+            'timestamp': datetime.now().isoformat(),
+            'stock_data_summary': {
+                'strategies': stock_data.get('strategies', []),
+                'market': stock_data.get('market', 'HK'),
+            },
+            'analysis_result': result
+        }
+        
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        
+        print(f" - [AI分析] 保存 {stock_data.get('symbol', 'Unknown')} 的分析结果到缓存")
+    except Exception as e:
+        print(f" - [AI分析] 保存缓存时出错: {e}")
 
 
 def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval: str = '1d') -> Optional[Dict]:
@@ -39,6 +137,14 @@ def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval:
             print(f" - [AI分析] 无法加载 {stock_data['symbol']} 的历史数据，跳过 AI 分析")
             return None
     
+    # 生成缓存键
+    cache_key = _get_cache_key(stock_data, hist, interval)
+    
+    # 尝试从缓存获取结果
+    cached_result = _get_cached_result(cache_key)
+    if cached_result:
+        return cached_result.get('analysis_result')
+    
     # 构建分析提示词
     prompt = _build_analysis_prompt(stock_data, hist)
 
@@ -48,10 +154,15 @@ def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval:
 
         if response:
             print(f" - [AI分析] 成功完成 {stock_data['symbol']} 的 AI 分析")
-            return {
+            result = {
                 'summary': response,
                 'model_used': model_used
             }
+            
+            # 保存结果到缓存
+            _save_result_to_cache(cache_key, stock_data, result)
+            
+            return result
         else:
             print(f" - [AI分析] {stock_data['symbol']} 的 AI 分析失败")
             return None

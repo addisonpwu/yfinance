@@ -15,6 +15,29 @@ from ai_analyzer import analyze_stock_with_ai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import numpy as np
+import logging
+
+# 配置日志
+def setup_logging():
+    """设置日志配置"""
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    log_filename = os.path.join(log_dir, f"analyzer_{datetime.now().strftime('%Y-%m-%d')}.log")
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename, encoding='utf-8'),
+            logging.StreamHandler()  # 同时输出到控制台
+        ]
+    )
+
+# 初始化日志
+setup_logging()
+logger = logging.getLogger(__name__)
+import logging
 
 def parse_kronos_prediction(prediction_text: str) -> tuple[float, float]:
     """
@@ -80,11 +103,68 @@ def _read_csv_with_auto_index(csv_file: str) -> pd.DataFrame:
     # 使用正确的索引列名读取
     return pd.read_csv(csv_file, index_col=index_col, parse_dates=True)
 
-def load_config():
+def validate_config(config):
+    """
+    验证配置值是否在合理范围内
+    
+    Args:
+        config: 配置字典
+        
+    Raises:
+        ValueError: 当配置值不在合理范围内时抛出异常
+    """
+    errors = []
+    
+    # API配置验证
+    api_config = config['api']
+    if api_config['min_delay'] < 0:
+        errors.append("min_delay 不能为负数")
+    if api_config['max_delay'] < api_config['min_delay']:
+        errors.append("max_delay 不能小于 min_delay")
+    if api_config['base_delay'] < api_config['min_delay'] or api_config['base_delay'] > api_config['max_delay']:
+        errors.append("base_delay 应在 min_delay 和 max_delay 之间")
+    if api_config['retry_attempts'] < 0:
+        errors.append("retry_attempts 不能为负数")
+    if api_config['max_workers'] <= 0:
+        errors.append("max_workers 必须大于0")
+    
+    # 数据配置验证
+    if config['data']['max_cache_days'] <= 0:
+        errors.append("max_cache_days 必须大于0")
+    
+    # 分析配置验证
+    if config['analysis']['min_volume_threshold'] < 0:
+        errors.append("min_volume_threshold 不能为负数")
+    
+    if errors:
+        raise ValueError(f"配置验证失败: {'; '.join(errors)}")
+    
+    return True
+
+# 配置缓存变量
+_config_cache = None
+_config_timestamp = None
+
+def load_config(cached=True):
     """
     加载配置文件
+    
+    Args:
+        cached: 是否使用缓存的配置，默认为True
     """
+    global _config_cache, _config_timestamp
     config_path = os.path.join(os.path.dirname(__file__), '..', 'config.json')
+    
+    # 如果启用缓存且缓存存在，检查文件是否被修改
+    if cached and _config_cache:
+        try:
+            import stat
+            mtime = os.path.getmtime(config_path)
+            if _config_timestamp and mtime <= _config_timestamp:
+                return _config_cache
+        except:
+            pass  # 如果文件不存在或其他错误，继续加载
+    
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
@@ -117,10 +197,17 @@ def load_config():
                 if key not in config[section]:
                     config[section][key] = value
         
+        # 验证配置
+        validate_config(config)
+        
+        # 更新缓存
+        _config_cache = config
+        _config_timestamp = os.path.getmtime(config_path) if os.path.exists(config_path) else None
+        
         return config
     except FileNotFoundError:
         print(f"配置文件 {config_path} 未找到，使用默认配置")
-        return {
+        default_config = {
             "api": {
                 "base_delay": 0.5,
                 "max_delay": 2.0,
@@ -138,6 +225,15 @@ def load_config():
                 "min_volume_threshold": 100000
             }
         }
+        
+        # 验证默认配置
+        validate_config(default_config)
+        
+        # 更新缓存
+        _config_cache = default_config
+        _config_timestamp = None
+        
+        return default_config
 
 def optimize_dataframe_memory(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -265,7 +361,136 @@ def get_enhanced_financial_data(ticker: yf.Ticker) -> dict:
 
     return enhanced_data
 
-def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, interval: str = '1d') -> (pd.DataFrame, dict, dict):
+class APIDelayer:
+    """
+    API延迟管理类，实现智能延迟策略
+    """
+    def __init__(self, config):
+        self.config = config['api']
+        self.last_response_time = time.time()
+        self.failure_count = 0
+        self.successful_requests = 0
+        self.total_delay = 0
+
+    def calculate_delay(self, is_failure=False):
+        """
+        计算API延迟时间
+        
+        Args:
+            is_failure: 是否是失败请求，如果是则增加延迟
+        """
+        base_delay = self.config['base_delay']
+        
+        # 基于失败次数的指数退避
+        if is_failure:
+            self.failure_count += 1
+            current_delay = base_delay * (1.5 ** min(self.failure_count, 5))  # 最大退避5次
+        else:
+            # 成功请求时减少失败计数器（但不重置）
+            if self.failure_count > 0:
+                self.failure_count = max(0, self.failure_count - 0.1)
+            current_delay = base_delay * (0.95 ** min(self.successful_requests, 10))  # 初始成功时可略微降低延迟
+
+        # 应用最小和最大延迟限制
+        current_delay = max(self.config['min_delay'], 
+                           min(current_delay, self.config['max_delay']))
+        
+        return current_delay
+
+    def apply_delay(self, is_failure=False):
+        """
+        应用API延迟
+        
+        Args:
+            is_failure: 是否是失败请求，如果是则增加延迟
+        """
+        delay = self.calculate_delay(is_failure)
+        time.sleep(delay)
+        self.total_delay += delay
+
+    def record_request_result(self, is_success):
+        """
+        记录请求结果以调整延迟策略
+        
+        Args:
+            is_success: 请求是否成功
+        """
+        if is_success:
+            self.successful_requests += 1
+        else:
+            self.failure_count += 1
+
+
+def calculate_technical_indicators(hist: pd.DataFrame) -> pd.DataFrame:
+    """
+    预计算技术指标并添加到历史数据中
+    
+    Args:
+        hist: 包含OHLCV数据的DataFrame
+        
+    Returns:
+        添加了技术指标的DataFrame
+    """
+    if hist is None or hist.empty or 'Close' not in hist.columns:
+        return hist
+    
+    # 复制数据以避免修改原始数据
+    result = hist.copy()
+    
+    try:
+        # RSI (14)
+        delta = result['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+        rs = gain / loss
+        result['RSI_14'] = 100 - (100 / (1 + rs))
+        
+        # MACD (12, 26, 9)
+        exp12 = result['Close'].ewm(span=12, adjust=False).mean()
+        exp26 = result['Close'].ewm(span=26, adjust=False).mean()
+        macd = exp12 - exp26
+        signal = macd.ewm(span=9, adjust=False).mean()
+        result['MACD'] = macd
+        result['MACD_Signal'] = signal
+        result['MACD_Histogram'] = macd - signal
+        
+        # ATR (14)
+        high_low = result['High'] - result['Low']
+        high_close = abs(result['High'] - result['Close'].shift())
+        low_close = abs(result['Low'] - result['Close'].shift())
+        tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        result['ATR_14'] = tr.rolling(window=14, min_periods=1).mean()
+        
+        # 布林带 (20, 2)
+        sma20 = result['Close'].rolling(window=20, min_periods=1).mean()
+        std20 = result['Close'].rolling(window=20, min_periods=1).std()
+        result['BB_Middle'] = sma20
+        result['BB_Upper'] = sma20 + (std20 * 2)
+        result['BB_Lower'] = sma20 - (std20 * 2)
+        
+        # 移动平均线
+        result['MA_5'] = result['Close'].rolling(window=5, min_periods=1).mean()
+        result['MA_10'] = result['Close'].rolling(window=10, min_periods=1).mean()
+        result['MA_20'] = result['Close'].rolling(window=20, min_periods=1).mean()
+        result['MA_50'] = result['Close'].rolling(window=50, min_periods=1).mean()
+        result['MA_200'] = result['Close'].rolling(window=200, min_periods=1).mean()
+        
+        # 成交量移动平均
+        result['Volume_MA_20'] = result['Volume'].rolling(window=20, min_periods=1).mean()
+        
+        # 价格变化率
+        result['Price_Change_Pct'] = result['Close'].pct_change(fill_method=None)
+        result['Price_Change_Pct_5D'] = result['Close'].pct_change(periods=5, fill_method=None)
+        
+    except Exception as e:
+        print(f" - [技术指标计算] 计算技术指标时出错: {e}")
+        # 如果计算失败，返回原始数据
+        return hist
+    
+    return result
+
+
+def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, interval: str = '1d', config=None) -> (pd.DataFrame, dict, dict):
     """
     獲取股票數據，根據模式選擇快速加載或同步更新。
 
@@ -274,6 +499,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         market: 市場代碼 ('US' 或 'HK')
         fast_mode: 是否使用快速模式
         interval: 數據時段類型 ('1d' 日線, '1h' 小時線, '1m' 分鐘線)
+        config: 配置对象，如果为None则加载配置
     """
     cache_dir = os.path.join('data_cache', market.upper())
     # 确保缓存目录存在
@@ -283,18 +509,16 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
     json_file = os.path.join(cache_dir, f"{safe_symbol}.json")
 
     # 获取配置
-    config = load_config()
+    if config is None:
+        config = load_config()
+    
     api_config = config['api']
-    base_delay = api_config['base_delay']
-    max_delay = api_config['max_delay']
-    min_delay = api_config['min_delay']
     retry_attempts = api_config['retry_attempts']
 
     ticker = yf.Ticker(symbol)
 
     if fast_mode:
         try:
-            # print(f" - [快速模式] 從緩存加載", end='')
             # 自动检测索引列名（Date 或 Datetime）
             hist = _read_csv_with_auto_index(csv_file)
             with open(json_file, 'r', encoding='utf-8') as f:
@@ -319,47 +543,61 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
             news = []
             # 优化内存使用 - 转换数据类型
             hist = optimize_dataframe_memory(hist)
+            # 预计算技术指标
+            hist = calculate_technical_indicators(hist)
+            logger.info(f"快速模式加载 {symbol} 数据成功: {len(hist)} 条记录")
             return hist, info, news
         except FileNotFoundError:
-            # print(f" - [快速模式] 緩存文件未找到，切換到正常模式下載", end='')
-            return get_data_with_cache(symbol, market, fast_mode=False, interval=interval)
+            logger.info(f"快速模式 - 缓存文件未找到: {csv_file} 或 {json_file}")
+            return get_data_with_cache(symbol, market, fast_mode=False, interval=interval, config=config)
         except (json.JSONDecodeError, ValueError) as e:
-            print(f" - [快速模式] JSON 解析失败: {e}，重新下載", end='')
+            logger.error(f"快速模式 - JSON 解析失败 {symbol}: {e}")
             # 删除损坏的缓存文件
             try:
                 os.remove(json_file)
-            except:
-                pass
-            return get_data_with_cache(symbol, market, fast_mode=False, interval=interval)
+                logger.info(f"已删除损坏的缓存文件: {json_file}")
+            except Exception as rm_e:
+                logger.warning(f"删除损坏缓存文件失败: {rm_e}")
+            return get_data_with_cache(symbol, market, fast_mode=False, interval=interval, config=config)
+        except Exception as e:
+            logger.error(f"快速模式 - 加载 {symbol} 数据时发生未知错误: {e}")
+            return get_data_with_cache(symbol, market, fast_mode=False, interval=interval, config=config)
 
     # --- 正常同步模式 ---
     today = datetime.now().date()
     hist, info, news = pd.DataFrame(), {}, []
 
+    # 创建API延迟管理器
+    delayer = APIDelayer(config)
+
     # 首先获取历史价格数据（这个通常比 info 更容易获取）
     if os.path.exists(csv_file):
-        # 自动检测索引列名（Date 或 Datetime）
-        hist = _read_csv_with_auto_index(csv_file)
-        last_cached_date = hist.index.max().date()
+        try:
+            # 自动检测索引列名（Date 或 Datetime）
+            hist = _read_csv_with_auto_index(csv_file)
+            last_cached_date = hist.index.max().date()
 
-        if last_cached_date >= today:
-            print(f" - 從緩存加載 {len(hist)} 條數據", end='')
-        else:
-            start_date = last_cached_date + timedelta(days=1)
-            print(f" - 緩存數據過舊，正在從 {start_date.strftime('%Y-%m-%d')} 下載增量數據...", end='')
-            
-            # 应用API延迟
-            delay = max(min_delay, min(base_delay, max_delay))
-            time.sleep(delay)
-            
-            new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), interval=interval, auto_adjust=True)
-            if not new_hist.empty:
-                hist = pd.concat([hist, new_hist])
-                print(f"下載了 {len(new_hist)} 條新數據", end='')
+            if last_cached_date >= today:
+                logger.info(f"从缓存加载 {symbol} {len(hist)} 条数据")
             else:
-                print("沒有新的數據可下載", end='')
-    else:
-        print(" - 緩存不存在，正在下載全部歷史數據...", end='')
+                start_date = last_cached_date + timedelta(days=1)
+                logger.info(f"缓存数据过旧，正在从 {start_date.strftime('%Y-%m-%d')} 下载增量数据...")
+                
+                # 应用API延迟
+                delayer.apply_delay()
+                
+                new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), interval=interval, auto_adjust=True)
+                if not new_hist.empty:
+                    hist = pd.concat([hist, new_hist])
+                    logger.info(f"下载了 {len(new_hist)} 条新数据")
+                else:
+                    logger.info("没有新的数据可下载")
+        except Exception as e:
+            logger.warning(f"加载历史缓存数据失败，将重新下载: {e}")
+            hist = pd.DataFrame()  # 重置为新的数据
+
+    if hist.empty or hist.shape[0] == 0:
+        logger.info(f"缓存不存在或加载失败，正在下载 {symbol} 全部历史数据...")
         # 根據 interval 設置不同的 period
         if interval == '1m':
             period = '7d'  # 分鐘線只下載最近7天
@@ -368,8 +606,11 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         else:
             period = 'max'  # 日線下載全部歷史
         hist = ticker.history(period=period, interval=interval, auto_adjust=True)
-        print(f"下載了 {len(hist)} 條數據", end='')
+        logger.info(f"下载了 {len(hist)} 条数据")
 
+    # 预计算技术指标
+    hist = calculate_technical_indicators(hist)
+    
     # 优化内存使用 - 转换数据类型
     if not hist.empty:
         hist = optimize_dataframe_memory(hist)
@@ -378,23 +619,24 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         hist.to_csv(csv_file)
 
     # 尝试获取 info 数据（如果失败则使用空字典）
+    info_loaded = False
     for attempt in range(retry_attempts):
         try:
+            logger.debug(f"尝试获取 {symbol} info 数据 (第 {attempt + 1}/{retry_attempts} 次)")
             # 应用API延迟
-            delay = max(min_delay, min(base_delay, max_delay))
-            time.sleep(delay)
+            delayer.apply_delay()
             
             info = ticker.info
             # 确保 info 不为空 - 使用更安全的方式
             if info is None:
-                print(f" - info 数据为空", end='')
+                logger.warning(f"{symbol} info 数据为空")
                 info = {}
             elif not isinstance(info, dict):
                 # 如果 info 不是字典，转换为字典
-                print(f" - info 格式异常，转换为字典", end='')
+                logger.warning(f"{symbol} info 格式异常，转换为字典")
                 info = {}
             elif isinstance(info, dict) and len(info) == 0:
-                print(f" - info 字典为空", end='')
+                logger.warning(f"{symbol} info 字典为空")
                 # 保持为空字典，继续尝试获取增强数据
 
             # 验证关键字段是否存在，如果不存在则设置为 None
@@ -421,54 +663,44 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
 
                     with open(json_file, 'w', encoding='utf-8') as f:
                         json.dump(processed_info, f, ensure_ascii=False, indent=4)
+                    logger.debug(f"成功保存 {symbol} info 到缓存")
                 except Exception as save_error:
-                    print(f" - 保存 info 失败: {save_error}", end='')
+                    logger.error(f"保存 {symbol} info 失败: {save_error}")
                     # 保存失败不影响主流程
 
+            # 记录成功请求
+            delayer.record_request_result(True)
+            info_loaded = True
             break  # 成功获取info，跳出重试循环
         except Exception as e:
-            print(f" - 無法獲取 info (尝试 {attempt + 1}/{retry_attempts}): {e}", end='')
+            logger.error(f"无法获取 {symbol} info (尝试 {attempt + 1}/{retry_attempts}): {e}")
+            # 记录失败请求
+            delayer.record_request_result(False)
             if attempt < retry_attempts - 1:
-                time.sleep(delay)  # 重试前等待
+                logger.debug(f"重试前等待: 第 {attempt + 1} 次")
+                delayer.apply_delay(is_failure=True)  # 重试前等待更长时间
             else:
-                print("，將使用空數據", end='')
+                logger.error(f"{symbol} 所有重试均失败，将使用空数据")
                 info = {}
+
+    if not info_loaded:
+        logger.warning(f"未能获取 {symbol} 的 info 数据，使用默认空数据")
 
     news = []
 
-    if os.path.exists(csv_file):
-        # 自动检测索引列名（Date 或 Datetime）
-        hist = _read_csv_with_auto_index(csv_file)
-        last_cached_date = hist.index.max().date()
+    # 最后再检查一次缓存，确保数据完整性
+    if os.path.exists(csv_file) and hist.empty:
+        try:
+            # 自动检测索引列名（Date 或 Datetime）
+            hist = _read_csv_with_auto_index(csv_file)
+            logger.info(f"从CSV文件重新加载 {symbol} 的历史数据: {len(hist)} 条")
+        except Exception as e:
+            logger.error(f"重新从CSV加载 {symbol} 数据失败: {e}")
 
-        if last_cached_date >= today:
-            print(f" - 從緩存加載 {len(hist)} 條數據", end='')
-        else:
-            start_date = last_cached_date + timedelta(days=1)
-            print(f" - 緩存數據過舊，正在從 {start_date.strftime('%Y-%m-%d')} 下載增量數據...", end='')
-            
-            # 应用API延迟
-            delay = max(min_delay, min(base_delay, max_delay))
-            time.sleep(delay)
-            
-            new_hist = ticker.history(start=start_date.strftime('%Y-%m-%d'), interval=interval, auto_adjust=True)
-            if not new_hist.empty:
-                hist = pd.concat([hist, new_hist])
-                print(f"下載了 {len(new_hist)} 條新數據", end='')
-            else:
-                print("沒有新的數據可下載", end='')
-    else:
-        print(" - 緩存不存在，正在下載全部歷史數據...", end='')
-        # 根據 interval 設置不同的 period
-        if interval == '1m':
-            period = '7d'  # 分鐘線只下載最近7天
-        elif interval == '1h':
-            period = '730d'  # 小時線下載最近2年
-        else:
-            period = 'max'  # 日線下載全部歷史
-        hist = ticker.history(period=period, interval=interval, auto_adjust=True)
-        print(f"下載了 {len(hist)} 條數據", end='')
-
+    # 预计算技术指标（如果尚未计算）
+    if not hist.empty and 'RSI_14' not in hist.columns:
+        hist = calculate_technical_indicators(hist)
+    
     # 优化内存使用 - 转换数据类型
     if not hist.empty:
         hist = optimize_dataframe_memory(hist)
@@ -477,12 +709,16 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         hist.to_csv(csv_file)
 
     if info:
-        # 使用递归的 serialize_for_json 处理所有嵌套层级
-        processed_info = serialize_for_json(info)
+        try:
+            # 使用递归的 serialize_for_json 处理所有嵌套层级
+            processed_info = serialize_for_json(info)
 
-        with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(processed_info, f, ensure_ascii=False, indent=4)
+            with open(json_file, 'w', encoding='utf-8') as f:
+                json.dump(processed_info, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            logger.error(f"保存 {symbol} JSON 缓存失败: {e}")
 
+    logger.info(f"成功获取 {symbol} 数据: {len(hist)} 条记录, info字段数: {len(info) if info else 0}")
     return hist, info, news
 
 def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, symbol_filter: str = None, interval: str = '1d', max_workers: int = None):
@@ -578,13 +814,16 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
         output_file = f"{datetime.now().strftime('%Y-%m-%d')}_{market.lower()}_qualified_stocks.txt"
     
     # 使用线程池并行处理股票
-    def analyze_single_stock(symbol):
-        """分析单个股票的函数"""
-        # 加载配置（在内部加载以供多线程使用）
-        config = load_config()
+    def analyze_single_stock(symbol, config):
+        """分析单个股票的函数，接受配置参数
+        
+        Args:
+            symbol: 股票代码
+            config: 配置对象
+        """
         try:
             # 获取股票數據（會自動處理緩存）
-            hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed, interval=interval)
+            hist, info, news = get_data_with_cache(symbol, market, fast_mode=not is_sync_needed, interval=interval, config=config)
             
             # 数据质量检查
             if hist.empty or len(hist) < 2 or info is None or (isinstance(info, dict) and len(info) == 0):
@@ -708,8 +947,8 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
     start_time = time.time()
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # 提交所有任务
-        future_to_symbol = {executor.submit(analyze_single_stock, symbol): symbol for symbol in tickers}
+        # 提交所有任务，传递配置参数
+        future_to_symbol = {executor.submit(analyze_single_stock, symbol, config): symbol for symbol in tickers}
         
         # 处理完成的任务
         for future in as_completed(future_to_symbol):
