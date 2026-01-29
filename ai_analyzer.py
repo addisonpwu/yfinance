@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 # 心流 API 配置
 IFLOW_API_URL = "https://apis.iflow.cn/v1/chat/completions"
 IFLOW_API_KEY = os.environ.get("IFLOW_API_KEY", "")
-DEFAULT_MODEL_NAME = "iflow-rome-30ba3b"
+DEFAULT_MODEL_NAME = "deepseek-v3.2"
 
 # AI分析结果缓存路径
 AI_CACHE_DIR = os.path.join('data_cache', 'ai_analysis')
