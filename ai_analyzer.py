@@ -629,7 +629,7 @@ def _call_iflow_api(prompt: str, model_name: str = DEFAULT_MODEL_NAME) -> tuple[
             }
         ],
         "stream": False,
-        "max_tokens": 800,
+        "max_tokens": None,
         "temperature": 0.0,
         "top_p": 0.7
     }
