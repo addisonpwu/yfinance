@@ -11,14 +11,14 @@ from datetime import datetime, timedelta
 # 心流 API 配置
 IFLOW_API_URL = "https://apis.iflow.cn/v1/chat/completions"
 IFLOW_API_KEY = os.environ.get("IFLOW_API_KEY", "")
-MODEL_NAME = "deepseek-v3.2"
+DEFAULT_MODEL_NAME = "iflow-rome-30ba3b"
 
 # AI分析结果缓存路径
 AI_CACHE_DIR = os.path.join('data_cache', 'ai_analysis')
 os.makedirs(AI_CACHE_DIR, exist_ok=True)
 
 
-def _get_cache_key(stock_data: Dict, hist: pd.DataFrame, interval: str) -> str:
+def _get_cache_key(stock_data: Dict, hist: pd.DataFrame, interval: str, model: str = 'iflow-rome-30ba3b') -> str:
     """
     生成AI分析结果的缓存键，基于股票数据和历史数据的哈希值
     
@@ -26,6 +26,7 @@ def _get_cache_key(stock_data: Dict, hist: pd.DataFrame, interval: str) -> str:
         stock_data: 股票数据字典
         hist: 历史数据DataFrame
         interval: 数据时段类型
+        model: AI模型名称
     
     Returns:
         缓存键字符串
@@ -36,6 +37,7 @@ def _get_cache_key(stock_data: Dict, hist: pd.DataFrame, interval: str) -> str:
         'strategies': sorted(stock_data.get('strategies', [])),
         'market': stock_data.get('market', 'HK'),
         'interval': interval,
+        'model': model,  # 添加模型信息到缓存键
         'data_timestamp': datetime.now().strftime('%Y-%m-%d'),  # 按天缓存，每天的数据可能不同
         'hist_shape': hist.shape if hist is not None else None,
         'hist_last_date': str(hist.index[-1]) if hist is not None and not hist.empty else None,
@@ -110,7 +112,7 @@ def _save_result_to_cache(cache_key: str, stock_data: Dict, result: Dict) -> Non
         print(f" - [AI分析] 保存缓存时出错: {e}")
 
 
-def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval: str = '1d') -> Optional[Dict]:
+def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval: str = '1d', model: str = 'iflow-rome-30ba3b') -> Optional[Dict]:
     """
     使用心流 AI 对股票进行综合分析
 
@@ -122,14 +124,11 @@ def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval:
             - analyzed_news: 新闻分析结果
         hist: 股票历史数据 DataFrame（可选，如果不提供则从缓存读取）
         interval: 数据时段类型 ('1d' 日线, '1h' 小时线, '1m' 分钟线)
+        model: 要使用的AI模型名称
 
     Returns:
         包含 AI 分析结果的字典，或 None（如果分析失败）
     """
-    if not IFLOW_API_KEY:
-        print(f" - [AI分析] 未找到 IFLOW_API_KEY 环境变量，跳过 AI 分析")
-        return None
-
     # 如果没有提供 hist，尝试从缓存读取
     if hist is None:
         hist = _load_stock_data_from_cache(stock_data['symbol'], stock_data.get('market', 'HK'), interval)
@@ -137,39 +136,96 @@ def analyze_stock_with_ai(stock_data: Dict, hist: pd.DataFrame = None, interval:
             print(f" - [AI分析] 无法加载 {stock_data['symbol']} 的历史数据，跳过 AI 分析")
             return None
     
-    # 生成缓存键
-    cache_key = _get_cache_key(stock_data, hist, interval)
+    # 生成缓存键 - 包含模型信息
+    cache_key = _get_cache_key(stock_data, hist, interval, model)
     
-    # 尝试从缓存获取结果
-    cached_result = _get_cached_result(cache_key)
-    if cached_result:
-        return cached_result.get('analysis_result')
-    
-    # 构建分析提示词
-    prompt = _build_analysis_prompt(stock_data, hist)
-
-    try:
-        # 调用心流 API
-        response, model_used = _call_iflow_api(prompt)
-
-        if response:
-            print(f" - [AI分析] 成功完成 {stock_data['symbol']} 的 AI 分析")
-            result = {
-                'summary': response,
-                'model_used': model_used
-            }
+    # 如果模型为 'all'，则对所有模型进行分析
+    if model == 'all':
+        models_to_use = ['iflow-rome-30ba3b', 'qwen3-max', 'tstars2.0', 'deepseek-v3.2', 'qwen3-coder-plus']
+        all_results = []
+        for model_name in models_to_use:
+            # 为每个模型生成独立的缓存键
+            individual_cache_key = _get_cache_key(stock_data, hist, interval, model_name)
+            cached_result = _get_cached_result(individual_cache_key)
             
-            # 保存结果到缓存
-            _save_result_to_cache(cache_key, stock_data, result)
-            
-            return result
-        else:
-            print(f" - [AI分析] {stock_data['symbol']} 的 AI 分析失败")
+            if cached_result:
+                all_results.append(cached_result.get('analysis_result'))
+            elif not IFLOW_API_KEY:
+                print(f" - [AI分析] 未找到 IFLOW_API_KEY 环境变量，跳过 {model_name} 模型分析（缓存中无结果）")
+            else:
+                # 构建分析提示词
+                prompt = _build_analysis_prompt(stock_data, hist)
+
+                try:
+                    # 调用心流 API
+                    response, model_used = _call_iflow_api(prompt, model_name)
+
+                    if response:
+                        print(f" - [AI分析] 成功完成 {stock_data['symbol']} 的 {model_name} 模型 AI 分析")
+                        result = {
+                            'summary': response,
+                            'model_used': model_used
+                        }
+                        
+                        # 保存结果到缓存
+                        _save_result_to_cache(individual_cache_key, stock_data, result)
+                        all_results.append(result)
+                    else:
+                        print(f" - [AI分析] {stock_data['symbol']} 的 {model_name} 模型 AI 分析失败")
+                except Exception as e:
+                    print(f" - [AI分析] {stock_data['symbol']} 使用 {model_name} 模型分析时出错: {e}")
+        
+        # 如果所有模型都分析失败，返回None
+        if not all_results:
             return None
+        
+        # 合并所有模型的分析结果
+        combined_summary = "【多模型分析结果】\n\n"
+        for i, result in enumerate(all_results):
+            combined_summary += f"--- {result['model_used']} 模型分析 ---\n"
+            combined_summary += result['summary']
+            combined_summary += "\n\n"
+        
+        return {
+            'summary': combined_summary,
+            'model_used': 'all_models'
+        }
+    else:
+        # 尝试从缓存获取结果（即使没有API密钥也尝试从缓存获取）
+        cached_result = _get_cached_result(cache_key)
+        if cached_result:
+            return cached_result.get('analysis_result')
+        
+        # 如果没有API密钥且缓存中没有结果，则跳过AI分析
+        if not IFLOW_API_KEY:
+            print(f" - [AI分析] 未找到 IFLOW_API_KEY 环境变量，跳过 AI 分析（缓存中无结果）")
+            return None
+        
+        # 构建分析提示词
+        prompt = _build_analysis_prompt(stock_data, hist)
 
-    except Exception as e:
-        print(f" - [AI分析] {stock_data['symbol']} 分析时出错: {e}")
-        return None
+        try:
+            # 调用心流 API
+            response, model_used = _call_iflow_api(prompt, model)
+
+            if response:
+                print(f" - [AI分析] 成功完成 {stock_data['symbol']} 的 {model} 模型 AI 分析")
+                result = {
+                    'summary': response,
+                    'model_used': model_used
+                }
+                
+                # 保存结果到缓存
+                _save_result_to_cache(cache_key, stock_data, result)
+                
+                return result
+            else:
+                print(f" - [AI分析] {stock_data['symbol']} 的 {model} 模型 AI 分析失败")
+                return None
+
+        except Exception as e:
+            print(f" - [AI分析] {stock_data['symbol']} 分析时出错: {e}")
+            return None
 
 
 def _load_stock_data_from_cache(symbol: str, market: str, interval: str = '1d') -> Optional[pd.DataFrame]:
@@ -231,7 +287,7 @@ def _load_stock_data_from_cache(symbol: str, market: str, interval: str = '1d') 
 
 def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
     """
-    构建用于股票分析的提示词
+    构建用于股票分析的优化提示词
     """
     symbol = stock_data.get('symbol', 'N/A')
     info = stock_data.get('info', {})
@@ -328,6 +384,29 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
         latest_lower = lower_band.iloc[-1] if not lower_band.empty else "N/A"
         latest_close = recent_data['Close'].iloc[-1]
 
+        # 添加更多技术指标
+        # 20日移动平均线
+        ma20 = recent_data['Close'].rolling(window=20, min_periods=1).mean()
+        latest_ma20 = ma20.iloc[-1] if not ma20.empty else "N/A"
+        
+        # 50日移动平均线
+        ma50 = recent_data['Close'].rolling(window=50, min_periods=1).mean()
+        latest_ma50 = ma50.iloc[-1] if not ma50.empty else "N/A"
+        
+        # 200日移动平均线
+        ma200 = recent_data['Close'].rolling(window=200, min_periods=1).mean()
+        latest_ma200 = ma200.iloc[-1] if not ma200.empty else "N/A"
+
+        # 14日威廉指标
+        highest_high = recent_data['High'].rolling(window=14, min_periods=1).max()
+        lowest_low = recent_data['Low'].rolling(window=14, min_periods=1).min()
+        williams_r = ((highest_high - recent_data['Close']) / (highest_high - lowest_low)) * -100
+        latest_williams_r = williams_r.iloc[-1] if not williams_r.empty else "N/A"
+
+        # 相对强弱指标和成交量
+        volume_sma = recent_data['Volume'].rolling(window=20, min_periods=1).mean()
+        latest_volume_sma = volume_sma.iloc[-1] if not volume_sma.empty else "N/A"
+
         # 格式化技术指标
         technical_indicators = f"""
 【技术指标】
@@ -335,6 +414,9 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 - MACD: {latest_macd:.2f} / Signal: {latest_signal:.2f}
 - ATR (14): {latest_atr:.2f}
 - 布林带上轨: {latest_upper:.2f} / 下轨: {latest_lower:.2f} / 当前价: {latest_close:.2f}
+- 移动平均线: MA20: {latest_ma20:.2f}, MA50: {latest_ma50:.2f}, MA200: {latest_ma200:.2f}
+- 威廉指标 (14): {latest_williams_r:.2f}
+- 平均成交量 (20日): {latest_volume_sma:,.0f}
 """
 
         # 格式化历史数据（只显示最近20天以节省token）
@@ -348,7 +430,7 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
         technical_indicators = ""
     
     # 构建完整提示词
-    prompt = f"""你是一位专业的短期股票分析师。请基于以下信息对股票进行综合分析，并给出短期投资建议（1-4周内）。
+    prompt = f"""你是一位专业的短期股票分析师。请基于以下信息对股票进行结构化分析，并给出短期投资建议（1-4周内）。
 
 股票代码: {symbol}
 公司名称: {info.get('longName', 'N/A')}
@@ -374,8 +456,44 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 {hist_summary}
 
 【分析要求】
-请从以下几个维度进行深入分析，重点关注短期走势：
 
+你必须使用结构化的分析方法（Chain of Thought）：
+
+第一步：数据梳理与观察 (Data Review)
+- 观察当前价格相对于各关键移动平均线的位置 (MA20, MA50, MA200)
+- 观察RSI是否处于超买（>70）或超卖（<30）区域
+- 观察MACD是否出现金叉或死叉信号
+- 观察价格在布林带中的位置（上轨、中轨、下轨）
+- 观察成交量是否异常放大或缩小
+
+第二步：趋势判定 (Trend Analysis)  
+- 确定短期（20日）、中期（50日）、长期（200日）趋势
+- 根据移动平均线的排列顺序判定趋势（多头排列/空头排列/震荡）
+- 分析价格相对于均线的位置关系
+
+第三步：技术指标确认 (Indicator Confirmation)
+- 解读RSI数值：30以下为超卖可能反弹，70以上为超买可能回调，30-70为中性区域
+- 解读MACD：DIF线上穿DEA线为金叉（看涨信号），下穿为死叉（看跌信号）
+- 解读布林带：价格触及上轨可能回调，触及下轨可能反弹，收窄后突破方向重要
+- 解读威廉指标：-20以上为超买区，-80以下为超卖区
+
+第四步：基本面评估 (Fundamental Assessment)
+- 评估市盈率是否合理（对比行业平均、历史平均）
+- 评估PEG比率（1以下可能被低估，1以上可能被高估）
+- 评估ROE和利润率是否健康
+- 评估营收和盈利增长趋势
+
+第五步：风险识别 (Risk Identification)
+- 识别技术面风险：指标背离、趋势反转信号
+- 识别基本面风险：高PE、负增长、高负债等
+- 识别市场风险：Beta系数、市场情绪（卖空比率）
+
+第六步：综合判断 (Synthesis)
+- 综合技术面和基本面信息
+- 判断短期（1-4周）走势
+- 形成投资建议
+
+【具体分析维度】
 1. 综合评分（1-10分）：
    - 技术面评分（1-10分）：基于价格走势、成交量变化、技术指标等
    - 基本面评分（1-10分）：基于市值、市盈率、行业地位等
@@ -383,21 +501,21 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 
 2. 价格趋势分析：
    - 100天内的整体趋势（上升/下降/震荡）
-   - 关键支撑位和阻力位
+   - 关键支撑位和阻力位（参考最近的高低点、整数关口、均线位置）
    - 近期价格波动特征
 
 3. 成交量分析：
    - 近期成交量变化趋势
-   - 成交量与价格的关系
-   - 是否有异常放量或缩量
+   - 成交量与价格的关系（量价配合/背离）
+   - 是否有异常放量或缩量（突破时需要量能配合）
 
 4. 技术形态分析：
-   - RSI指标分析（超买/超卖状态）
-   - MACD金叉/死叉判断
-   - ATR反映的波动性
-   - 布林带位置（是否接近上轨/下轨）
-   - 是否存在明显的技术形态（如双底、头肩顶等）
-   - 均线系统状况
+   - RSI指标分析（超买/超卖状态、与价格的背离）
+   - MACD金叉/死叉判断、柱状线变化趋势
+   - ATR反映的波动性及对止损的指导意义
+   - 布林带位置（是否接近上轨/下轨、带宽变化）
+   - 威廉指标分析（超买超卖状态）
+   - 均线系统状况（多头/空头排列、价格与均线关系）
    - 动量指标分析
 
 5. 基本面评估：
@@ -412,16 +530,18 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
    - 财务健康状况
 
 6. 风险评估：
-   - Beta系数反映的市场风险
-   - 卖空比率反映的市场情绪
+   - Beta系数反映的市场系统性风险
+   - 卖空比率反映的市场情绪风险
    - ATR反映的波动性风险
+   - 技术面风险（指标背离、趋势反转信号）
+   - 基本面风险（高估值、盈利下滑、财务恶化）
    - 主要风险点（市场风险、行业风险、个股风险）
    - 风险等级（低/中/高）
    - 止损和止盈建议（严格止损，建议使用ATR的2倍作为止损）
 
 7. 投资建议（以短期投资为主）：
    - 明确建议：强烈买入/买入/持有/卖出/强烈卖出
-   - 建议理由：基于以上分析的详细解释，重点关注短期走势
+   - 建议理由：基于以上结构化分析的详细解释，重点关注短期走势
    - 建议仓位：建议投入资金比例（短期仓位）
    - 建议持仓周期：短期（1-7天）/短期（1-2周）/中期（2-4周）
    - 如果建议是买入或强烈买入，必须给出：
@@ -436,6 +556,24 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 
 【输出格式要求】
 请严格按照以下格式输出分析结果，不要使用 Markdown 格式（如 #### **1. 或 - **）：
+
+数据梳理与观察：
+[第一步分析内容]
+
+趋势判定：
+[第二步分析内容]
+
+技术指标确认：
+[第三步分析内容]
+
+基本面评估：
+[第四步分析内容]
+
+风险识别：
+[第五步分析内容]
+
+综合判断：
+[第六步分析内容]
 
 综合评分：技术面 [X]/10，基本面 [X]/10，综合 [X]/10
 
@@ -461,17 +599,18 @@ def _build_analysis_prompt(stock_data: Dict, hist: pd.DataFrame) -> str:
 短期走势预测（1-4周）：
 [分析内容]
 
-请以专业、详细的语言给出分析结果，控制在 800 字以内。"""
+请以专业、详细的语言给出分析结果，控制在 1000 字以内。"""
 
     return prompt
 
 
-def _call_iflow_api(prompt: str) -> tuple[Optional[str], Optional[str]]:
+def _call_iflow_api(prompt: str, model_name: str = DEFAULT_MODEL_NAME) -> tuple[Optional[str], Optional[str]]:
     """
     调用心流 API
 
     Args:
         prompt: 分析提示词
+        model_name: 要使用的模型名称
 
     Returns:
         (API 返回的文本内容, 实际使用的模型名称) 的元组，如果调用失败返回 (None, None)
@@ -482,7 +621,7 @@ def _call_iflow_api(prompt: str) -> tuple[Optional[str], Optional[str]]:
     }
 
     payload = {
-        "model": MODEL_NAME,
+        "model": model_name,
         "messages": [
             {
                 "role": "user",
@@ -509,7 +648,7 @@ def _call_iflow_api(prompt: str) -> tuple[Optional[str], Optional[str]]:
         # 提取返回的文本和模型名称
         if 'choices' in result and len(result['choices']) > 0:
             content = result['choices'][0]['message']['content']
-            model = result.get('model', MODEL_NAME)  # 从响应中提取 model，如果没有则使用默认值
+            model = result.get('model', model_name)  # 从响应中提取 model，如果没有则使用默认值
             return content, model
         else:
             return None, None
@@ -522,22 +661,23 @@ def _call_iflow_api(prompt: str) -> tuple[Optional[str], Optional[str]]:
         return None, None
 
 
-def batch_analyze_stocks(stocks_data: List[Dict]) -> List[Dict]:
+def batch_analyze_stocks(stocks_data: List[Dict], model: str = 'iflow-rome-30ba3b') -> List[Dict]:
     """
     批量分析多支股票
     
     Args:
         stocks_data: 股票数据列表
+        model: 要使用的AI模型名称
     
     Returns:
         添加了 AI 分析结果的股票数据列表
     """
-    print(f"\n--- 开始 AI 综合分析 ({len(stocks_data)} 支股票) ---")
+    print(f"\n--- 开始 AI 综合分析 ({len(stocks_data)} 支股票, 模型: {model}) ---")
     
     for i, stock in enumerate(stocks_data):
         print(f"AI 分析进度: [{i+1}/{len(stocks_data)}] {stock['symbol']}...", end='')
         
-        ai_result = analyze_stock_with_ai(stock)
+        ai_result = analyze_stock_with_ai(stock, model=model)
         
         if ai_result:
             stock['ai_analysis'] = ai_result

@@ -18,6 +18,7 @@
 - **预计算技术指标**：避免重复计算技术指标
 - **改进的错误处理和日志记录**：提供详细的运行日志
 - **跳过策略功能**：支持跳过策略筛选，对所有股票进行AI分析
+- **多模型AI分析**：支持多种AI模型进行股票分析，包括`iflow-rome-30ba3b`、`qwen3-max`、`tstars2.0`、`deepseek-v3.2`、`qwen3-coder-plus`及`all`选项
 
 ## 项目架构
 
@@ -56,10 +57,10 @@ yfinace/
 {
   "api": {
     "base_delay": 0.5,      // API 调用基础延迟
-    "max_delay": 0.9,       // API 调用最大延迟
-    "min_delay": 0.5,       // API 调用最小延迟
+    "max_delay": 2.0,       // API 调用最大延迟
+    "min_delay": 0.1,       // API 调用最小延迟
     "retry_attempts": 3,    // 重试次数
-    "max_workers": 2        // 最大并行工作线程数
+    "max_workers": 4        // 最大并行工作线程数
   },
   "data": {
     "max_cache_days": 7,    // 缓存数据最大天数
@@ -130,6 +131,12 @@ class MyNewStrategy(BaseStrategy):
 - 按天缓存，缓存有效期为7天
 - 缓存路径在 `data_cache/ai_analysis/` 目录下
 
+#### 多模型AI分析系统
+- **模型选择**：支持`iflow-rome-30ba3b`、`qwen3-max`、`tstars2.0`、`deepseek-v3.2`、`qwen3-coder-plus`等多种AI模型
+- **全模型分析**：使用`--model all`参数可同时运行所有模型并合并分析结果
+- **模型特定缓存**：不同模型的分析结果独立缓存，避免混淆
+- **智能缓存键**：缓存键包含模型信息，确保模型变更时重新分析
+
 ### 4. 跳过策略功能
 
 新增的跳过策略功能允许用户跳过所有选股策略，直接对所有股票进行AI分析：
@@ -172,6 +179,12 @@ python3 main.py --market HK --interval 1m
 
 # 跳过策略筛选，所有股票都进行AI分析
 python3 main.py --market HK --skip-strategies
+
+# 使用特定AI模型进行分析
+python3 main.py --market HK --model qwen3-max
+
+# 使用所有AI模型进行分析
+python3 main.py --market HK --model all
 ```
 
 ### 参数说明
@@ -181,6 +194,7 @@ python3 main.py --market HK --skip-strategies
 - `--skip-strategies`: 可选参数，跳过策略筛选，所有股票都进行AI分析
 - `--symbol`: 可选参数，指定分析单一股票代码
 - `--interval`: 可选参数，指定数据时段类型（`1d`/`1h`/`1m`）
+- `--model`: 可选参数，指定AI分析模型（`iflow-rome-30ba3b`/`qwen3-max`/`tstars2.0`/`deepseek-v3.2`/`qwen3-coder-plus`/`all`）
 
 ## 安装与部署
 
@@ -244,12 +258,13 @@ playwright
 - **数据预处理**：基础数据质量检查，过滤低质量股票
 - **缓存机制**：智能缓存减少重复网络请求
 - **跳过策略优化**：支持跳过策略筛选，对所有股票进行AI分析
+- **多模型优化**：支持多种AI模型分析，提供更全面的分析结果
 
-### 跳过策略功能开发
-- **参数传递**：从 main.py 的命令行参数到 analyzer.py 的函数调用
-- **条件逻辑**：在 analyze_single_stock 函数中实现条件判断
-- **AI分析集成**：确保所有股票都能进入AI分析流程
-- **结果处理**：根据 skip_strategies 参数调整结果筛选逻辑
+### 多模型功能开发
+- **参数传递**：从 main.py 的命令行参数到 ai_analyzer.py 的函数调用
+- **模型选择逻辑**：在 analyze_stock_with_ai 函数中实现多模型选择逻辑
+- **缓存机制**：为不同模型创建独立的缓存键，避免结果混淆
+- **结果合并**：当使用 `all` 模型选项时，合并所有模型的分析结果
 
 ## 输出格式
 
@@ -277,6 +292,7 @@ playwright
 5. **配置验证错误**：检查 config.json 中的配置值是否在合理范围内
 6. **跳过策略功能异常**：启用 `--skip-strategies` 参数后，确保系统有足够的资源处理所有股票的AI分析
 7. **函数返回值错误**：修复了 `analyze_single_stock` 函数中的缩进问题，确保在跳过策略模式下正确返回结果
+8. **多模型功能问题**：确保环境变量 `IFLOW_API_KEY` 已设置以使用AI分析功能
 
 ### 调试方法
 - 使用 `--symbol` 参数分析特定股票进行调试
@@ -286,3 +302,4 @@ playwright
 - 查看日志文件 (位于 logs/ 目录下) 以获取详细运行信息
 - 使用 `--skip-strategies` 参数测试AI分析流程
 - 使用 `--symbol` 和 `--skip-strategies` 组合进行功能验证
+- 使用 `--model` 参数测试多模型AI分析功能

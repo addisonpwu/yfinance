@@ -721,7 +721,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
     logger.info(f"成功获取 {symbol} 数据: {len(hist)} 条记录, info字段数: {len(info) if info else 0}")
     return hist, info, news
 
-def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, skip_strategies: bool = False, symbol_filter: str = None, interval: str = '1d', max_workers: int = None):
+def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = True, skip_strategies: bool = False, symbol_filter: str = None, interval: str = '1d', max_workers: int = None, model: str = 'iflow-rome-30ba3b'):
     """
     對指定市場執行所有選股策略分析
 
@@ -814,13 +814,14 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
         output_file = f"{datetime.now().strftime('%Y-%m-%d')}_{market.lower()}_qualified_stocks.txt"
     
     # 使用线程池并行处理股票
-    def analyze_single_stock(symbol, config, skip_strategies=False):
+    def analyze_single_stock(symbol, config, skip_strategies=False, model='iflow-rome-30ba3b'):
         """分析单个股票的函数，接受配置参数
         
         Args:
             symbol: 股票代码
             config: 配置对象
             skip_strategies: 是否跳过策略筛选，所有股票都进行AI分析
+            model: 要使用的AI模型名称
         """
         try:
             # 获取股票數據（會自動處理緩存）
@@ -875,7 +876,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                         'strategies': passed_strategies,
                         'info': info,
                         'market': market
-                    }, hist, interval)
+                    }, hist, interval, model)
                 except Exception as ai_e:
                     print(f" - AI 分析出错: {ai_e}", end='')
 
@@ -939,10 +940,9 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
                         print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}, 上升機率: {rise_prob:.2f}% vs 下跌機率: {fall_prob:.2f}%")
                     else:
                         print(f"\r{' ' * 80}\r✅ {symbol} 符合策略: {passed_strategies}")
-                    # 输出 AI 分析结果到 console
+                    # 仅输出简要AI分析信息，详细内容在最终报告中显示
                     if ai_analysis:
-                        print(f"   🤖 AI 分析: {ai_analysis['summary']}")
-                        print(f"   🤖 AI 模型: {ai_analysis['model_used']}")
+                        print(f"   🤖 AI 分析: 已完成 (模型: {ai_analysis['model_used']})")
                     else:
                         print(f"   🤖 AI 分析: 未能完成")
                     return stock_result, 1
@@ -961,8 +961,8 @@ def run_analysis(market: str, force_fast_mode: bool = False, use_kronos: bool = 
     start_time = time.time()
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # 提交所有任务，传递配置参数和skip_strategies参数
-        future_to_symbol = {executor.submit(analyze_single_stock, symbol, config, skip_strategies): symbol for symbol in tickers}
+        # 提交所有任务，传递配置参数、skip_strategies参数和model参数
+        future_to_symbol = {executor.submit(analyze_single_stock, symbol, config, skip_strategies, model): symbol for symbol in tickers}
         
         # 处理完成的任务
         for future in as_completed(future_to_symbol):

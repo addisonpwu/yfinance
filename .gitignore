@@ -6,11 +6,12 @@ __pycache__/
 *.pyc
 
 # Output files
-./
-hk_stocks*.txt
-us_stocks*.txt
+*.txt
 debug_output.html
 book/
+
+# Logs directory
+logs/
 
 # Data cache
 data_cache/

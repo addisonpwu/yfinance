@@ -11,6 +11,7 @@ def main():
     parser.add_argument('--skip-strategies', action='store_true', help="跳過策略篩選，所有股票都進行AI分析")
     parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
     parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
+    parser.add_argument('--model', type=str, default='iflow-rome-30ba3b', choices=['iflow-rome-30ba3b', 'qwen3-max', 'tstars2.0', 'deepseek-v3.2', 'qwen3-coder-plus', 'all'], help="AI分析模型：iflow-rome-30ba3b/qwen3-max/tstars2.0/deepseek-v3.2/qwen3-coder-plus/all")
     args = parser.parse_args()
 
     print(f"--- 開始對 {args.market.upper()} 市場進行分析 ---")
@@ -23,6 +24,7 @@ def main():
     if args.symbol:
         print(f"--- 分析指定股票: {args.symbol} ---")
     print(f"--- 數據時段類型: {args.interval} ---")
+    print(f"--- AI分析模型: {args.model} ---")
 
     final_list = analyzer.run_analysis(
         args.market,
@@ -30,7 +32,8 @@ def main():
         use_kronos=not args.no_kronos,
         skip_strategies=args.skip_strategies,
         symbol_filter=args.symbol,
-        interval=args.interval
+        interval=args.interval,
+        model=args.model
     )
 
     print("\n--- 最終篩選結果 ---")
