@@ -9,9 +9,9 @@
 -   `main.py`: 專案的主入口，負責解析參數、調度分析並輸出結果。
 -   `data_loader/`: 負責從不同來源獲取股票代碼列表（美股從 statementdog.com，港股從 hkex.com.hk）。
 -   `strategies/`: 存放所有選股策略。您可以輕鬆地在此處添加自己的策略。
--   `analysis/`: 核心分析引擎，負責執行所有策略並篩選股票，整合了 Kronos 預測模型。
+-   `analysis/`: 核心分析引擎，負責執行所有策略並篩選股票。
 -   `news_analyzer.py`: 新聞情感分析模組，使用 Playwright 從雅虎財經抓取並分析新聞。
--   `Kronos/`: AI 預測模型模組，為港股提供未來走勢預測。
+
 -   `data_cache/`: 用於緩存股票數據，提升重複運行效率。
 
 ## 主要功能
@@ -20,26 +20,12 @@
 -   **雙市場支援**：透過命令列參數即可切換美國 (`US`) 和香港 (`HK`) 市場。
 -   **動態策略加載**：分析引擎會自動偵測並執行 `strategies` 文件夾中的所有策略。
 -   **高效數據緩存**: 引入了智能數據緩存機制，大幅提升二次運行的速度。
--   **AI 預測整合**: 為港股整合了 Kronos Transformer 模型，提供未來走勢的概率性預測。
+
 -   **新聞情感分析**: 自動抓取並分析入選股票的最新新聞情感，提供市場情緒參考。
 -   **豐富的結果輸出**：
-    -   **詳細報告**：程式會生成一份詳細報告檔案 (`..._details.txt`)，其中包含每支入選股票的基本面資訊（市值、市盈率等）、Kronos 預測結果和最新新聞情感分析，方便進行深度分析。
+    -   **詳細報告**：程式會生成一份詳細報告檔案 (`..._details.txt`)，其中包含每支入選股票的基本面資訊（市值、市盈率等）和最新新聞情感分析，方便進行深度分析。
     -   **簡潔摘要**：同時，一個簡潔的摘要列表也會被儲存到對應市場的 `.txt` 檔案中，方便直接複製貼上至其他軟體使用。
 
-## Kronos AI 預測模型整合
-
-本專案已整合 Kronos 預測模型，為通過篩選的香港股票提供額外的 AI 預測信息。
-
-### 技術特點
-- **Transformer 架構**: 基於自回归 Transformer 模型
-- **兩階段框架**: 量化器编码 + Transformer 預測
-- **全球支援**: 支援全球 45+ 交易所數據
-- **概率性預測**: 提供未來 10 天的上升/下跌概率
-
-### 使用方式
-- **自動預測**: 對於符合篩選條件的香港股票，系統將自動調用 Kronos 模型進行預測
-- **結果顯示**: Kronos 的預測結果（上升概率百分比）將顯示在控制台輸出和詳細報告中
-- **模型來源**: 從 Hugging Face Hub 加載預訓練模型 (`NeoQuasar/Kronos-base`)
 
 ## 數據緩存與性能
 
@@ -104,7 +90,6 @@
 4.  **安裝其餘所需套件**:
     ```bash
     pip install -r requirements.txt
-    pip install -r Kronos/requirements.txt
     ```
 
 ## 使用方法
@@ -121,9 +106,6 @@ python3 main.py --market HK
 # 強制快速模式（跳過緩存更新，直接使用現有緩存數據）
 python3 main.py --market HK --no-cache-update
 
-# 跳過 Kronos 預測（僅適用於港股）
-python3 main.py --market HK --no-kronos
-
 # 分析指定單一股票
 python3 main.py --market HK --symbol 0017.HK
 
@@ -133,9 +115,6 @@ python3 main.py --market HK --interval 1h
 # 使用分鐘線數據進行分析（僅最近7天）
 python3 main.py --market HK --interval 1m
 
-# 組合使用：分析指定股票並跳過 Kronos 預測
-python3 main.py --market HK --symbol 0017.HK --no-kronos
-
 # 組合使用：使用小時線數據分析指定股票
 python3 main.py --market HK --symbol 0017.HK --interval 1h
 ```
@@ -143,7 +122,6 @@ python3 main.py --market HK --symbol 0017.HK --interval 1h
 ### 參數說明
 - `--market`: 必需參數，指定要分析的市場 (`US` 或 `HK`)
 - `--no-cache-update`: 可選參數，跳過緩存更新，直接使用現有緩存數據（適用於當天已同步過數據的情況）
-- `--no-kronos`: 可選參數，跳過 Kronos 預測（僅適用於港股）。使用此參數時，符合策略的股票將直接進入最終篩選結果，不會經過 Kronos 機率過濾
 - `--symbol`: 可選參數，指定分析單一股票代碼（例如：0017.HK）。使用此參數時，只會分析該股票，不會掃描整個市場
 - `--interval`: 可選參數，指定數據時段類型（默認為 `1d`）：
   - `1d`: 日線數據（默認，下載全部歷史數據）
@@ -258,7 +236,6 @@ class MyNewStrategy(BaseStrategy):
     -   **AI 分析增強**: 投資建議中增加價位建議功能，當建議買入時會提供具體的買入價位、賣出價位和止損價位。
     -   **新增參數 (--interval)**: 支持選擇數據時段類型（1d 日線、1h 小時線、1m 分鐘線），不同時段使用獨立的緩存文件。
     -   **新增參數 (--symbol)**: 支持分析指定單一股票，無需掃描整個市場。
-    -   **新增參數 (--no-kronos)**: 支持跳過 Kronos 預測，僅使用策略篩選。
     -   **AI 分析優化**: 使用 100 天歷史數據進行更深入的分析，標準化輸出格式，顯示實際使用的 AI 模型。
 
 -   **2026-01-20**:

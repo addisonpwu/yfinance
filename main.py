@@ -1,13 +1,12 @@
 
 import argparse
 from datetime import datetime
-from analysis import analyzer
+from src.core.services.analysis_service import run_analysis
 
 def main():
     parser = argparse.ArgumentParser(description="靈活的股票篩選器，支援多種策略")
     parser.add_argument('--market', type=str, required=True, choices=['US', 'HK'], help="要分析的市場 (US 或 HK)")
     parser.add_argument('--no-cache-update', action='store_true', help="跳過緩存更新，直接使用現有緩存數據")
-    parser.add_argument('--no-kronos', action='store_true', help="跳過 Kronos 預測（僅適用於港股）")
     parser.add_argument('--skip-strategies', action='store_true', help="跳過策略篩選，所有股票都進行AI分析")
     parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
     parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
@@ -16,20 +15,17 @@ def main():
 
     print(f"--- 開始對 {args.market.upper()} 市場進行分析 ---")
     if args.no_cache_update:
-        print("--- 已啟用快速模式：跳過緩存更新 ---")
-    if args.no_kronos:
-        print("--- 已跳過 Kronos 預測 ---")
+        print(f"--- 已啟用快速模式：跳過緩存更新 ---")
     if args.skip_strategies:
-        print("--- 已啟用跳過策略模式：所有股票都進行AI分析 ---")
+        print(f"--- 已啟用跳過策略模式：所有股票都進行AI分析 ---")
     if args.symbol:
         print(f"--- 分析指定股票: {args.symbol} ---")
     print(f"--- 數據時段類型: {args.interval} ---")
     print(f"--- AI分析模型: {args.model} ---")
 
-    final_list = analyzer.run_analysis(
+    final_list = run_analysis(
         args.market,
         force_fast_mode=args.no_cache_update,
-        use_kronos=not args.no_kronos,
         skip_strategies=args.skip_strategies,
         symbol_filter=args.symbol,
         interval=args.interval,
@@ -46,7 +42,6 @@ def main():
 
         for stock in final_list:
             info = stock.get('info', {})
-            kronos_prediction = stock.get('kronos_prediction', 'N/A') # <-- 獲取預測值
             
             # 安全地格式化市值和PE
             market_cap = info.get('marketCap')
@@ -63,12 +58,6 @@ def main():
 
             detailed_output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
             detailed_output_lines.append(f"   - 符合策略: {stock['strategies']}")
-            detailed_output_lines.append(f"   - Kronos 預測: {kronos_prediction}") # <-- 新增此行以顯示預測
-            # 显示上升/下跌机率
-            rise_prob = stock.get('rise_prob', 0)
-            fall_prob = stock.get('fall_prob', 0)
-            if rise_prob > 0 or fall_prob > 0:
-                detailed_output_lines.append(f"   - 預測機率: 上升 {rise_prob:.2f}% vs 下跌 {fall_prob:.2f}%")
             detailed_output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
             detailed_output_lines.append(f"   - 市值: {market_cap_str}")
             detailed_output_lines.append(f"   - 流通股本: {float_shares_str}")

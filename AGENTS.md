@@ -9,7 +9,7 @@
 - **策略模块化**：动态加载策略，易于扩展
 - **智能缓存系统**：高效的数据缓存机制，提升重复运行效率
 - **AI 分析集成**：集成 iFlow API 进行技术分析
-- **AI 预测模型**：整合 Kronos Transformer 模型进行股价预测
+
 - **新闻情感分析**：自动抓取并分析股票新闻情感
 - **多时间框架**：支持日线、小时线、分钟线数据
 - **配置缓存机制**：避免重复加载配置文件
@@ -43,7 +43,7 @@ yfinace/
 │   ├── turnover_momentum_breakout_strategy.py  # 换手率动量突破策略
 │   ├── vcp_pocket_pivot_strategy.py  # VCP口袋支点策略
 │   └── [其他策略文件]
-├── Kronos/                 # AI 预测模型
+
 ├── data_cache/             # 数据缓存目录
 ├── logs/                   # 日志文件目录
 └── requirements.txt        # 依赖文件
@@ -142,15 +142,10 @@ class MyNewStrategy(BaseStrategy):
 新增的跳过策略功能允许用户跳过所有选股策略，直接对所有股票进行AI分析：
 - **全股票AI分析**：所有股票都绕过策略筛选，直接进入AI分析流程
 - **保持数据质量检查**：仍然执行基本的数据质量验证（成交量、价格有效性等）
-- **可选的Kronos预测**：根据参数决定是否执行Kronos预测（仅适用于港股）
-- **灵活组合使用**：可与其他参数（如 `--no-cache-update`, `--no-kronos`, `--interval`）组合使用
 
-### 5. Kronos AI 预测系统
+- **灵活组合使用**：可与其他参数（如 `--no-cache-update`, `--interval`）组合使用
 
-为港股提供 AI 预测模型：
-- **Transformer 架构**：基于自回归模型
-- **全球支持**：支持全球 45+ 交易所数据
-- **概率预测**：提供未来 10 天的上升/下跌概率
+
 
 ## 使用方法
 
@@ -165,8 +160,7 @@ python3 main.py --market HK
 # 强制快速模式（跳过缓存更新）
 python3 main.py --market HK --no-cache-update
 
-# 跳过 Kronos 预测（仅适用于港股）
-python3 main.py --market HK --no-kronos
+
 
 # 分析指定单一股票
 python3 main.py --market HK --symbol 0017.HK
@@ -190,7 +184,7 @@ python3 main.py --market HK --model all
 ### 参数说明
 - `--market`: 必需参数，指定要分析的市场 (`US` 或 `HK`)
 - `--no-cache-update`: 可选参数，跳过缓存更新，直接使用现有缓存数据
-- `--no-kronos`: 可选参数，跳过 Kronos 预测（仅适用于港股）
+
 - `--skip-strategies`: 可选参数，跳过策略筛选，所有股票都进行AI分析
 - `--symbol`: 可选参数，指定分析单一股票代码
 - `--interval`: 可选参数，指定数据时段类型（`1d`/`1h`/`1m`）
@@ -215,7 +209,7 @@ pip install torch torchvision torchaudio --extra-index-url https://download.pyto
 
 # 4. 安装其他依赖
 pip install -r requirements.txt
-pip install -r Kronos/requirements.txt
+
 ```
 
 ### 依赖项
@@ -241,7 +235,7 @@ playwright
 2. **缓存管理**：根据模式选择快速加载或增量同步
 3. **策略执行**：对每只股票运行所有策略（如果未启用 `--skip-strategies` 参数）
 4. **AI 分析**：对符合条件的股票进行 AI 技术分析（或对所有股票进行AI分析，如果启用 `--skip-strategies` 参数）
-5. **Kronos 预测**：对港股进行 AI 预测（如启用）
+
 6. **结果筛选**：根据预测结果筛选最终股票列表（如果启用 `--skip-strategies` 参数，所有通过基础筛选的股票都包含在结果中）
 
 ### 性能优化
@@ -272,7 +266,7 @@ playwright
 生成 `..._details.txt` 文件，包含：
 - 股票基本信息（名称、代码、行业等）
 - 符合的策略列表
-- Kronos 预测结果
+
 - AI 分析摘要
 - 基本面数据（市值、PE等）
 
@@ -288,7 +282,7 @@ playwright
 1. **API 限制**：增加 API 调用延迟或减少并行线程数
 2. **数据缺失**：检查缓存文件完整性，必要时删除缓存重新下载
 3. **内存不足**：减少并行线程数或使用快速模式
-4. **Kronos 预测失败**：检查 Kronos 环境配置和模型路径
+4. 
 5. **配置验证错误**：检查 config.json 中的配置值是否在合理范围内
 6. **跳过策略功能异常**：启用 `--skip-strategies` 参数后，确保系统有足够的资源处理所有股票的AI分析
 7. **函数返回值错误**：修复了 `analyze_single_stock` 函数中的缩进问题，确保在跳过策略模式下正确返回结果
