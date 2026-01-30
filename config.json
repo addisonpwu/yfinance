@@ -1,18 +1,76 @@
 {
   "api": {
     "base_delay": 0.5,
-    "max_delay": 0.9,
-    "min_delay": 0.5,
+    "max_delay": 2.0,
+    "min_delay": 0.1,
     "retry_attempts": 3,
-    "max_workers": 2
+    "max_workers": 4
   },
   "data": {
     "max_cache_days": 7,
-    "float_dtype": "float32"
+    "float_dtype": "float32",
+    "data_download_period": {
+      "1m": "7d",
+      "1h": "730d",
+      "1d": "max"
+    },
+    "enable_cache": false
   },
   "analysis": {
     "enable_realtime_output": true,
     "enable_data_preprocessing": true,
-    "min_volume_threshold": 100000
+    "min_volume_threshold": 100000,
+    "min_data_points_threshold": 20
+  },
+  "technical_indicators": {
+    "rsi_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "bb_period": 20,
+    "bb_std_dev": 2,
+    "atr_period": 14,
+    "ma_periods": [
+      5,
+      10,
+      20,
+      50,
+      200
+    ]
+  },
+  "strategies": {
+    "vcp_pocket_pivot": {
+      "ma_periods": [
+        50,
+        150,
+        200
+      ],
+      "volatility_windows": [
+        50,
+        20,
+        10
+      ],
+      "volume_avg_period": 50,
+      "pp_lookback_period": 10,
+      "pp_max_bias_ratio": 0.08
+    },
+    "bollinger_squeeze": {
+      "bb_period": 20,
+      "squeeze_lookback": 100,
+      "squeeze_percentile": 0.1,
+      "prolonged_squeeze_period": 5,
+      "long_trend_period": 200,
+      "ma_slope_period": 5,
+      "volume_period": 50
+    }
+  },
+  "news": {
+    "timeout": 60000,
+    "max_news_items": 5
+  },
+  "ai": {
+    "api_timeout": 30,
+    "model": "deepseek-v3.2",
+    "max_data_points": 100
   }
 }

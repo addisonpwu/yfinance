@@ -519,7 +519,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
             # 优化内存使用 - 转换数据类型
             hist = optimize_dataframe_memory(hist)
             # 预计算技术指标
-            hist = calculate_technical_indicators(hist)
+            hist = calculate_technical_indicators(hist, config)
             logger.info(f"快速模式加载 {symbol} 数据成功: {len(hist)} 条记录")
             return hist, info, news
         except FileNotFoundError:
@@ -584,7 +584,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
         logger.info(f"下载了 {len(hist)} 条数据")
 
     # 预计算技术指标
-    hist = calculate_technical_indicators(hist)
+    hist = calculate_technical_indicators(hist, config)
     
     # 优化内存使用 - 转换数据类型
     if not hist.empty:
@@ -674,7 +674,7 @@ def get_data_with_cache(symbol: str, market: str, fast_mode: bool = False, inter
 
     # 预计算技术指标（如果尚未计算）
     if not hist.empty and 'RSI_14' not in hist.columns:
-        hist = calculate_technical_indicators(hist)
+        hist = calculate_technical_indicators(hist, config)
     
     # 优化内存使用 - 转换数据类型
     if not hist.empty:

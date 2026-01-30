@@ -15,9 +15,12 @@ from src.utils.logger import get_data_logger
 
 class YahooFinanceRepository(StockRepository):
     def __init__(self):
-        self.cache_service = OptimizedCache()
+        # 使用配置中的 enable_cache 设置来初始化缓存服务
+        config = config_manager.get_config()
+        self.cache_service = OptimizedCache(enabled=config.data.enable_cache)
         self.config = config_manager.get_config()
         self.logger = get_data_logger()
+        # 总是创建缓存目录，以便保存CSV文件
         self._setup_cache_dirs()
         
     def _setup_cache_dirs(self):
@@ -26,20 +29,36 @@ class YahooFinanceRepository(StockRepository):
         os.makedirs(f"data_cache/{'HK'}", exist_ok=True)
         os.makedirs("data_cache/ai_analysis", exist_ok=True)
     
+    def _save_historical_data_as_csv(self, symbol: str, data: pd.DataFrame, market: str, interval: str = '1d') -> None:
+        """保存历史数据为CSV文件（总是保存，不依赖于缓存设置）"""
+        try:
+            cache_dir = os.path.join('data_cache', market.upper())
+            safe_symbol = symbol.replace(":", "_")
+            csv_file = os.path.join(cache_dir, f"{safe_symbol}_{interval}.csv")
+            
+            data.to_csv(csv_file)
+        except Exception as e:
+            self.logger.error(f"保存 {symbol} 历史数据为CSV失败: {e}")
+            raise CacheException(f"保存历史数据为CSV失败: {e}")
+    
     def get_historical_data(self, symbol: str, market: str, interval: str = '1d') -> pd.DataFrame:
         try:
             cache_key = f"{symbol}_{interval}_{market}"
             cached_data = self.cache_service.get(cache_key)
             
             if cached_data is not None:
-                self.logger.info(f"从缓存获取 {symbol} 的历史数据")
+                self.logger.info(f"从缓存获取 {symbol} ({interval}) 的历史数据")
                 return cached_data
             
             # 获取数据
             hist = self._fetch_historical_data(symbol, market, interval)
             
-            # 缓存数据
-            self.cache_service.set(cache_key, hist)
+            # 保存为CSV文件（总是保存，不依赖于缓存设置）
+            self._save_historical_data_as_csv(symbol, hist, market, interval)
+            
+            # 根据缓存设置决定是否缓存数据
+            if self.cache_service.enabled:
+                self.cache_service.set(cache_key, hist)
             
             return hist
         except Exception as e:
@@ -94,13 +113,13 @@ class YahooFinanceRepository(StockRepository):
     
     def save_historical_data(self, symbol: str, data: pd.DataFrame, market: str, interval: str = '1d') -> None:
         try:
-            cache_dir = os.path.join('data_cache', market.upper())
-            safe_symbol = symbol.replace(":", "_")
-            csv_file = os.path.join(cache_dir, f"{safe_symbol}_{interval}.csv")
+            # 保存为CSV文件（总是保存，不依赖于缓存设置）
+            self._save_historical_data_as_csv(symbol, data, market, interval)
             
-            data.to_csv(csv_file)
-            cache_key = f"{symbol}_{interval}_{market}"
-            self.cache_service.set(cache_key, data)
+            # 根据缓存设置决定是否缓存数据
+            if self.cache_service.enabled:
+                cache_key = f"{symbol}_{interval}_{market}"
+                self.cache_service.set(cache_key, data)
         except Exception as e:
             self.logger.error(f"保存 {symbol} 历史数据失败: {e}")
             raise CacheException(f"保存历史数据失败: {e}")
@@ -124,13 +143,15 @@ class YahooFinanceRepository(StockRepository):
         """获取历史数据的内部方法"""
         ticker = yf.Ticker(symbol)
         
-        # 根据 interval 设置不同的 period
+        # 根据 interval 设置不同的 period，从配置中获取
+        config = self.config
+        data_period_config = config.data.data_download_period
         if interval == '1m':
-            period = '7d'  # 分鐘線只下載最近7天
+            period = data_period_config.m1  # 分鐘線從配置獲取
         elif interval == '1h':
-            period = '730d'  # 小時線下載最近2年
+            period = data_period_config.h1  # 小時線從配置獲取
         else:
-            period = 'max'  # 日線下載全部歷史
+            period = data_period_config.d1  # 日線從配置獲取
         
         hist = ticker.history(period=period, interval=interval, auto_adjust=True)
         
@@ -139,12 +160,13 @@ class YahooFinanceRepository(StockRepository):
         
         return hist
 
-def calculate_technical_indicators(hist: pd.DataFrame) -> pd.DataFrame:
+def calculate_technical_indicators(hist: pd.DataFrame, config=None) -> pd.DataFrame:
     """
     预计算技术指标并添加到历史数据中
     
     Args:
         hist: 包含OHLCV数据的DataFrame
+        config: 配置对象，如果为None则使用默认配置
         
     Returns:
         添加了技术指标的DataFrame
@@ -155,43 +177,48 @@ def calculate_technical_indicators(hist: pd.DataFrame) -> pd.DataFrame:
     # 复制数据以避免修改原始数据
     result = hist.copy()
     
+    # 获取配置
+    if config is None:
+        from src.config.settings import config_manager
+        config = config_manager.get_config()
+    
+    # 从配置获取技术指标参数
+    ti_config = config.technical_indicators
+    
     try:
-        # RSI (14)
+        # RSI (可配置周期)
         delta = result['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+        gain = (delta.where(delta > 0, 0)).rolling(window=ti_config.rsi_period, min_periods=1).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=ti_config.rsi_period, min_periods=1).mean()
         rs = gain / loss
-        result['RSI_14'] = 100 - (100 / (1 + rs))
+        result[f'RSI_{ti_config.rsi_period}'] = 100 - (100 / (1 + rs))
         
-        # MACD (12, 26, 9)
-        exp12 = result['Close'].ewm(span=12, adjust=False).mean()
-        exp26 = result['Close'].ewm(span=26, adjust=False).mean()
-        macd = exp12 - exp26
-        signal = macd.ewm(span=9, adjust=False).mean()
+        # MACD (可配置参数)
+        exp_fast = result['Close'].ewm(span=ti_config.macd_fast, adjust=False).mean()
+        exp_slow = result['Close'].ewm(span=ti_config.macd_slow, adjust=False).mean()
+        macd = exp_fast - exp_slow
+        signal = macd.ewm(span=ti_config.macd_signal, adjust=False).mean()
         result['MACD'] = macd
         result['MACD_Signal'] = signal
         result['MACD_Histogram'] = macd - signal
         
-        # ATR (14)
+        # ATR (可配置周期)
         high_low = result['High'] - result['Low']
         high_close = abs(result['High'] - result['Close'].shift())
         low_close = abs(result['Low'] - result['Close'].shift())
         tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-        result['ATR_14'] = tr.rolling(window=14, min_periods=1).mean()
+        result[f'ATR_{ti_config.atr_period}'] = tr.rolling(window=ti_config.atr_period, min_periods=1).mean()
         
-        # 布林带 (20, 2)
-        sma20 = result['Close'].rolling(window=20, min_periods=1).mean()
-        std20 = result['Close'].rolling(window=20, min_periods=1).std()
-        result['BB_Middle'] = sma20
-        result['BB_Upper'] = sma20 + (std20 * 2)
-        result['BB_Lower'] = sma20 - (std20 * 2)
+        # 布林带 (可配置参数)
+        sma_bb = result['Close'].rolling(window=ti_config.bb_period, min_periods=1).mean()
+        std_bb = result['Close'].rolling(window=ti_config.bb_period, min_periods=1).std()
+        result['BB_Middle'] = sma_bb
+        result['BB_Upper'] = sma_bb + (std_bb * ti_config.bb_std_dev)
+        result['BB_Lower'] = sma_bb - (std_bb * ti_config.bb_std_dev)
         
-        # 移动平均线
-        result['MA_5'] = result['Close'].rolling(window=5, min_periods=1).mean()
-        result['MA_10'] = result['Close'].rolling(window=10, min_periods=1).mean()
-        result['MA_20'] = result['Close'].rolling(window=20, min_periods=1).mean()
-        result['MA_50'] = result['Close'].rolling(window=50, min_periods=1).mean()
-        result['MA_200'] = result['Close'].rolling(window=200, min_periods=1).mean()
+        # 移动平均线 (可配置周期)
+        for period in ti_config.ma_periods:
+            result[f'MA_{period}'] = result['Close'].rolling(window=period, min_periods=1).mean()
         
         # 成交量移动平均
         result['Volume_MA_20'] = result['Volume'].rolling(window=20, min_periods=1).mean()

@@ -53,8 +53,13 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
             with open(version_file, 'r') as f:
                 last_sync_date = f.read().strip()
             if last_sync_date == today_str:
-                is_sync_needed = False
-                print(f"--- 數據緩存已是最新 ({today_str})，將以快速模式運行 ---")
+                # 对于小时线或分钟线，即使当天已有缓存，也应检查是否需要更新
+                if interval in ['1h', '1m']:
+                    print(f"--- 使用 {interval} 间隔，將執行數據同步以獲取最新數據 ---")
+                    is_sync_needed = True
+                else:
+                    is_sync_needed = False
+                    print(f"--- 數據緩存已是最新 ({today_str})，將以快速模式運行 ---")
             else:
                 print(f"--- 數據緩存不是最新 (版本: {last_sync_date})，將執行增量同步 ---")
         except FileNotFoundError:
@@ -148,11 +153,12 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
                         return None, 1  # 价格数据无效，跳过分析
                 
                 # 检查是否有足够的有效数据点
-                if len(hist.dropna()) < 20:  # 至少需要20个有效数据点
+                min_data_points = config.analysis.min_data_points_threshold  # 从配置获取最小数据点数
+                if len(hist.dropna()) < min_data_points:  # 至少需要配置中指定的最小数据点数
                     return None, 1  # 数据点不足，跳过分析
             
             # 預計算技術指標
-            hist = calculate_technical_indicators(hist)
+            hist = calculate_technical_indicators(hist, config)
             
             # 優化內存使用
             hist = optimize_dataframe_memory(hist)

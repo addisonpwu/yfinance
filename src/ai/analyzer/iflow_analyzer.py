@@ -19,7 +19,9 @@ class AIAnalyzer(ABC):
 class IFlowAIAnalyzer(AIAnalyzer):
     def __init__(self):
         self.api_key = os.environ.get("IFLOW_API_KEY", "")
-        self.cache_service = OptimizedCache()
+        # 使用配置中的 enable_cache 设置来初始化缓存服务
+        config = config_manager.get_config()
+        self.cache_service = OptimizedCache(enabled=config.data.enable_cache)
         self.config = config_manager.get_config()
         self.logger = get_ai_logger()
         self.api_url = "https://apis.iflow.cn/v1/chat/completions"
