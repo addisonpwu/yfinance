@@ -9,9 +9,9 @@ import subprocess
 import re
 import time
 from datetime import datetime, timedelta, date
-from strategies.base_strategy import BaseStrategy
-from data_loader import us_loader, hk_loader
-from ai_analyzer import analyze_stock_with_ai
+from src.strategies.base_strategy import BaseStrategy
+from src.data_loader import us_loader, hk_loader
+from src.ai.analyzer.ai_analyzer import analyze_stock_with_ai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import numpy as np
@@ -44,15 +44,19 @@ def get_strategies():
     動態從 strategies 模組加載所有策略類別的實例。
     """
     strategies = []
-    import strategies as strategies_module
+    import src.strategies as strategies_module
     strategy_path = strategies_module.__path__
 
     for _, name, _ in pkgutil.iter_modules(strategy_path):
         if name != 'base_strategy':
-            module = importlib.import_module(f"strategies.{name}")
+            module = importlib.import_module(f"src.strategies.{name}")
             for item_name, item in inspect.getmembers(module, inspect.isclass):
                 if issubclass(item, BaseStrategy) and item is not BaseStrategy:
                     strategies.append(item())
+    
+    if not strategies:
+        print("警告: 没有找到任何策略，系统将只执行AI分析")
+                
     return strategies
 
 def _read_csv_with_auto_index(csv_file: str) -> pd.DataFrame:
@@ -782,10 +786,11 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
     qualified_stocks = []
     total_stocks = len(tickers)
     
-    # 实时输出符合条件的股票到文件
+    # 实时输出符合条件的股票到主报告文件
     realtime_output_enabled = config['analysis']['enable_realtime_output']
+    main_report_file = f"{market.lower()}_stocks_{datetime.now().strftime('%Y-%m-%d')}.txt"
     if realtime_output_enabled:
-        output_file = f"{datetime.now().strftime('%Y-%m-%d')}_{market.lower()}_qualified_stocks.txt"
+        print(f"--- 實時輸出已啟用，將記錄到主報告文件: {main_report_file} ---")
     
     # 使用线程池并行处理股票
     def analyze_single_stock(symbol, config, skip_strategies=False, model='iflow-rome-30ba3b'):
@@ -866,10 +871,11 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
                     'ai_analysis': ai_analysis
                 }
                 
-                # 实时输出符合条件的股票
+                # 实时输出符合条件的股票到主报告文件
                 if realtime_output_enabled:
                     with threading.Lock():
-                        with open(output_file, 'a', encoding='utf-8') as f:
+                        with open(main_report_file, 'a', encoding='utf-8') as f:
+                            f.write(f"\n--- 實時輸出 ({datetime.now().strftime('%H:%M:%S')}) ---\n")
                             f.write(f"{symbol} 符合策略: {passed_strategies}\n")
                             if ai_analysis:
                                 f.write(f"AI 分析: {ai_analysis['summary']}\n")

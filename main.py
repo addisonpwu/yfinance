@@ -36,9 +36,9 @@ def main():
     if final_list:
         today_str = datetime.now().strftime('%Y-%m-%d')
 
-        # --- 產生並儲存詳細報告 (已移除新聞) ---
-        detailed_output_filename = f"{args.market.lower()}_stocks_{today_str}_details.txt"
-        detailed_output_lines = ["--- 最終篩選結果 (詳細) ---"]
+        # --- 產生並儲存合併報告 (詳細報告 + 摘要列表) ---
+        output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
+        output_lines = ["--- 最終篩選結果 (詳細) ---"]
 
         for stock in final_list:
             info = stock.get('info', {})
@@ -56,35 +56,27 @@ def main():
             volume = info.get('volume')
             volume_str = f"{volume:,.0f}" if isinstance(volume, (int, float)) else "N/A"
 
-            detailed_output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
-            detailed_output_lines.append(f"   - 符合策略: {stock['strategies']}")
-            detailed_output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
-            detailed_output_lines.append(f"   - 市值: {market_cap_str}")
-            detailed_output_lines.append(f"   - 流通股本: {float_shares_str}")
-            detailed_output_lines.append(f"   - 成交量: {volume_str}")
-            detailed_output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
-            detailed_output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
+            output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
+            output_lines.append(f"   - 符合策略: {stock['strategies']}")
+            output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
+            output_lines.append(f"   - 市值: {market_cap_str}")
+            output_lines.append(f"   - 流通股本: {float_shares_str}")
+            output_lines.append(f"   - 成交量: {volume_str}")
+            output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
+            output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
 
             # --- AI 綜合分析結果的輸出 ---
             if stock.get('ai_analysis'):
-                detailed_output_lines.append("   --- AI 綜合分析 ---")
-                detailed_output_lines.append(f"     {stock['ai_analysis']['summary']}")
-                detailed_output_lines.append(f"     模型: {stock['ai_analysis']['model_used']}")
+                output_lines.append("   --- AI 綜合分析 ---")
+                output_lines.append(f"     {stock['ai_analysis']['summary']}")
+                output_lines.append(f"     模型: {stock['ai_analysis']['model_used']}")
             else:
-                detailed_output_lines.append("   --- AI 分析未完成 ---")
+                output_lines.append("   --- AI 分析未完成 ---")
         
-        detailed_output_string = "\n".join(detailed_output_lines)
-        print(detailed_output_string)
-
-        try:
-            with open(detailed_output_filename, 'w', encoding='utf-8') as f:
-                f.write(detailed_output_string)
-            print(f"\n--- 詳細報告已儲存至 {detailed_output_filename} ---")
-        except Exception as e:
-            print(f"寫入詳細報告 {detailed_output_filename} 時發生錯誤: {e}")
-
-        # --- 產生並儲存新的摘要列表 (包含股票名稱) ---
-        output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
+        # --- 產生並附加摘要列表 (包含股票名稱) ---
+        output_lines.append("\n" + "="*50)
+        output_lines.append("--- 摘要列表 (便於複製到交易軟體) ---")
+        
         exchange_map = {
             'NMS': 'NASDAQ',
             'NGM': 'NASDAQ',
@@ -107,15 +99,17 @@ def main():
 
             formatted_stocks.append(f"{exchange_name}:{symbol} ({long_name})")
         
-        output_string = ", ".join(formatted_stocks) # 使用 ", " 增加可讀性
+        output_lines.append(", ".join(formatted_stocks)) # 使用 ", " 增加可讀性
+
+        output_string = "\n".join(output_lines)
+        print(output_string)
 
         try:
             with open(output_filename, 'w', encoding='utf-8') as f:
                 f.write(output_string)
-            print(f"\n--- 摘要列表 (已儲存至 {output_filename}) ---")
-            print(output_string)
+            print(f"\n--- 合併報告已儲存至 {output_filename} ---")
         except Exception as e:
-            print(f"寫入檔案 {output_filename} 時發生錯誤: {e}")
+            print(f"寫入合併報告 {output_filename} 時發生錯誤: {e}")
 
     else:
         print("在指定的市場中，沒有找到符合任何策略的股票。")

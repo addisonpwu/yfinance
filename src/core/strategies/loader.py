@@ -25,5 +25,8 @@ def get_strategies() -> List[BaseStrategy]:
                 print(f"无法导入策略模块 {name}: {e}")
             except Exception as e:
                 print(f"加载策略 {name} 时出错: {e}")
+    
+    if not strategies:
+        print("警告: 没有找到任何策略，系统将只执行AI分析")
                 
     return strategies

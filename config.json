@@ -17,7 +17,7 @@
     "enable_cache": false
   },
   "analysis": {
-    "enable_realtime_output": true,
+    "enable_realtime_output": false,
     "enable_data_preprocessing": true,
     "min_volume_threshold": 100000,
     "min_data_points_threshold": 20

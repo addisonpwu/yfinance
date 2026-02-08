@@ -115,18 +115,20 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
     qualified_stocks = []
     total_stocks = len(tickers)
     
-    # 实时输出符合条件的股票到文件
+    # 实时输出符合条件的股票到主报告文件
+    main_report_file = f"{market.lower()}_stocks_{datetime.now().strftime('%Y-%m-%d')}.txt"
     if config.analysis.enable_realtime_output:
-        output_file = f"{datetime.now().strftime('%Y-%m-%d')}_{market.lower()}_qualified_stocks.txt"
+        print(f"--- 實時輸出已啟用，將記錄到主報告文件: {main_report_file} ---")
     
     # 使用线程池并行处理股票
-    def analyze_single_stock(symbol: str, skip_strategies: bool = False, model: str = 'iflow-rome-30ba3b'):
+    def analyze_single_stock(symbol: str, skip_strategies: bool = False, model: str = 'iflow-rome-30ba3b', main_report_file: str = None):
         """分析单个股票的函数
         
         Args:
             symbol: 股票代码
             skip_strategies: 是否跳过策略筛选，所有股票都进行AI分析
             model: 要使用的AI模型名称
+            main_report_file: 主报告文件名，用于实时输出
         """
         try:
             # 获取股票數據（會自動處理緩存）
@@ -216,10 +218,11 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
                     } if ai_analysis else None
                 }
                 
-                # 实时输出符合条件的股票
-                if config.analysis.enable_realtime_output:
+                # 实时输出符合条件的股票到主报告文件
+                if config.analysis.enable_realtime_output and main_report_file:
                     with threading.Lock():
-                        with open(output_file, 'a', encoding='utf-8') as f:
+                        with open(main_report_file, 'a', encoding='utf-8') as f:
+                            f.write(f"\n--- 實時輸出 ({datetime.now().strftime('%H:%M:%S')}) ---\n")
                             f.write(f"{symbol} 符合策略: {passed_strategies}\n")
                             if ai_analysis:
                                 f.write(f"AI 分析: {ai_analysis.summary}\n")
@@ -248,7 +251,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # 提交所有任务
-        future_to_symbol = {executor.submit(analyze_single_stock, symbol, skip_strategies, model): symbol for symbol in tickers}
+        future_to_symbol = {executor.submit(analyze_single_stock, symbol, skip_strategies, model, main_report_file): symbol for symbol in tickers}
         
         # 处理完成的任务
         for future in as_completed(future_to_symbol):
