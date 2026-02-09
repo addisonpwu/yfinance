@@ -14,7 +14,8 @@
       "1h": "730d",
       "1d": "max"
     },
-    "enable_cache": false
+    "enable_cache": false,
+    "enable_finviz": true
   },
   "analysis": {
     "enable_realtime_output": false,
@@ -36,7 +37,12 @@
       20,
       50,
       200
-    ]
+    ],
+    "cmo_period": 14,
+    "williams_r_period": 14,
+    "stochastic_period": 14,
+    "stochastic_smooth_period": 3,
+    "volume_z_score_period": 20
   },
   "strategies": {
     "vcp_pocket_pivot": {

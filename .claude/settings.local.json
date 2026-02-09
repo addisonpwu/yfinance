@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import bs4; print\\(''beautifulsoup4 is installed''\\)\")",
+      "Bash(python3 -c \"\nfrom src.config.settings import config_manager\nfrom src.data.loaders.yahoo_loader import calculate_technical_indicators\nfrom src.strategies.market_regime_strategy import MarketRegimeStrategy\nfrom src.strategies.signal_scorer import SignalScorer\nfrom src.backtest.metrics import BacktestMetrics\nfrom src.backtest.engine import BacktestEngine\nfrom src.risk.position_sizer import PositionSizer\n\nprint\\(''✓ 所有模块导入成功''\\)\n\n# 验证配置\nconfig = config_manager.get_config\\(\\)\nprint\\(f''✓ 技术指标配置: CMO_period={config.technical_indicators.cmo_period}, Stochastic_period={config.technical_indicators.stochastic_period}''\\)\nprint\\(f''✓ 数据配置: enable_finviz={config.data.enable_finviz}''\\)\n\")"
+    ]
+  }
+}

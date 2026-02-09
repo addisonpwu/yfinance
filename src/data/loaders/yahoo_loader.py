@@ -128,17 +128,53 @@ class YahooFinanceRepository(StockRepository):
         try:
             cache_key = f"info_{symbol}"
             self.cache_service.set(cache_key, info)
-            
+
             # 同时保存到JSON文件
             cache_dir = os.path.join('data_cache', 'US')  # 默认保存到US目录
             json_file = os.path.join(cache_dir, f"{symbol.replace(':', '_')}.json")
-            
+
             with open(json_file, 'w', encoding='utf-8') as f:
                 json.dump(info, f, ensure_ascii=False, indent=4)
         except Exception as e:
             self.logger.error(f"保存 {symbol} 财务信息失败: {e}")
             raise CacheException(f"保存财务信息失败: {e}")
-    
+
+    def get_finviz_data(self, symbol: str) -> Optional[Dict]:
+        """获取 Finviz 额外数据 (资金流向、分析师评级、目标价等)"""
+        try:
+            # 检查是否启用 Finviz 数据获取
+            if not getattr(self.config, 'enable_finviz', True):
+                return None
+
+            cache_key = f"finviz_{symbol}"
+            cached_data = self.cache_service.get(cache_key)
+
+            if cached_data is not None:
+                self.logger.info(f"从缓存获取 {symbol} 的 Finviz 数据")
+                return cached_data
+
+            # 导入 Finviz 加载器
+            try:
+                from src.data.loaders.finviz_loader import FinvizLoader
+            except ImportError:
+                self.logger.warning("FinvizLoader 未安装，跳过 Finviz 数据获取")
+                return None
+
+            loader = FinvizLoader()
+            data = loader.get_all_data(symbol)
+
+            if data:
+                # 缓存数据
+                self.cache_service.set(cache_key, data)
+                self.logger.info(f"成功获取 {symbol} 的 Finviz 数据")
+                return data
+            else:
+                return None
+
+        except Exception as e:
+            self.logger.error(f"获取 {symbol} Finviz 数据失败: {e}")
+            return None
+
     def _fetch_historical_data(self, symbol: str, market: str, interval: str = '1d') -> pd.DataFrame:
         """获取历史数据的内部方法"""
         ticker = yf.Ticker(symbol)
@@ -163,28 +199,28 @@ class YahooFinanceRepository(StockRepository):
 def calculate_technical_indicators(hist: pd.DataFrame, config=None) -> pd.DataFrame:
     """
     预计算技术指标并添加到历史数据中
-    
+
     Args:
         hist: 包含OHLCV数据的DataFrame
         config: 配置对象，如果为None则使用默认配置
-        
+
     Returns:
         添加了技术指标的DataFrame
     """
     if hist is None or hist.empty or 'Close' not in hist.columns:
         return hist
-    
+
     # 复制数据以避免修改原始数据
     result = hist.copy()
-    
+
     # 获取配置
     if config is None:
         from src.config.settings import config_manager
         config = config_manager.get_config()
-    
+
     # 从配置获取技术指标参数
     ti_config = config.technical_indicators
-    
+
     try:
         # RSI (可配置周期)
         delta = result['Close'].diff()
@@ -192,7 +228,7 @@ def calculate_technical_indicators(hist: pd.DataFrame, config=None) -> pd.DataFr
         loss = (-delta.where(delta < 0, 0)).rolling(window=ti_config.rsi_period, min_periods=1).mean()
         rs = gain / loss
         result[f'RSI_{ti_config.rsi_period}'] = 100 - (100 / (1 + rs))
-        
+
         # MACD (可配置参数)
         exp_fast = result['Close'].ewm(span=ti_config.macd_fast, adjust=False).mean()
         exp_slow = result['Close'].ewm(span=ti_config.macd_slow, adjust=False).mean()
@@ -201,37 +237,90 @@ def calculate_technical_indicators(hist: pd.DataFrame, config=None) -> pd.DataFr
         result['MACD'] = macd
         result['MACD_Signal'] = signal
         result['MACD_Histogram'] = macd - signal
-        
+
         # ATR (可配置周期)
         high_low = result['High'] - result['Low']
         high_close = abs(result['High'] - result['Close'].shift())
         low_close = abs(result['Low'] - result['Close'].shift())
         tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
         result[f'ATR_{ti_config.atr_period}'] = tr.rolling(window=ti_config.atr_period, min_periods=1).mean()
-        
+
+        # ATR百分比 (ATR / Close * 100)
+        result['ATR_Pct'] = (result[f'ATR_{ti_config.atr_period}'] / result['Close']) * 100
+
         # 布林带 (可配置参数)
         sma_bb = result['Close'].rolling(window=ti_config.bb_period, min_periods=1).mean()
         std_bb = result['Close'].rolling(window=ti_config.bb_period, min_periods=1).std()
         result['BB_Middle'] = sma_bb
         result['BB_Upper'] = sma_bb + (std_bb * ti_config.bb_std_dev)
         result['BB_Lower'] = sma_bb - (std_bb * ti_config.bb_std_dev)
-        
+
+        # BBP (布林带位置百分位)
+        # (Close - BB_Lower) / (BB_Upper - BB_Lower)
+        bb_width = result['BB_Upper'] - result['BB_Lower']
+        bb_width = bb_width.replace(0, np.nan)  # 避免除零
+        result['BBP'] = (result['Close'] - result['BB_Lower']) / bb_width
+
         # 移动平均线 (可配置周期)
         for period in ti_config.ma_periods:
             result[f'MA_{period}'] = result['Close'].rolling(window=period, min_periods=1).mean()
-        
+
         # 成交量移动平均
         result['Volume_MA_20'] = result['Volume'].rolling(window=20, min_periods=1).mean()
-        
+
         # 价格变化率
         result['Price_Change_Pct'] = result['Close'].pct_change(fill_method=None)
         result['Price_Change_Pct_5D'] = result['Close'].pct_change(periods=5, fill_method=None)
-        
+
+        # ===== 新增技术指标 =====
+
+        # CMO (Chande Momentum Oscillator)
+        # 计算方式: 100 * (Sum(UP) - Sum(DOWN)) / (Sum(UP) + Sum(DOWN))
+        delta_cmo = result['Close'].diff()
+        up_cmo = delta_cmo.where(delta_cmo > 0, 0).rolling(window=ti_config.cmo_period, min_periods=1).sum()
+        down_cmo = (-delta_cmo.where(delta_cmo < 0, 0)).rolling(window=ti_config.cmo_period, min_periods=1).sum()
+        result[f'CMO_{ti_config.cmo_period}'] = 100 * (up_cmo - down_cmo) / (up_cmo + down_cmo + 1e-10)
+
+        # Williams %R
+        # 计算方式: -100 * (Highest - Close) / (Highest - Lowest)
+        highest = result['High'].rolling(window=ti_config.williams_r_period, min_periods=1).max()
+        lowest = result['Low'].rolling(window=ti_config.williams_r_period, min_periods=1).min()
+        williams_r = -100 * (highest - result['Close']) / (highest - lowest + 1e-10)
+        result[f'WilliamsR_{ti_config.williams_r_period}'] = williams_r
+
+        # Stochastic (%K 和 %D)
+        # %K: 100 * (Close - Lowest) / (Highest - Lowest)
+        # %D: %K的移动平均
+        lowest_stoch = result['Low'].rolling(window=ti_config.stochastic_period, min_periods=1).min()
+        highest_stoch = result['High'].rolling(window=ti_config.stochastic_period, min_periods=1).max()
+        stochastic_k = 100 * (result['Close'] - lowest_stoch) / (highest_stoch - lowest_stoch + 1e-10)
+        result[f'Stochastic_K_{ti_config.stochastic_period}'] = stochastic_k
+        result[f'Stochastic_D_{ti_config.stochastic_period}'] = stochastic_k.rolling(
+            window=ti_config.stochastic_smooth_period, min_periods=1
+        ).mean()
+
+        # Volume Z-score
+        # (Volume - Volume_MA) / Volume_Std
+        volume_ma = result['Volume'].rolling(window=ti_config.volume_z_score_period, min_periods=1).mean()
+        volume_std = result['Volume'].rolling(window=ti_config.volume_z_score_period, min_periods=1).std()
+        result['Volume_Z_Score'] = (result['Volume'] - volume_ma) / (volume_std + 1e-10)
+
+        # 成交量变化率
+        result['Volume_Change_Pct'] = result['Volume'].pct_change(fill_method=None)
+
+        # 价格与MA的比率
+        result['Price_To_MA_20'] = result['Close'] / result['MA_20']
+        result['Price_To_MA_50'] = result['Close'] / result['MA_50']
+
+        # 波动率指标 (20日收益率标准差年化)
+        returns = result['Close'].pct_change(fill_method=None)
+        result['Volatility_20D'] = returns.rolling(window=20, min_periods=1).std() * np.sqrt(252) * 100
+
     except Exception as e:
         print(f" - [技术指标计算] 计算技术指标时出错: {e}")
         # 如果计算失败，返回原始数据
         return hist
-    
+
     return result
 
 def optimize_dataframe_memory(df: pd.DataFrame) -> pd.DataFrame:

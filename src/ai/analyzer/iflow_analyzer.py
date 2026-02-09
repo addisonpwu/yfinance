@@ -215,15 +215,20 @@ class IFlowAIAnalyzer(AIAnalyzer):
             latest_volume_sma = volume_sma.iloc[-1] if not volume_sma.empty else "N/A"
 
             # 格式化技术指标
+            def format_value(val, decimals=2):
+                if isinstance(val, (int, float)):
+                    return f"{val:.{decimals}f}"
+                return str(val)
+
             technical_indicators = f"""
 【技术指标】
-- RSI (14): {latest_rsi:.2f} if isinstance(latest_rsi, (int, float)) else latest_rsi
-- MACD: {latest_macd:.2f} / Signal: {latest_signal:.2f}
-- ATR (14): {latest_atr:.2f}
-- 布林带上轨: {latest_upper:.2f} / 下轨: {latest_lower:.2f} / 当前价: {latest_close:.2f}
-- 移动平均线: MA20: {latest_ma20:.2f}, MA50: {latest_ma50:.2f}, MA200: {latest_ma200:.2f}
-- 威廉指标 (14): {latest_williams_r:.2f}
-- 平均成交量 (20日): {latest_volume_sma:,.0f}
+- RSI (14): {format_value(latest_rsi)}
+- MACD: {format_value(latest_macd)} / Signal: {format_value(latest_signal)}
+- ATR (14): {format_value(latest_atr)}
+- 布林带上轨: {format_value(latest_upper)} / 下轨: {format_value(latest_lower)} / 当前价: {format_value(latest_close)}
+- 移动平均线: MA20: {format_value(latest_ma20)}, MA50: {format_value(latest_ma50)}, MA200: {format_value(latest_ma200)}
+- 威廉指标 (14): {format_value(latest_williams_r)}
+- 平均成交量 (20日): {format_value(latest_volume_sma, 0)}
 """
 
             # 格式化历史数据（只显示最近20天以节省token）

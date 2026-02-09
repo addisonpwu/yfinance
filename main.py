@@ -1,5 +1,6 @@
 
 import argparse
+import os
 from datetime import datetime
 from src.core.services.analysis_service import run_analysis
 
@@ -23,60 +24,40 @@ def main():
     print(f"--- 數據時段類型: {args.interval} ---")
     print(f"--- AI分析模型: {args.model} ---")
 
+    # 生成报告文件名
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
+
+    # 初始化报告文件（写入标题）
+    try:
+        with open(output_filename, 'w', encoding='utf-8') as f:
+            f.write("--- 最終篩選結果 (詳細) ---\n")
+        print(f"--- 報告文件已創建: {output_filename} ---")
+    except Exception as e:
+        print(f"創建報告文件時發生錯誤: {e}")
+        output_filename = None
+
     final_list = run_analysis(
         args.market,
         force_fast_mode=args.no_cache_update,
         skip_strategies=args.skip_strategies,
         symbol_filter=args.symbol,
         interval=args.interval,
-        model=args.model
+        model=args.model,
+        output_filename=output_filename
     )
 
     print("\n--- 最終篩選結果 ---")
-    if final_list:
-        today_str = datetime.now().strftime('%Y-%m-%d')
+    if final_list and output_filename and os.path.exists(output_filename):
+        # 读取已写入的内容
+        try:
+            with open(output_filename, 'r', encoding='utf-8') as f:
+                existing_content = f.read()
+            print(existing_content)
+        except Exception as e:
+            print(f"讀取報告文件時發生錯誤: {e}")
 
-        # --- 產生並儲存合併報告 (詳細報告 + 摘要列表) ---
-        output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
-        output_lines = ["--- 最終篩選結果 (詳細) ---"]
-
-        for stock in final_list:
-            info = stock.get('info', {})
-            
-            # 安全地格式化市值和PE
-            market_cap = info.get('marketCap')
-            market_cap_str = f"{market_cap / 1e8:.2f} 億" if isinstance(market_cap, (int, float)) else "N/A"
-
-            pe_ratio = info.get('trailingPE')
-            pe_ratio_str = f"{pe_ratio:.2f}" if isinstance(pe_ratio, (int, float)) else "N/A"
-
-            float_shares = info.get('floatShares')
-            float_shares_str = f"{float_shares:,.0f}" if isinstance(float_shares, (int, float)) else "N/A"
-
-            volume = info.get('volume')
-            volume_str = f"{volume:,.0f}" if isinstance(volume, (int, float)) else "N/A"
-
-            output_lines.append(f"\n✅ {info.get('longName', stock['symbol'])} ({stock['symbol']})")
-            output_lines.append(f"   - 符合策略: {stock['strategies']}")
-            output_lines.append(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}")
-            output_lines.append(f"   - 市值: {market_cap_str}")
-            output_lines.append(f"   - 流通股本: {float_shares_str}")
-            output_lines.append(f"   - 成交量: {volume_str}")
-            output_lines.append(f"   - 市盈率 (PE): {pe_ratio_str}")
-            output_lines.append(f"   - 網站: {info.get('website', 'N/A')}")
-
-            # --- AI 綜合分析結果的輸出 ---
-            if stock.get('ai_analysis'):
-                output_lines.append("   --- AI 綜合分析 ---")
-                output_lines.append(f"     {stock['ai_analysis']['summary']}")
-                output_lines.append(f"     模型: {stock['ai_analysis']['model_used']}")
-            else:
-                output_lines.append("   --- AI 分析未完成 ---")
-        
-        # --- 產生並附加摘要列表 (包含股票名稱) ---
-        output_lines.append("\n" + "="*50)
-        output_lines.append("--- 摘要列表 (便於複製到交易軟體) ---")
-        
+        # 追加摘要列表（实时报告只包含详细分析）
         exchange_map = {
             'NMS': 'NASDAQ',
             'NGM': 'NASDAQ',
@@ -93,24 +74,31 @@ def main():
             long_name = info.get('longName', stock['symbol'])
             exchange_name = exchange_map.get(stock['exchange'], stock['exchange'])
             symbol = stock['symbol']
-            
+
             if args.market.upper() == 'HK':
                 symbol = str(int(symbol.replace('.HK', '')))
 
             formatted_stocks.append(f"{exchange_name}:{symbol} ({long_name})")
-        
-        output_lines.append(", ".join(formatted_stocks)) # 使用 ", " 增加可讀性
 
-        output_string = "\n".join(output_lines)
-        print(output_string)
+        # 追加摘要列表到文件
+        summary_lines = [
+            "\n" + "="*50,
+            "--- 摘要列表 (便於複製到交易軟體) ---",
+            ", ".join(formatted_stocks)
+        ]
+        with open(output_filename, 'a', encoding='utf-8') as f:
+            f.write("\n".join(summary_lines))
 
-        try:
-            with open(output_filename, 'w', encoding='utf-8') as f:
-                f.write(output_string)
-            print(f"\n--- 合併報告已儲存至 {output_filename} ---")
-        except Exception as e:
-            print(f"寫入合併報告 {output_filename} 時發生錯誤: {e}")
+        print("\n" + "="*50)
+        print("--- 摘要列表 (便於複製到交易軟體) ---")
+        print(", ".join(formatted_stocks))
+        print(f"\n--- 完整報告已儲存至 {output_filename} ---")
 
+    elif final_list:
+        # 如果没有输出文件，只打印结果
+        for stock in final_list:
+            info = stock.get('info', {})
+            print(f"✅ {info.get('longName', stock['symbol'])} ({stock['symbol']}) - {stock['strategies']}")
     else:
         print("在指定的市場中，沒有找到符合任何策略的股票。")
 

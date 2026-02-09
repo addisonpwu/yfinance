@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Optional, List
 import pandas as pd
 
@@ -8,6 +8,7 @@ class StockData:
     hist: pd.DataFrame
     info: Dict
     news: Optional[List] = None
+    finviz_data: Optional[Dict] = field(default_factory=dict)  # Finviz 额外数据
 
 @dataclass
 class StrategyResult:

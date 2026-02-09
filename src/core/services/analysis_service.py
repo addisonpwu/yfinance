@@ -15,7 +15,7 @@ from src.config.settings import config_manager
 from src.utils.logger import get_analysis_logger
 from src.utils.exceptions import AnalysisException
 
-def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bool = False, symbol_filter: str = None, interval: str = '1d', max_workers: int = None, model: str = 'iflow-rome-30ba3b'):
+def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bool = False, symbol_filter: str = None, interval: str = '1d', max_workers: int = None, model: str = 'iflow-rome-30ba3b', output_filename: str = None):
     """
     對指定市場執行所有選股策略分析
 
@@ -26,6 +26,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
         interval: 數據時段類型 ('1d' 日線, '1h' 小時線, '1m' 分鐘線)
         max_workers: 最大并行工作线程数，默认为None（从配置文件读取）
         model: 要使用的AI模型
+        output_filename: 實時報告文件名
     """
     # 加载配置
     config = config_manager.get_config()
@@ -93,7 +94,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
     try:
         market_hist = yf.Ticker(market_ticker).history(period='1y', auto_adjust=True)
         if not market_hist.empty and len(market_hist) >= 200:
-            market_latest_return = market_hist['Close'].pct_change().iloc[-1] * 100
+            market_latest_return = market_hist['Close'].pct_change(fill_method=None).iloc[-1] * 100
             market_hist['MA200'] = market_hist['Close'].rolling(window=200).mean()
             latest_market_data = market_hist.iloc[-1]
             is_market_healthy = latest_market_data['Close'] > latest_market_data['MA200']
@@ -115,20 +116,20 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
     qualified_stocks = []
     total_stocks = len(tickers)
     
-    # 实时输出符合条件的股票到主报告文件
-    main_report_file = f"{market.lower()}_stocks_{datetime.now().strftime('%Y-%m-%d')}.txt"
-    if config.analysis.enable_realtime_output:
-        print(f"--- 實時輸出已啟用，將記錄到主報告文件: {main_report_file} ---")
+    # 实时输出到报告文件
+    if output_filename is None:
+        output_filename = f"{market.lower()}_stocks_{datetime.now().strftime('%Y-%m-%d')}.txt"
+    print(f"--- 實時報告將保存到: {output_filename} ---")
     
     # 使用线程池并行处理股票
-    def analyze_single_stock(symbol: str, skip_strategies: bool = False, model: str = 'iflow-rome-30ba3b', main_report_file: str = None):
+    def analyze_single_stock(symbol: str, skip_strategies: bool = False, model: str = 'iflow-rome-30ba3b', output_filename: str = None):
         """分析单个股票的函数
-        
+
         Args:
             symbol: 股票代码
             skip_strategies: 是否跳过策略筛选，所有股票都进行AI分析
             model: 要使用的AI模型名称
-            main_report_file: 主报告文件名，用于实时输出
+            output_filename: 报告文件名，用于实时输出
         """
         try:
             # 获取股票數據（會自動處理緩存）
@@ -204,7 +205,6 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
                     print(f" - AI 分析出错: {ai_e}", end='')
 
                 # 将股票添加到结果中（当启用 skip_strategies 时，所有股票都添加）
-                # 如果启用了 skip_strategies，所有通过基础筛选的股票都添加到结果中
                 exchange = info.get('exchange', 'UNKNOWN')
                 stock_result = {
                     'symbol': symbol,
@@ -217,16 +217,36 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
                         'model_used': ai_analysis.model_used if ai_analysis else 'N/A'
                     } if ai_analysis else None
                 }
-                
-                # 实时输出符合条件的股票到主报告文件
-                if config.analysis.enable_realtime_output and main_report_file:
+
+                # 实时写入详细报告
+                if output_filename:
                     with threading.Lock():
-                        with open(main_report_file, 'a', encoding='utf-8') as f:
-                            f.write(f"\n--- 實時輸出 ({datetime.now().strftime('%H:%M:%S')}) ---\n")
-                            f.write(f"{symbol} 符合策略: {passed_strategies}\n")
+                        with open(output_filename, 'a', encoding='utf-8') as f:
+                            # 格式化市值和PE
+                            market_cap = info.get('marketCap')
+                            market_cap_str = f"{market_cap / 1e8:.2f} 億" if isinstance(market_cap, (int, float)) else "N/A"
+                            pe_ratio = info.get('trailingPE')
+                            pe_ratio_str = f"{pe_ratio:.2f}" if isinstance(pe_ratio, (int, float)) else "N/A"
+                            float_shares = info.get('floatShares')
+                            float_shares_str = f"{float_shares:,.0f}" if isinstance(float_shares, (int, float)) else "N/A"
+                            volume = info.get('volume')
+                            volume_str = f"{volume:,.0f}" if isinstance(volume, (int, float)) else "N/A"
+
+                            f.write(f"\n✅ {info.get('longName', symbol)} ({symbol})\n")
+                            f.write(f"   - 符合策略: {passed_strategies}\n")
+                            f.write(f"   - 產業: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}\n")
+                            f.write(f"   - 市值: {market_cap_str}\n")
+                            f.write(f"   - 流通股本: {float_shares_str}\n")
+                            f.write(f"   - 成交量: {volume_str}\n")
+                            f.write(f"   - 市盈率 (PE): {pe_ratio_str}\n")
+                            f.write(f"   - 網站: {info.get('website', 'N/A')}\n")
+
                             if ai_analysis:
-                                f.write(f"AI 分析: {ai_analysis.summary}\n")
-                            f.write("-" * 50 + "\n")
+                                f.write(f"   --- AI 綜合分析 ---\n")
+                                f.write(f"     {ai_analysis.summary}\n")
+                                f.write(f"     模型: {ai_analysis.model_used}\n")
+                            else:
+                                f.write(f"   --- AI 分析未完成 ---\n")
                 
                 if skip_strategies:
                     print(f"\r{' ' * 80}\r✅ {symbol} 跳過策略篩選，已進行AI分析")
@@ -251,7 +271,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # 提交所有任务
-        future_to_symbol = {executor.submit(analyze_single_stock, symbol, skip_strategies, model, main_report_file): symbol for symbol in tickers}
+        future_to_symbol = {executor.submit(analyze_single_stock, symbol, skip_strategies, model, output_filename): symbol for symbol in tickers}
         
         # 处理完成的任务
         for future in as_completed(future_to_symbol):

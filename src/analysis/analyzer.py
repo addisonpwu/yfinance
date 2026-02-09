@@ -764,7 +764,7 @@ def run_analysis(market: str, force_fast_mode: bool = False, skip_strategies: bo
     try:
         market_hist = yf.Ticker(market_ticker).history(period='1y', auto_adjust=True)
         if not market_hist.empty and len(market_hist) >= 200:
-            market_latest_return = market_hist['Close'].pct_change().iloc[-1] * 100
+            market_latest_return = market_hist['Close'].pct_change(fill_method=None).iloc[-1] * 100
             market_hist['MA200'] = market_hist['Close'].rolling(window=200).mean()
             latest_market_data = market_hist.iloc[-1]
             is_market_healthy = latest_market_data['Close'] > latest_market_data['MA200']

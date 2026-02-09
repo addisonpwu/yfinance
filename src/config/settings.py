@@ -24,7 +24,8 @@ class DataConfig:
     float_dtype: str = "float32"
     data_download_period: DataDownloadPeriodConfig = None
     enable_cache: bool = True  # 是否启用缓存
-    
+    enable_finviz: bool = True  # 是否启用 Finviz 数据获取
+
     def __post_init__(self):
         if self.data_download_period is None:
             self.data_download_period = DataDownloadPeriodConfig()
@@ -46,7 +47,13 @@ class TechnicalIndicatorsConfig:
     bb_std_dev: float = 2
     atr_period: int = 14
     ma_periods: List[int] = None
-    
+    # 新增指标配置
+    cmo_period: int = 14
+    williams_r_period: int = 14
+    stochastic_period: int = 14
+    stochastic_smooth_period: int = 3
+    volume_z_score_period: int = 20
+
     def __post_init__(self):
         if self.ma_periods is None:
             self.ma_periods = [5, 10, 20, 50, 200]
@@ -170,7 +177,8 @@ class ConfigManager:
                     h1=data_download_period_config.get('1h', '730d'),
                     d1=data_download_period_config.get('1d', 'max')
                 ),
-                enable_cache=data_config.get('enable_cache', True)  # 添加新的配置項
+                enable_cache=data_config.get('enable_cache', True),
+                enable_finviz=data_config.get('enable_finviz', True)
             ),
             analysis=AnalysisConfig(
                 enable_realtime_output=analysis_config.get('enable_realtime_output', True),
@@ -186,7 +194,12 @@ class ConfigManager:
                 bb_period=tech_ind_config.get('bb_period', 20),
                 bb_std_dev=tech_ind_config.get('bb_std_dev', 2),
                 atr_period=tech_ind_config.get('atr_period', 14),
-                ma_periods=tech_ind_config.get('ma_periods', [5, 10, 20, 50, 200])
+                ma_periods=tech_ind_config.get('ma_periods', [5, 10, 20, 50, 200]),
+                cmo_period=tech_ind_config.get('cmo_period', 14),
+                williams_r_period=tech_ind_config.get('williams_r_period', 14),
+                stochastic_period=tech_ind_config.get('stochastic_period', 14),
+                stochastic_smooth_period=tech_ind_config.get('stochastic_smooth_period', 3),
+                volume_z_score_period=tech_ind_config.get('volume_z_score_period', 20)
             ),
             strategies=StrategiesConfig(
                 vcp_pocket_pivot=VCPSpecificConfig(
@@ -236,7 +249,8 @@ class ConfigManager:
                     "1h": "730d",
                     "1d": "max"
                 },
-                "enable_cache": True  # 添加新的配置項
+                "enable_cache": True,
+                "enable_finviz": True
             },
             "analysis": {
                 "enable_realtime_output": True,
