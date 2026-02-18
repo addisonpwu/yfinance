@@ -52,10 +52,10 @@ class MarketDataService:
         
         market = market.upper()
         if market == 'US':
-            from src.data_loader import us_loader
+            from src.data.loaders import us_loader
             return us_loader.get_us_tickers()
         elif market == 'HK':
-            from src.data_loader import hk_loader
+            from src.data.loaders import hk_loader
             return hk_loader.get_hk_tickers()
         else:
             raise ValueError(f"不支持的市场: {market}")

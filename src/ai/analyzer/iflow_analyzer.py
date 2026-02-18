@@ -278,7 +278,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
                     'summary': analysis_result.summary,
                     'confidence': analysis_result.confidence,
                     'model_used': analysis_result.model_used,
-                    'direction': analysis_result.details.get('direction', '中性') if analysis_result.details else '中性',
+                    'direction': analysis_result.detailed_analysis.get('direction', '中性') if analysis_result.detailed_analysis else '中性',
                 }
                 self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
             
@@ -338,7 +338,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
             summary=final_result,
             confidence=confidence,
             model_used=model_used,
-            details={
+            detailed_analysis={
                 'direction': direction,
                 'trend_analysis': trend_result,
                 'levels_analysis': levels_result,
@@ -409,6 +409,10 @@ class IFlowAIAnalyzer(AIAnalyzer):
         bb_upper = hist['BB_Upper'].iloc[-1] if 'BB_Upper' in hist.columns else None
         bb_lower = hist['BB_Lower'].iloc[-1] if 'BB_Lower' in hist.columns else None
         
+        # 格式化布林带数值
+        bb_upper_str = f"{bb_upper:.2f}" if isinstance(bb_upper, (int, float)) else "N/A"
+        bb_lower_str = f"{bb_lower:.2f}" if isinstance(bb_lower, (int, float)) else "N/A"
+        
         prompt = f"""基于以下趋势判断，识别关键价位：
 
 股票: {symbol}
@@ -422,8 +426,8 @@ class IFlowAIAnalyzer(AIAnalyzer):
 {chr(10).join([f'- MA{p}: {v:.2f}' for p, v in ma_values.items() if v])}
 
 布林带:
-- 上轨: {bb_upper:.2f if bb_upper else 'N/A'}
-- 下轨: {bb_lower:.2f if bb_lower else 'N/A'}
+- 上轨: {bb_upper_str}
+- 下轨: {bb_lower_str}
 
 【任务】识别以下价位（每个价位给出具体数值）：
 
@@ -620,7 +624,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
                 try:
                     result = self._step_by_step_analysis(stock_data, hist, model_name, use_multi_timeframe=True)
                     if result:
-                        direction = result.details.get('direction', '中性') if result.details else '中性'
+                        direction = result.detailed_analysis.get('direction', '中性') if result.detailed_analysis else '中性'
                         all_results.append({
                             'summary': result.summary,
                             'model_used': result.model_used,
@@ -678,7 +682,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
             summary=combined_summary,
             confidence=consensus.confidence,
             model_used='multi_model_consensus',
-            details={
+            detailed_analysis={
                 'direction': consensus.direction.value,
                 'consensus': {
                     'agreement_ratio': consensus.agreement_ratio,
@@ -960,7 +964,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
         """记录预测结果"""
         try:
             symbol = stock_data.get('symbol', '')
-            direction_str = result.details.get('direction', '中性') if result.details else '中性'
+            direction_str = result.detailed_analysis.get('direction', '中性') if result.detailed_analysis else '中性'
             
             direction_map = {
                 '看涨': PredictionDirection.BULLISH,

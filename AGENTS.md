@@ -15,6 +15,8 @@
 - **回测引擎**：完整的策略回测功能，支持蒙特卡洛验证
 - **仓位管理**：动态仓位计算，支持 Kelly 公式和风险平价
 - **市场环境识别**：自动识别趋势/震荡/高波动市场
+- **速度模式**：支持快速/平衡/安全三种运行模式
+- **信号评分器**：多维度信号综合评分系统
 
 ## 项目架构
 
@@ -30,7 +32,9 @@ yfinace/
 │   │   └── analyzer/       # AI分析器
 │   │       ├── iflow_analyzer.py
 │   │       └── service.py
-│   ├── backtest/           # 回测引擎 (新增)
+│   ├── analysis/           # 分析模块
+│   │   └── news_analyzer.py
+│   ├── backtest/           # 回测引擎
 │   │   ├── engine.py       # 回测引擎核心
 │   │   └── metrics.py      # 回测指标计算
 │   ├── config/             # 配置管理
@@ -54,13 +58,11 @@ yfinace/
 │   │   ├── external/       # 外部数据源
 │   │   │   └── stock_repository.py
 │   │   └── loaders/        # 数据加载器
-│   │       ├── finviz_loader.py   # Finviz 数据加载 (新增)
-│   │       └── yahoo_loader.py
-│   ├── data_loader/        # 股票列表加载器
-│   │   ├── get_yahoo_news.py
-│   │   ├── hk_loader.py
-│   │   └── us_loader.py
-│   ├── risk/               # 风险管理 (新增)
+│   │       ├── finviz_loader.py   # Finviz 数据加载
+│   │       ├── hk_loader.py       # 港股列表加载
+│   │       ├── us_loader.py       # 美股列表加载
+│   │       └── yahoo_loader.py    # Yahoo 数据加载
+│   ├── risk/               # 风险管理
 │   │   └── position_sizer.py  # 动态仓位管理
 │   ├── strategies/         # 策略模块
 │   │   ├── accumulation_acceleration_strategy.py  # 主力吸筹加速策略
@@ -85,18 +87,19 @@ yfinace/
 
 ```json
 {
+  "speed_mode": "balanced",     // 速度模式: fast/balanced/safe
   "api": {
-    "base_delay": 1.0,      // API 调用基础延迟
-    "max_delay": 5.0,       // API 调用最大延迟
-    "min_delay": 0.5,       // API 调用最小延迟
-    "retry_attempts": 3,    // 重试次数
-    "max_workers": 2        // 最大并行工作线程数
+    "base_delay": 0.4,          // API 调用基础延迟
+    "max_delay": 1.0,           // API 调用最大延迟
+    "min_delay": 0.4,           // API 调用最小延迟
+    "retry_attempts": 3,        // 重试次数
+    "max_workers": 2            // 最大并行工作线程数
   },
   "data": {
-    "max_cache_days": 7,    // 缓存数据最大天数
+    "max_cache_days": 7,        // 缓存数据最大天数
     "float_dtype": "float32",
     "enable_cache": false,
-    "enable_finviz": true   // 启用 Finviz 数据
+    "enable_finviz": true       // 启用 Finviz 数据
   },
   "analysis": {
     "enable_data_preprocessing": true,
@@ -143,6 +146,14 @@ yfinace/
   }
 }
 ```
+
+### 速度模式预设
+
+| 模式 | 并行数 | 延迟 | 适用场景 |
+|------|--------|------|----------|
+| `fast` | 8 | 0.2s | 快速测试 |
+| `balanced` | 4 | 0.5s | 日常使用（推荐） |
+| `safe` | 2 | 1.0s | 避免 API 限流 |
 
 ## 主要功能模块
 
@@ -352,6 +363,12 @@ python3 main.py --market HK --model qwen3-max
 
 # 使用所有AI模型分析
 python3 main.py --market HK --model all
+
+# 使用快速模式运行
+python3 main.py --market HK --speed fast
+
+# 使用安全模式运行（避免API限流）
+python3 main.py --market HK --speed safe
 ```
 
 ### 参数说明
@@ -363,6 +380,7 @@ python3 main.py --market HK --model all
 | `--symbol` | 指定单一股票代码 |
 | `--interval` | 数据时段 (1d/1h/1m) |
 | `--model` | AI模型选择 |
+| `--speed` | 速度模式 (fast/balanced/safe) |
 
 ## 安装与部署
 
@@ -418,6 +436,18 @@ pip install pdfkit
 3. 实现 `name`、`category` 属性和 `execute` 方法
 4. 系统自动检测并加载
 
+### 策略配置管理
+使用 `strategy_config.py` 中的配置类管理策略参数：
+
+```python
+from src.strategies.strategy_config import strategy_config_manager
+
+# 获取策略配置
+config = strategy_config_manager.get_config('signal_scorer')
+print(config.weights)
+print(config.pass_threshold)
+```
+
 ### 数据处理流程
 1. **数据获取**：从 Yahoo Finance / Finviz 获取数据
 2. **缓存管理**：增量同步或快速加载
@@ -431,6 +461,7 @@ pip install pdfkit
 - 配置缓存避免重复加载
 - 并行处理股票分析
 - 内存优化 (float32)
+- 速度模式预设，一键调整性能参数
 
 ## 输出格式
 
@@ -452,12 +483,30 @@ hk_stocks_2026-02-18.pdf   # PDF (需安装依赖)
 ## 故障排除
 
 ### 常见问题
-1. **API 限制**：增加 `base_delay` 或减少 `max_workers`
+1. **API 限制**：使用 `--speed safe` 或手动调整 `base_delay`
 2. **数据缺失**：删除缓存重新下载
 3. **AI分析失败**：检查 `IFLOW_API_KEY` 环境变量
-4. **内存不足**：减少并行线程数
+4. **内存不足**：使用 `--speed safe` 减少并行数
 
 ### 调试方法
 - 使用 `--symbol` 分析特定股票
 - 查看 `logs/` 目录下的日志文件
 - 使用 `--skip-strategies` 测试 AI 分析流程
+- 使用 `--speed fast` 快速测试
+
+## 回测指标说明
+
+### 核心指标
+| 指标 | 说明 |
+|------|------|
+| `total_return` | 总收益率 |
+| `sharpe_ratio` | 夏普比率 |
+| `max_drawdown` | 最大回撤 |
+| `win_rate` | 胜率 |
+| `profit_factor` | 盈亏比 |
+
+### 蒙特卡洛测试
+通过打乱收益率序列评估策略稳健性，输出置信区间：
+- `prob_positive`: 正收益概率
+- `prob_sharpe_gt_1`: 夏普比率 > 1 的概率
+- `prob_max_dd_lt_10`: 最大回撤 < 10% 的概率
