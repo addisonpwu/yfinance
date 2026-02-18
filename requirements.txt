@@ -5,3 +5,7 @@ lxml
 openpyxl
 playwright
 tenacity
+
+# 可选：PDF 报告生成
+# weasyprint>=60.0  # 需要 pip install weasyprint
+# pdfkit>=1.0.0     # 需要 wkhtmltopdf 安装
