@@ -56,7 +56,8 @@ yfinace/
 │   │   ├── cache/          # 缓存服务
 │   │   │   └── cache_service.py
 │   │   ├── external/       # 外部数据源
-│   │   │   └── stock_repository.py
+│   │   │   ├── stock_repository.py
+│   │   │   └── macro_indicators.py  # 宏观指标服务 (新增)
 │   │   └── loaders/        # 数据加载器
 │   │       ├── finviz_loader.py   # Finviz 数据加载
 │   │       ├── hk_loader.py       # 港股列表加载
@@ -222,16 +223,44 @@ result = quick_score(hist, info, market_healthy=True)
 
 ### 3. 市场环境识别 (MarketRegimeStrategy)
 
-自动识别市场类型：
+自动识别市场类型，整合技术指标和宏观指标：
+
+**市场类型：**
 - **trending**: 趋势市场，适合动量策略
 - **mean_reverting**: 震荡市场，适合均值回归策略  
 - **volatile**: 高波动市场，需谨慎操作
+
+**宏观指标整合：**
+
+| 指标 | 作用 | 解读 |
+|------|------|------|
+| VIX 指数 | 恐慌程度 | >30 高风险，<15 过度自满 |
+| 10年期美债收益率 | 利率环境 | 上升压制成长股，下降利好股市 |
+| 收益率曲线 | 经济周期 | 倒挂预示衰退风险 |
+| 美元指数 | 资金流向 | 强美元压制新兴市场 |
 
 ```python
 from src.strategies.market_regime_strategy import get_market_regime
 
 regime = get_market_regime(hist)
-# {'regime': 'trending', 'is_healthy': True, 'health_score': 0.72, ...}
+# {
+#   'regime': 'trending', 
+#   'is_healthy': True, 
+#   'health_score': 0.72,
+#   'macro_risk_score': 45,      # 宏观风险评分
+#   'macro_sentiment': 'neutral', # 市场情绪
+#   'macro_indicators': {...},    # 各指标详情
+#   'recommended_strategy': 'balanced'
+# }
+
+# 快速获取宏观分析
+from src.data.external.macro_indicators import get_macro_analysis, is_high_risk_environment
+
+analysis = get_macro_analysis()
+# {'risk_score': 45, 'sentiment': 'neutral', 'recommended_strategy': 'balanced', ...}
+
+if is_high_risk_environment():
+    print("当前为高风险环境，建议采取防守策略")
 ```
 
 ### 4. 回测引擎
@@ -428,6 +457,108 @@ brew install wkhtmltopdf
 pip install pdfkit
 ```
 
+## 配置与安全管理
+
+### 环境变量配置
+
+敏感信息（如 API 密钥）通过 `.env` 文件管理，**切勿**将密钥写入 `config.json`。
+
+#### 设置步骤
+
+```bash
+# 1. 复制示例文件
+cp .env.example .env
+
+# 2. 编辑 .env 文件，填写实际的 API 密钥
+# IFLOW_API_KEY=your_actual_api_key_here
+
+# 3. 确保 .env 已被 .gitignore 忽略（默认已配置）
+```
+
+#### .env 文件内容
+
+```bash
+# AI API 配置（必需）
+IFLOW_API_KEY=your_iflow_api_key_here
+IFLOW_API_BASE_URL=https://api.iflow.com/v1
+
+# 日志级别
+LOG_LEVEL=INFO
+
+# 开发模式
+DEV_MODE=false
+
+# 代理配置（可选）
+# HTTP_PROXY=http://127.0.0.1:7890
+# HTTPS_PROXY=http://127.0.0.1:7890
+```
+
+### 配置验证
+
+系统使用 Pydantic 进行配置验证，启动时自动检查：
+
+1. **类型验证**：确保配置值类型正确
+2. **范围验证**：数值参数在合理范围内
+3. **键名规范化**：自动去除键名空格
+4. **关系验证**：检查参数间的逻辑关系
+
+#### 使用示例
+
+```python
+from src.config.config_validator import (
+    validate_startup,
+    get_secrets_manager,
+    get_config_validator
+)
+
+# 启动时验证（推荐）
+if not validate_startup():
+    print("配置验证失败，请检查 config.json 和 .env")
+    exit(1)
+
+# 获取敏感信息
+secrets = get_secrets_manager()
+api_key = secrets.get_iflow_api_key()
+
+# 获取验证后的配置
+validator = get_config_validator()
+config = validator.get_validated_config()
+print(config.api.base_delay)  # 类型安全访问
+```
+
+#### 验证规则
+
+| 配置项 | 验证规则 |
+|--------|----------|
+| `base_delay` | 0.1 ~ 10.0 秒 |
+| `max_workers` | 1 ~ 16 |
+| `speed_mode` | fast / balanced / safe |
+| `ma_periods` | 自动去重排序 |
+| `signal_scorer.weights` | 总和必须为 1.0 |
+| `macd_fast` | 必须小于 `macd_slow` |
+
+### 安全最佳实践
+
+1. **密钥管理**
+   - ✅ 使用 `.env` 文件存储密钥
+   - ✅ 将 `.env` 加入 `.gitignore`
+   - ❌ 切勿将密钥写入 `config.json`
+   - ❌ 切勿将密钥提交到版本控制
+
+2. **文件权限**
+   ```bash
+   # 设置 .env 文件权限（仅所有者可读写）
+   chmod 600 .env
+   ```
+
+3. **密钥轮换**
+   - 定期更换 API 密钥
+   - 不同环境使用不同密钥
+
+4. **审计日志**
+   - 系统会记录密钥配置状态
+   - 不会记录实际密钥值
+
 ## 开发指南
 
 ### 添加新策略
@@ -450,10 +581,76 @@ print(config.pass_threshold)
 
 ### 数据处理流程
 1. **数据获取**：从 Yahoo Finance / Finviz 获取数据
-2. **缓存管理**：增量同步或快速加载
-3. **策略执行**：运行所有策略筛选
-4. **AI 分析**：对符合条件的股票进行 AI 分析
-5. **报告生成**：输出 TXT/HTML/PDF 报告
+2. **复权处理**：自动处理除权除息，确保价格连续性
+3. **缓存管理**：增量同步或快速加载
+4. **策略执行**：运行所有策略筛选
+5. **AI 分析**：对符合条件的股票进行 AI 分析
+6. **报告生成**：输出 TXT/HTML/PDF 报告
+
+### 复权数据处理
+
+系统默认使用复权价格（Adjusted Price）进行所有分析，这对于技术分析和回测至关重要。
+
+#### 为什么需要复权？
+
+| 事件 | 未复权影响 | 复权后效果 |
+|------|-----------|-----------|
+| **拆股** | 价格跳空（如 1拆2 价格减半） | 价格连续，消除虚假信号 |
+| **分红** | 除息日价格下跌 | 价格连续，反映真实收益 |
+| **送股** | 价格跳空 | 价格连续调整 |
+
+#### 系统实现
+
+```python
+# yahoo_loader.py 中默认启用复权
+hist = ticker.history(period=period, interval=interval, auto_adjust=True)
+```
+
+**auto_adjust=True 效果：**
+- Open, High, Low, Close 自动调整为复权价格
+- Volume 根据拆股比例反向调整
+- 所有技术指标基于复权数据计算
+
+#### 获取调整信息
+
+```python
+from src.data.loaders.yahoo_loader import YahooFinanceRepository
+
+repo = YahooFinanceRepository()
+
+# 获取除权除息信息
+adj_info = repo.get_adjustment_info('AAPL')
+# {
+#   'splits': {'2020-08-31': 4.0},  # 1拆4
+#   'dividends': {'2024-02-15': 0.24},
+#   'has_splits': True,
+#   'has_dividends': True
+# }
+```
+
+#### 验证数据复权状态
+
+```python
+# 技术指标计算时会自动验证
+from src.data.loaders.yahoo_loader import calculate_technical_indicators
+
+# 检查 attrs 标记
+hist.attrs.get('auto_adjusted')  # True/False/None
+
+# 计算指标时验证
+result = calculate_technical_indicators(hist, validate_adjustment=True)
+```
+
+#### 回测注意事项
+
+**正确做法：**
+- 使用复权价格计算收益率
+- 确保信号生成基于连续价格
+- 分红收益已体现在价格调整中
+
+**错误做法：**
+- 使用未复权价格会产生虚假突破信号
+- 忽略拆股会导致错误的历史高点判断
 
 ### 性能优化
 - 预计算技术指标避免重复计算

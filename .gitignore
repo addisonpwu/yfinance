@@ -18,3 +18,17 @@ logs/
 
 # Data cache
 data_cache/
+
+# ========================================
+# 敏感信息 - 切勿提交以下文件
+# ========================================
+# 环境变量文件（包含 API 密钥等敏感信息）
+.env
+.env.local
+.env.*.local
+
+# 密钥文件
+*.pem
+*.key
+secrets.json
+credentials.json

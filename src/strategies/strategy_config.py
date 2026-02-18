@@ -134,7 +134,12 @@ class SignalScorerConfig:
 
 @dataclass
 class MarketRegimeConfig:
-    """市场环境识别策略配置"""
+    """
+    市场环境识别策略配置
+    
+    整合技术指标和宏观指标
+    """
+    # === 技术指标参数 ===
     # 趋势强度阈值
     trend_strength_threshold: float = 0.3
     # 低波动率阈值
@@ -150,6 +155,29 @@ class MarketRegimeConfig:
     # 最小数据点数
     min_data_points: int = 50
     
+    # === 宏观指标参数 ===
+    # 是否启用宏观指标分析
+    use_macro_indicators: bool = True
+    # 宏观指标权重 (0-1，与技术指标权重互补)
+    macro_weight: float = 0.3
+    
+    # VIX 阈值
+    vix_low_threshold: float = 15.0      # VIX < 15: 低波动
+    vix_normal_threshold: float = 20.0   # VIX 15-20: 正常
+    vix_high_threshold: float = 30.0     # VIX 20-30: 高波动
+    vix_panic_threshold: float = 40.0    # VIX > 40: 恐慌
+    
+    # 美债收益率阈值
+    tnx_low_threshold: float = 2.0       # < 2%: 宽松
+    tnx_high_threshold: float = 4.5      # > 4.5%: 紧缩
+    
+    # 收益率曲线倒挂阈值
+    curve_inversion_threshold: float = 0.0  # 10Y-2Y < 0 表示倒挂
+    
+    # 宏观风险评分阈值
+    macro_risk_low: float = 30.0         # 低风险
+    macro_risk_high: float = 70.0        # 高风险
+    
     def validate(self) -> bool:
         """验证配置参数"""
         return (
@@ -157,7 +185,9 @@ class MarketRegimeConfig:
             0 < self.low_volatility_threshold < self.high_volatility_threshold and
             self.high_volatility_threshold < self.extreme_volatility_threshold and
             0 < self.health_score_threshold < 1 and
-            self.min_data_points >= 20
+            self.min_data_points >= 20 and
+            0 <= self.macro_weight <= 1 and
+            self.vix_low_threshold < self.vix_normal_threshold < self.vix_high_threshold < self.vix_panic_threshold
         )
 
 

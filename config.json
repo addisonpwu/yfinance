@@ -114,7 +114,7 @@
   },
   "ai": {
     "api_timeout": 30,
-    "model": "deepseek-v3.2",
+    "model": "glm-5",
     "max_data_points": 100
   }
 }

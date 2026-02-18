@@ -175,8 +175,37 @@ class YahooFinanceRepository(StockRepository):
             self.logger.error(f"获取 {symbol} Finviz 数据失败: {e}")
             return None
 
-    def _fetch_historical_data(self, symbol: str, market: str, interval: str = '1d') -> pd.DataFrame:
-        """获取历史数据的内部方法"""
+    def _fetch_historical_data(self, symbol: str, market: str, interval: str = '1d', 
+                                   auto_adjust: bool = True) -> pd.DataFrame:
+        """
+        获取历史数据的内部方法
+        
+        复权数据处理说明：
+        =====================
+        auto_adjust=True (默认):
+        - Open, High, Low, Close 自动调整为复权价格
+        - Volume 会根据拆股比例反向调整
+        - 适用于：技术分析、策略回测、指标计算
+        
+        auto_adjust=False:
+        - 返回原始未调整价格
+        - 需要手动处理除权除息事件
+        - 适用于：查看历史真实成交价
+        
+        复权价格的意义：
+        - 消除拆股、分红对价格的影响
+        - 确保技术指标和回测的连续性
+        - 避免虚假信号（如拆股后价格跳空）
+        
+        Args:
+            symbol: 股票代码
+            market: 市场代码
+            interval: 时间间隔
+            auto_adjust: 是否自动复权，默认 True
+            
+        Returns:
+            DataFrame: 包含复权后的 OHLCV 数据
+        """
         ticker = yf.Ticker(symbol)
         
         # 根据 interval 设置不同的 period，从配置中获取
@@ -189,26 +218,92 @@ class YahooFinanceRepository(StockRepository):
         else:
             period = data_period_config.d1  # 日線從配置獲取
         
-        hist = ticker.history(period=period, interval=interval, auto_adjust=True)
+        # 获取复权数据
+        hist = ticker.history(period=period, interval=interval, auto_adjust=auto_adjust)
+        
+        # 添加复权标记
+        hist.attrs['auto_adjusted'] = auto_adjust
+        hist.attrs['symbol'] = symbol
+        hist.attrs['interval'] = interval
         
         # 应用API延迟
         time.sleep(self.config.api.base_delay)
         
         return hist
+    
+    def get_adjustment_info(self, symbol: str) -> Dict:
+        """
+        获取股票的除权除息调整信息
+        
+        Args:
+            symbol: 股票代码
+            
+        Returns:
+            Dict: 包含 splits, dividends, stock_splits 等调整信息
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            
+            # 获取拆股信息
+            splits = ticker.splits
+            # 获取分红信息
+            dividends = ticker.dividends
+            
+            # 获取调整因子 (Capital Gains)
+            capital_gains = ticker.capital_gains if hasattr(ticker, 'capital_gains') else None
+            
+            adjustment_info = {
+                'symbol': symbol,
+                'splits': splits.to_dict() if splits is not None and not splits.empty else {},
+                'dividends': dividends.to_dict() if dividends is not None and not dividends.empty else {},
+                'has_splits': len(splits) > 0 if splits is not None else False,
+                'has_dividends': len(dividends) > 0 if dividends is not None else False,
+            }
+            
+            if capital_gains is not None and not capital_gains.empty:
+                adjustment_info['capital_gains'] = capital_gains.to_dict()
+            
+            return adjustment_info
+            
+        except Exception as e:
+            self.logger.error(f"获取 {symbol} 调整信息失败: {e}")
+            return {'symbol': symbol, 'error': str(e)}
 
-def calculate_technical_indicators(hist: pd.DataFrame, config=None) -> pd.DataFrame:
+def calculate_technical_indicators(hist: pd.DataFrame, config=None, validate_adjustment: bool = True) -> pd.DataFrame:
     """
     预计算技术指标并添加到历史数据中
+    
+    复权数据处理说明：
+    =====================
+    技术指标计算必须基于复权价格，原因：
+    1. 拆股会造成价格跳空，产生虚假的技术信号
+    2. 分红会造成价格下跌，影响移动平均线等指标
+    3. 复权价格保证价格序列的连续性和可比性
+    
+    本函数会验证数据是否已复权：
+    - 如果 hist.attrs['auto_adjusted'] == True，则认为已复权
+    - 如果未标记，会发出警告但仍继续计算
 
     Args:
-        hist: 包含OHLCV数据的DataFrame
+        hist: 包含OHLCV数据的DataFrame（应为复权数据）
         config: 配置对象，如果为None则使用默认配置
+        validate_adjustment: 是否验证数据复权状态
 
     Returns:
         添加了技术指标的DataFrame
     """
     if hist is None or hist.empty or 'Close' not in hist.columns:
         return hist
+
+    # 验证数据是否已复权
+    if validate_adjustment:
+        auto_adjusted = hist.attrs.get('auto_adjusted', None)
+        if auto_adjusted is False:
+            print("  ⚠️  警告: 数据未复权，技术指标可能产生虚假信号！")
+            print("     建议: 使用 auto_adjust=True 获取复权数据")
+        elif auto_adjusted is None:
+            # 未标记，无法确定，发出提示
+            print("  ℹ️  提示: 数据复权状态未知，建议使用 YahooFinanceRepository 获取数据")
 
     # 复制数据以避免修改原始数据
     result = hist.copy()

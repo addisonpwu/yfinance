@@ -6,6 +6,11 @@
 - mean_reverting: 震荡市场 (适合均值回归策略)
 - volatile: 高波动市场 (谨慎操作)
 
+增强功能：
+- 整合宏观指标（VIX、美债收益率、收益率曲线、美元指数）
+- 提高市场环境识别准确性
+- 提供综合风险评估
+
 优化：
 - 使用配置类管理参数
 - 添加完整的错误处理和日志
@@ -23,14 +28,19 @@ from typing import Dict, Tuple, Optional
 class MarketRegimeStrategy(BaseStrategy):
     """
     市场环境识别策略
+    
+    整合：
+    1. 技术指标分析（趋势强度、波动率、ADX）
+    2. 宏观指标分析（VIX、美债收益率、收益率曲线、美元指数）
     """
 
-    def __init__(self, config: MarketRegimeConfig = None):
+    def __init__(self, config: MarketRegimeConfig = None, use_macro: bool = True):
         """
         初始化策略
         
         Args:
             config: 策略配置，如果为 None 则从配置文件加载
+            use_macro: 是否启用宏观指标分析
         """
         self._config = config or strategy_config_manager.get_config('market_regime')
         if not isinstance(self._config, MarketRegimeConfig):
@@ -40,7 +50,11 @@ class MarketRegimeStrategy(BaseStrategy):
         if not self._config.validate():
             self._config = MarketRegimeConfig()
         
+        self._use_macro = use_macro
         self._logger = get_analysis_logger()
+        
+        # 宏观指标服务（延迟加载）
+        self._macro_service = None
     
     @property
     def name(self) -> str:
@@ -80,8 +94,13 @@ class MarketRegimeStrategy(BaseStrategy):
             )
 
         try:
-            # 计算市场环境指标
+            # 计算技术指标市场环境
             regime_info = self._analyze_market_regime(hist)
+            
+            # 整合宏观指标
+            if self._use_macro:
+                macro_info = self._get_macro_analysis()
+                regime_info = self._integrate_macro_indicators(regime_info, macro_info)
 
             return StrategyResult(
                 passed=False,  # 此策略不对个股进行筛选
@@ -103,6 +122,112 @@ class MarketRegimeStrategy(BaseStrategy):
                     "note": "市场环境识别策略不对个股进行筛选"
                 }
             )
+
+    def _get_macro_service(self):
+        """获取宏观指标服务（延迟加载）"""
+        if self._macro_service is None:
+            try:
+                from src.data.external.macro_indicators import get_macro_service
+                self._macro_service = get_macro_service()
+            except ImportError:
+                self._logger.warning("宏观指标服务未安装，跳过宏观分析")
+                return None
+        return self._macro_service
+
+    def _get_macro_analysis(self) -> Dict:
+        """获取宏观指标分析结果"""
+        service = self._get_macro_service()
+        if service is None:
+            return {}
+        
+        try:
+            result = service.analyze_all()
+            return result.to_dict()
+        except Exception as e:
+            self._logger.error(f"获取宏观指标失败: {e}")
+            return {}
+
+    def _integrate_macro_indicators(self, regime_info: Dict, macro_info: Dict) -> Dict:
+        """
+        整合宏观指标到市场环境分析
+        
+        Args:
+            regime_info: 技术指标分析结果
+            macro_info: 宏观指标分析结果
+            
+        Returns:
+            整合后的市场环境信息
+        """
+        if not macro_info:
+            return regime_info
+        
+        # 获取宏观风险评分
+        macro_risk_score = macro_info.get("risk_score", 50)
+        macro_sentiment = macro_info.get("sentiment", "neutral")
+        
+        # 调整健康得分
+        original_health = regime_info.get("health_score", 0.5)
+        
+        # 宏观风险调整因子
+        if macro_risk_score >= 70:
+            # 高风险环境，降低健康得分
+            health_adjustment = -0.2
+        elif macro_risk_score >= 55:
+            health_adjustment = -0.1
+        elif macro_risk_score <= 30:
+            # 低风险环境，提高健康得分
+            health_adjustment = 0.1
+        else:
+            health_adjustment = 0
+        
+        adjusted_health = np.clip(original_health + health_adjustment, 0, 1)
+        
+        # 整合宏观指标详情
+        macro_indicators = macro_info.get("indicators", {})
+        
+        # 根据 VIX 调整波动率判断
+        vix_data = macro_indicators.get("vix", {})
+        if vix_data:
+            vix_value = vix_data.get("current_value", 20)
+            if vix_value > 30:
+                # VIX 高时强制判断为高波动
+                regime_info["volatility_level"] = "high"
+            elif vix_value < 15 and regime_info["volatility_level"] == "high":
+                # VIX 低但技术指标显示高波动时，需要重新评估
+                pass
+        
+        # 根据收益率曲线调整趋势判断
+        curve_data = macro_indicators.get("yield_curve", {})
+        if curve_data:
+            curve_trend = curve_data.get("trend", "flat")
+            if curve_trend == "inverted":
+                # 收益率曲线倒挂，可能预示趋势反转
+                regime_info["yield_curve_warning"] = True
+        
+        # 更新市场环境
+        original_regime = regime_info.get("regime", "unknown")
+        
+        # 如果宏观指标显示高风险，调整市场类型
+        if macro_risk_score >= 70 and original_regime != "volatile":
+            regime_info["regime"] = "volatile"
+            regime_info["regime_adjustment_reason"] = "宏观风险指标显示高风险环境"
+        
+        # 更新结果
+        regime_info.update({
+            "health_score": round(adjusted_health, 2),
+            "is_healthy": adjusted_health >= self._config.health_score_threshold,
+            "macro_risk_score": macro_risk_score,
+            "macro_sentiment": macro_sentiment,
+            "macro_indicators": macro_indicators,
+            "macro_summary": macro_info.get("analysis_summary", ""),
+            "recommended_strategy": macro_info.get("recommended_strategy", "balanced"),
+        })
+        
+        # 提高置信度（因为整合了更多数据）
+        confidence_boost = 0.1 if macro_info.get("confidence", 0) > 0.5 else 0
+        regime_info["confidence"] = min(regime_info.get("confidence", 0.5) + confidence_boost, 0.98)
+        
+        return regime_info
 
     def _analyze_market_regime(self, hist: pd.DataFrame) -> Dict:
         """

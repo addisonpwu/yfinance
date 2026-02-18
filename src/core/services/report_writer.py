@@ -38,11 +38,15 @@ class ReportWriter:
         初始化报告写入器
         
         Args:
-            filename: 输出文件名（不含扩展名）
+            filename: 输出文件名（可含或不含扩展名）
             market: 市场代码
             output_format: 输出格式
         """
-        self.base_filename = filename or self._generate_basename(market)
+        raw_filename = filename or self._generate_basename(market)
+        # 移除已有的 .txt 扩展名，避免重复
+        if raw_filename.endswith('.txt'):
+            raw_filename = raw_filename[:-4]
+        self.base_filename = raw_filename
         self.market = market
         self.output_format = output_format
         self._lock = threading.Lock()

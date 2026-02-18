@@ -5,6 +5,16 @@ from datetime import datetime
 from src.core.services.analysis_service import run_analysis
 from src.config.settings import config_manager, SPEED_MODE_PRESETS
 
+# 尝试导入配置验证模块
+try:
+    from src.config.config_validator import validate_startup, get_secrets_manager, HAS_PYDANTIC
+    HAS_VALIDATOR = True
+except ImportError as e:
+    HAS_VALIDATOR = False
+    HAS_PYDANTIC = False
+    print(f"⚠️  配置验证模块导入失败: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="靈活的股票篩選器，支援多種策略")
     parser.add_argument('--market', type=str, required=True, choices=['US', 'HK'], help="要分析的市場 (US 或 HK)")
@@ -15,7 +25,26 @@ def main():
     parser.add_argument('--model', type=str, default='deepseek-v3.2', choices=['iflow-rome-30ba3b', 'qwen3-max', 'tstars2.0', 'deepseek-v3.2', 'qwen3-coder-plus', 'all'], help="AI分析模型")
     parser.add_argument('--speed', type=str, default=None, choices=['fast', 'balanced', 'safe'], 
                         help=f"速度模式: fast(快速), balanced(平衡,默認), safe(安全)")
+    parser.add_argument('--skip-validation', action='store_true', help="跳過啟動時的配置驗證")
     args = parser.parse_args()
+    
+    # 启动验证（检查配置和敏感信息）
+    if HAS_VALIDATOR and not args.skip_validation:
+        try:
+            # 只验证配置文件，敏感信息（如 API Key）在需要时检查
+            from src.config.config_validator import get_config_validator
+            validator = get_config_validator()
+            validator.load_and_validate()
+            
+            # 检查敏感信息配置状态
+            secrets = get_secrets_manager()
+            if not secrets.is_configured('IFLOW_API_KEY'):
+                print("⚠️  IFLOW_API_KEY 未配置，AI 分析功能将不可用")
+                print("   请创建 .env 文件并设置 IFLOW_API_KEY")
+        except ValueError as e:
+            print(f"❌ 配置验证失败: {e}")
+            print("   请检查 config.json 文件格式")
+            return
     
     # 应用速度模式
     if args.speed:
