@@ -4,11 +4,42 @@ import json
 from pathlib import Path
 import os
 
+# 速度模式预设配置
+SPEED_MODE_PRESETS = {
+    "fast": {
+        "base_delay": 0.2,
+        "max_delay": 1.0,
+        "min_delay": 0.1,
+        "max_workers": 8,
+        "enable_cache": True,
+        "ai_timeout": 20,
+        "description": "快速模式：高并行、低延迟，适合测试"
+    },
+    "balanced": {
+        "base_delay": 0.5,
+        "max_delay": 3.0,
+        "min_delay": 0.2,
+        "max_workers": 4,
+        "enable_cache": True,
+        "ai_timeout": 30,
+        "description": "平衡模式：速度与稳定性兼顾，推荐日常使用"
+    },
+    "safe": {
+        "base_delay": 1.0,
+        "max_delay": 5.0,
+        "min_delay": 0.5,
+        "max_workers": 2,
+        "enable_cache": True,
+        "ai_timeout": 45,
+        "description": "安全模式：低并行、高延迟，避免 API 限流"
+    }
+}
+
 @dataclass
 class APIConfig:
     base_delay: float = 0.5
-    max_delay: float = 2.0
-    min_delay: float = 0.1
+    max_delay: float = 3.0
+    min_delay: float = 0.2
     retry_attempts: int = 3
     max_workers: int = 4
 
@@ -113,6 +144,7 @@ class AppConfig:
     strategies: StrategiesConfig = None
     news: NewsConfig = None
     ai: AIConfig = None
+    speed_mode: str = "balanced"  # 新增：速度模式
     
     def __post_init__(self):
         if self.technical_indicators is None:
@@ -123,6 +155,38 @@ class AppConfig:
             self.news = NewsConfig()
         if self.ai is None:
             self.ai = AIConfig()
+    
+    def apply_speed_mode(self, speed_mode: str = None):
+        """
+        应用速度模式预设
+        
+        Args:
+            speed_mode: 速度模式 ('fast', 'balanced', 'safe')
+        """
+        mode = speed_mode or self.speed_mode
+        
+        if mode not in SPEED_MODE_PRESETS:
+            print(f"警告: 未知速度模式 '{mode}'，使用 'balanced'")
+            mode = "balanced"
+        
+        preset = SPEED_MODE_PRESETS[mode]
+        
+        # 应用预设到 API 配置
+        self.api.base_delay = preset["base_delay"]
+        self.api.max_delay = preset["max_delay"]
+        self.api.min_delay = preset["min_delay"]
+        self.api.max_workers = preset["max_workers"]
+        
+        # 应用预设到数据配置
+        self.data.enable_cache = preset["enable_cache"]
+        
+        # 应用预设到 AI 配置
+        self.ai.api_timeout = preset["ai_timeout"]
+        
+        self.speed_mode = mode
+        print(f"已应用速度模式: {mode} ({preset['description']})")
+        
+        return self
 
 class ConfigManager:
     _instance = None
@@ -145,6 +209,9 @@ class ConfigManager:
         with open(config_path, 'r', encoding='utf-8') as f:
             raw_config = json.load(f)
         
+        # 获取速度模式
+        speed_mode = raw_config.get('speed_mode', 'balanced')
+        
         # 使用默认值填充缺失的配置项
         api_config = raw_config.get('api', {})
         data_config = raw_config.get('data', {})
@@ -164,8 +231,8 @@ class ConfigManager:
         self._config = AppConfig(
             api=APIConfig(
                 base_delay=api_config.get('base_delay', 0.5),
-                max_delay=api_config.get('max_delay', 2.0),
-                min_delay=api_config.get('min_delay', 0.1),
+                max_delay=api_config.get('max_delay', 3.0),
+                min_delay=api_config.get('min_delay', 0.2),
                 retry_attempts=api_config.get('retry_attempts', 3),
                 max_workers=api_config.get('max_workers', 4)
             ),
@@ -227,17 +294,24 @@ class ConfigManager:
                 api_timeout=ai_config.get('api_timeout', 30),
                 model=ai_config.get('model', 'deepseek-v3.2'),
                 max_data_points=ai_config.get('max_data_points', 100)
-            )
+            ),
+            speed_mode=speed_mode
         )
+        
+        # 应用速度模式（会覆盖部分配置）
+        if speed_mode in SPEED_MODE_PRESETS:
+            self._config.apply_speed_mode(speed_mode)
+        
         return self._config
     
     def _create_default_config(self, config_path: str):
         """创建默认配置文件"""
         default_config = {
+            "speed_mode": "balanced",
             "api": {
                 "base_delay": 0.5,
-                "max_delay": 2.0,
-                "min_delay": 0.1,
+                "max_delay": 3.0,
+                "min_delay": 0.2,
                 "retry_attempts": 3,
                 "max_workers": 4
             },
@@ -266,9 +340,65 @@ class ConfigManager:
                 "bb_period": 20,
                 "bb_std_dev": 2,
                 "atr_period": 14,
-                "ma_periods": [5, 10, 20, 50, 200]
+                "ma_periods": [5, 10, 20, 50, 200],
+                "cmo_period": 14,
+                "williams_r_period": 14,
+                "stochastic_period": 14,
+                "stochastic_smooth_period": 3,
+                "volume_z_score_period": 20
             },
             "strategies": {
+                "momentum_breakout": {
+                    "price_breakout_threshold": 1.01,
+                    "volume_burst_multiplier": 2.0,
+                    "momentum_5d_threshold": 0.03,
+                    "momentum_20d_threshold": 0.05,
+                    "min_data_points": 21,
+                    "confidence": 0.8
+                },
+                "accumulation_acceleration": {
+                    "accumulation_period": 30,
+                    "volatility_threshold": 0.15,
+                    "volume_trend_period": 30,
+                    "breakout_threshold": 1.015,
+                    "volume_ratio_threshold": 2.5,
+                    "rsi_prev_min": 40,
+                    "rsi_prev_max": 60,
+                    "rsi_current_threshold": 65,
+                    "min_data_points": 30,
+                    "confidence": 0.8
+                },
+                "volatility_squeeze": {
+                    "bb_period": 20,
+                    "bb_std_dev": 2,
+                    "squeeze_lookback": 100,
+                    "squeeze_percentile": 0.1,
+                    "breakout_threshold": 0.02,
+                    "volume_multiplier": 1.5,
+                    "volume_period": 50,
+                    "min_data_points": 100,
+                    "confidence": 0.8
+                },
+                "signal_scorer": {
+                    "weights": {
+                        "trend_following": 0.25,
+                        "momentum_breakout": 0.20,
+                        "volume_confirmation": 0.15,
+                        "market_correction": 0.20,
+                        "sector_strength": 0.20
+                    },
+                    "pass_threshold": 0.7,
+                    "min_data_points": 50
+                },
+                "market_regime": {
+                    "min_data_points": 50,
+                    "health_score_threshold": 0.6,
+                    "trend_strength_threshold": 0.3,
+                    "low_volatility_threshold": 0.15,
+                    "high_volatility_threshold": 0.35,
+                    "extreme_volatility_threshold": 0.4,
+                    "risk_free_rate": 0.02
+                },
                 "vcp_pocket_pivot": {
                     "ma_periods": [50, 150, 200],
                     "volatility_windows": [50, 20, 10],
@@ -303,6 +433,19 @@ class ConfigManager:
     def get_config(self) -> AppConfig:
         if self._config is None:
             self.load_config()
+        return self._config
+    
+    def apply_speed_mode(self, speed_mode: str) -> AppConfig:
+        """
+        应用速度模式（运行时覆盖）
+        
+        Args:
+            speed_mode: 速度模式 ('fast', 'balanced', 'safe')
+        """
+        if self._config is None:
+            self.load_config()
+        
+        self._config.apply_speed_mode(speed_mode)
         return self._config
 
 # 全局配置实例

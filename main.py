@@ -3,6 +3,7 @@ import argparse
 import os
 from datetime import datetime
 from src.core.services.analysis_service import run_analysis
+from src.config.settings import config_manager, SPEED_MODE_PRESETS
 
 def main():
     parser = argparse.ArgumentParser(description="靈活的股票篩選器，支援多種策略")
@@ -11,9 +12,15 @@ def main():
     parser.add_argument('--skip-strategies', action='store_true', help="跳過策略篩選，所有股票都進行AI分析")
     parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
     parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
-    parser.add_argument('--model', type=str, default='deepseek-v3.2', choices=['iflow-rome-30ba3b', 'qwen3-max', 'tstars2.0', 'deepseek-v3.2', 'qwen3-coder-plus', 'all'], help="AI分析模型：iflow-rome-30ba3b/qwen3-max/tstars2.0/deepseek-v3.2/qwen3-coder-plus/all")
+    parser.add_argument('--model', type=str, default='deepseek-v3.2', choices=['iflow-rome-30ba3b', 'qwen3-max', 'tstars2.0', 'deepseek-v3.2', 'qwen3-coder-plus', 'all'], help="AI分析模型")
+    parser.add_argument('--speed', type=str, default=None, choices=['fast', 'balanced', 'safe'], 
+                        help=f"速度模式: fast(快速), balanced(平衡,默認), safe(安全)")
     args = parser.parse_args()
-
+    
+    # 应用速度模式
+    if args.speed:
+        config_manager.apply_speed_mode(args.speed)
+    
     print(f"--- 開始對 {args.market.upper()} 市場進行分析 ---")
     if args.no_cache_update:
         print(f"--- 已啟用快速模式：跳過緩存更新 ---")
@@ -23,6 +30,10 @@ def main():
         print(f"--- 分析指定股票: {args.symbol} ---")
     print(f"--- 數據時段類型: {args.interval} ---")
     print(f"--- AI分析模型: {args.model} ---")
+    
+    # 显示当前速度配置
+    config = config_manager.get_config()
+    print(f"--- 速度配置: 並行={config.api.max_workers}, 延遲={config.api.base_delay}s ---")
 
     # 生成报告文件名
     today_str = datetime.now().strftime('%Y-%m-%d')
