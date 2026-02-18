@@ -7,19 +7,32 @@ from src.config.settings import config_manager
 from src.utils.logger import get_ai_logger
 import os
 import json
-import hashlib
-from datetime import datetime, timedelta
 import requests
 
+# 尝试导入 tenacity，如果不存在则使用简单的重试逻辑
+try:
+    from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+    HAS_TENACITY = True
+except ImportError:
+    HAS_TENACITY = False
+
+
 class AIAnalyzer(ABC):
+    """AI 分析器抽象基类"""
+    
     @abstractmethod
     def analyze(self, stock_data: Dict, hist: pd.DataFrame, **kwargs) -> Optional[AIAnalysisResult]:
         pass
 
+
 class IFlowAIAnalyzer(AIAnalyzer):
+    """心流 AI 分析器实现"""
+    
+    # AI 分析缓存子目录
+    AI_CACHE_SUBDIR = "ai_analysis"
+    
     def __init__(self):
         self.api_key = os.environ.get("IFLOW_API_KEY", "")
-        # 使用配置中的 enable_cache 设置来初始化缓存服务
         config = config_manager.get_config()
         self.cache_service = OptimizedCache(enabled=config.data.enable_cache)
         self.config = config_manager.get_config()
@@ -27,13 +40,29 @@ class IFlowAIAnalyzer(AIAnalyzer):
         self.api_url = "https://apis.iflow.cn/v1/chat/completions"
     
     def analyze(self, stock_data: Dict, hist: pd.DataFrame, **kwargs) -> Optional[AIAnalysisResult]:
+        """
+        分析单只股票
+        
+        Args:
+            stock_data: 股票数据字典
+            hist: 历史数据 DataFrame
+            **kwargs: 额外参数 (interval, model 等)
+        
+        Returns:
+            AIAnalysisResult 或 None
+        """
         interval = kwargs.get('interval', '1d')
         model = kwargs.get('model', 'deepseek-v3.2')
         
-        # 生成缓存键
-        cache_key = self._get_cache_key(stock_data, hist, interval, model)
-        cached_result = self.cache_service.get(cache_key)
+        # 处理 'all' 模型选项
+        if model == 'all':
+            return self._analyze_with_all_models(stock_data, hist, interval)
         
+        # 生成缓存键（使用数据哈希而非日期）
+        cache_key = self._get_cache_key(stock_data, hist, interval, model)
+        
+        # 尝试从缓存获取
+        cached_result = self.cache_service.get_json(cache_key, self.AI_CACHE_SUBDIR)
         if cached_result:
             self.logger.info(f"从缓存获取 {stock_data.get('symbol', 'Unknown')} 的AI分析结果")
             return AIAnalysisResult(
@@ -42,7 +71,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
                 model_used=cached_result.get('model_used', model)
             )
         
-        # 如果没有API密钥且缓存中没有结果，则跳过AI分析
+        # 检查 API Key
         if not self.api_key:
             self.logger.warning(f"未找到 IFLOW_API_KEY 环境变量，跳过 AI 分析（缓存中无结果）")
             return None
@@ -57,18 +86,18 @@ class IFlowAIAnalyzer(AIAnalyzer):
             if response:
                 result = AIAnalysisResult(
                     summary=response,
-                    confidence=0.8,  # 默认置信度
+                    confidence=0.8,
                     model_used=model_used
                 )
                 
                 # 保存结果到缓存
                 cache_data = {
+                    'symbol': stock_data.get('symbol', ''),
                     'summary': response,
                     'confidence': 0.8,
                     'model_used': model_used,
-                    'timestamp': datetime.now().isoformat()
                 }
-                self.cache_service.set(cache_key, cache_data)
+                self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
                 
                 return result
             else:
@@ -79,25 +108,101 @@ class IFlowAIAnalyzer(AIAnalyzer):
             self.logger.error(f"AI分析时出错: {e}")
             return None
     
-    def _get_cache_key(self, stock_data: Dict, hist: pd.DataFrame, interval: str, model: str) -> str:
-        """生成AI分析结果的缓存键"""
-        cache_content = {
-            'symbol': stock_data.get('symbol', ''),
-            'strategies': sorted(stock_data.get('strategies', [])),
-            'market': stock_data.get('market', 'HK'),
-            'interval': interval,
-            'model': model,
-            'data_timestamp': datetime.now().strftime('%Y-%m-%d'),
-            'hist_shape': hist.shape if hist is not None else None,
-            'hist_last_date': str(hist.index[-1]) if hist is not None and not hist.empty else None,
-            'info_keys': {k: v for k, v in stock_data.get('info', {}).items() 
-                          if k in ['marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook', 
-                                   'profitMargins', 'returnOnEquity', 'revenueGrowth', 'earningsGrowth',
-                                   'dividendYield', 'beta', '52WeekChange', 'targetMeanPrice']}
-        }
+    def _analyze_with_all_models(
+        self, stock_data: Dict, hist: pd.DataFrame, interval: str
+    ) -> Optional[AIAnalysisResult]:
+        """使用所有可用模型进行分析并合并结果"""
+        models_to_use = [
+            'iflow-rome-30ba3b',
+            'qwen3-max',
+            'tstars2.0',
+            'deepseek-v3.2',
+            'qwen3-coder-plus'
+        ]
+        all_results = []
         
-        cache_str = json.dumps(cache_content, sort_keys=True, default=str)
-        return hashlib.md5(cache_str.encode()).hexdigest()
+        for model_name in models_to_use:
+            cache_key = self._get_cache_key(stock_data, hist, interval, model_name)
+            cached_result = self.cache_service.get_json(cache_key, self.AI_CACHE_SUBDIR)
+            
+            if cached_result:
+                all_results.append({
+                    'summary': cached_result.get('summary', ''),
+                    'model_used': cached_result.get('model_used', model_name)
+                })
+            elif not self.api_key:
+                self.logger.warning(f"未找到 IFLOW_API_KEY，跳过 {model_name} 模型分析")
+            else:
+                prompt = self._build_analysis_prompt(stock_data, hist)
+                try:
+                    response, model_used = self._call_iflow_api(prompt, model_name)
+                    if response:
+                        result = {
+                            'summary': response,
+                            'model_used': model_used
+                        }
+                        cache_data = {
+                            'symbol': stock_data.get('symbol', ''),
+                            'summary': response,
+                            'confidence': 0.8,
+                            'model_used': model_used,
+                        }
+                        self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
+                        all_results.append(result)
+                except Exception as e:
+                    self.logger.error(f"{model_name} 模型分析时出错: {e}")
+        
+        if not all_results:
+            return None
+        
+        # 合并所有模型的分析结果
+        combined_summary = "【多模型分析结果】\n\n"
+        for result in all_results:
+            combined_summary += f"--- {result['model_used']} 模型分析 ---\n"
+            combined_summary += result['summary']
+            combined_summary += "\n\n"
+        
+        return AIAnalysisResult(
+            summary=combined_summary,
+            confidence=0.8,
+            model_used='all_models'
+        )
+    
+    def _get_cache_key(
+        self, stock_data: Dict, hist: pd.DataFrame, interval: str, model: str
+    ) -> str:
+        """
+        生成 AI 分析结果的缓存键
+        
+        使用数据哈希而非日期，确保数据不变时缓存可复用
+        """
+        # 计算历史数据的哈希（只使用最后100条数据）
+        hist_hash = None
+        if hist is not None and not hist.empty:
+            recent_hist = hist.tail(100)
+            hist_hash = OptimizedCache.compute_data_hash(
+                recent_hist[['Close', 'Volume']].to_dict()
+            )
+        
+        # 计算关键基本面信息的哈希
+        info = stock_data.get('info', {})
+        key_info = {
+            k: v for k, v in info.items()
+            if k in ['marketCap', 'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook',
+                     'profitMargins', 'returnOnEquity', 'revenueGrowth', 'earningsGrowth',
+                     'dividendYield', 'beta', '52WeekChange', 'targetMeanPrice']
+        }
+        info_hash = OptimizedCache.compute_data_hash(key_info)
+        
+        return self.cache_service.generate_ai_cache_key(
+            symbol=stock_data.get('symbol', ''),
+            strategies=stock_data.get('strategies', []),
+            market=stock_data.get('market', 'HK'),
+            interval=interval,
+            model=model,
+            hist_hash=hist_hash,
+            info_hash=info_hash
+        )
     
     def _build_analysis_prompt(self, stock_data: Dict, hist: pd.DataFrame) -> str:
         """构建用于股票分析的优化提示词"""
@@ -151,95 +256,12 @@ class IFlowAIAnalyzer(AIAnalyzer):
         float_shares = info.get('floatShares')
         float_shares_str = f"{float_shares:,.0f}" if isinstance(float_shares, (int, float)) and float_shares > 0 else "N/A"
 
-        # 格式化历史数据（最近 100 天）
-        hist_summary = ""
-        technical_indicators = ""
-        if hist is not None and not hist.empty:
-            recent_data = hist.tail(100)
+        short_ratio = info.get('shortRatio')
+        short_ratio_str = f"{short_ratio:.2f}%" if isinstance(short_ratio, (int, float)) and short_ratio > 0 else "N/A"
 
-            # 计算技术指标
-            # RSI
-            delta = recent_data['Close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
-            rs = gain / loss
-            rsi = 100 - (100 / (1 + rs))
-            latest_rsi = rsi.iloc[-1] if not rsi.empty else "N/A"
-
-            # MACD
-            exp12 = recent_data['Close'].ewm(span=12, adjust=False).mean()
-            exp26 = recent_data['Close'].ewm(span=26, adjust=False).mean()
-            macd = exp12 - exp26
-            signal = macd.ewm(span=9, adjust=False).mean()
-            latest_macd = macd.iloc[-1] if not macd.empty else "N/A"
-            latest_signal = signal.iloc[-1] if not signal.empty else "N/A"
-
-            # ATR
-            high_low = recent_data['High'] - recent_data['Low']
-            high_close = abs(recent_data['High'] - recent_data['Close'].shift())
-            low_close = abs(recent_data['Low'] - recent_data['Close'].shift())
-            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-            atr = tr.rolling(window=14, min_periods=1).mean()
-            latest_atr = atr.iloc[-1] if not atr.empty else "N/A"
-
-            # 布林带
-            sma20 = recent_data['Close'].rolling(window=20, min_periods=1).mean()
-            std20 = recent_data['Close'].rolling(window=20, min_periods=1).std()
-            upper_band = sma20 + (std20 * 2)
-            lower_band = sma20 - (std20 * 2)
-            latest_upper = upper_band.iloc[-1] if not upper_band.empty else "N/A"
-            latest_lower = lower_band.iloc[-1] if not lower_band.empty else "N/A"
-            latest_close = recent_data['Close'].iloc[-1]
-
-            # 添加更多技术指标
-            # 20日移动平均线
-            ma20 = recent_data['Close'].rolling(window=20, min_periods=1).mean()
-            latest_ma20 = ma20.iloc[-1] if not ma20.empty else "N/A"
-            
-            # 50日移动平均线
-            ma50 = recent_data['Close'].rolling(window=50, min_periods=1).mean()
-            latest_ma50 = ma50.iloc[-1] if not ma50.empty else "N/A"
-            
-            # 200日移动平均线
-            ma200 = recent_data['Close'].rolling(window=200, min_periods=1).mean()
-            latest_ma200 = ma200.iloc[-1] if not ma200.empty else "N/A"
-
-            # 14日威廉指标
-            highest_high = recent_data['High'].rolling(window=14, min_periods=1).max()
-            lowest_low = recent_data['Low'].rolling(window=14, min_periods=1).min()
-            williams_r = ((highest_high - recent_data['Close']) / (highest_high - lowest_low)) * -100
-            latest_williams_r = williams_r.iloc[-1] if not williams_r.empty else "N/A"
-
-            # 相对强弱指标和成交量
-            volume_sma = recent_data['Volume'].rolling(window=20, min_periods=1).mean()
-            latest_volume_sma = volume_sma.iloc[-1] if not volume_sma.empty else "N/A"
-
-            # 格式化技术指标
-            def format_value(val, decimals=2):
-                if isinstance(val, (int, float)):
-                    return f"{val:.{decimals}f}"
-                return str(val)
-
-            technical_indicators = f"""
-【技术指标】
-- RSI (14): {format_value(latest_rsi)}
-- MACD: {format_value(latest_macd)} / Signal: {format_value(latest_signal)}
-- ATR (14): {format_value(latest_atr)}
-- 布林带上轨: {format_value(latest_upper)} / 下轨: {format_value(latest_lower)} / 当前价: {format_value(latest_close)}
-- 移动平均线: MA20: {format_value(latest_ma20)}, MA50: {format_value(latest_ma50)}, MA200: {format_value(latest_ma200)}
-- 威廉指标 (14): {format_value(latest_williams_r)}
-- 平均成交量 (20日): {format_value(latest_volume_sma, 0)}
-"""
-
-            # 格式化历史数据（只显示最近20天以节省token）
-            hist_lines = []
-            for idx, row in recent_data.tail(20).iterrows():
-                date_str = idx.strftime('%Y-%m-%d')
-                hist_lines.append(f"{date_str}: 收盘价 {row.get('Close', 'N/A'):.2f}, 成交量 {row.get('Volume', 'N/A'):,.0f}")
-            hist_summary = "\n".join(hist_lines)
-        else:
-            hist_summary = "无历史数据"
-            technical_indicators = ""
+        # 尝试从预计算的技术指标中获取数据
+        technical_indicators = self._get_technical_indicators(hist)
+        hist_summary = self._get_hist_summary(hist)
         
         # 构建完整提示词
         prompt = f"""你是一位专业的短期股票分析师。请基于以下信息对股票进行结构化分析，并给出短期投资建议（1-4周内）。
@@ -258,6 +280,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
 - Beta系数: {beta_str} / 52周涨跌: {week52_change_str}
 - 分析师目标价: {target_mean_price_str}
 - 成交量: {volume_str} / 流通股本: {float_shares_str}
+- 卖空比率: {short_ratio_str}
 
 【技术面分析】
 - 符合的交易策略: {', '.join(strategies) if strategies else '无'}
@@ -270,36 +293,36 @@ class IFlowAIAnalyzer(AIAnalyzer):
 
 你必须使用结构化的分析方法（Chain of Thought）：
 
-第一步：数据梳理与观察 (Data Review)
+第一步：数据梳理与观察
 - 观察当前价格相对于各关键移动平均线的位置 (MA20, MA50, MA200)
 - 观察RSI是否处于超买（>70）或超卖（<30）区域
 - 观察MACD是否出现金叉或死叉信号
 - 观察价格在布林带中的位置（上轨、中轨、下轨）
 - 观察成交量是否异常放大或缩小
 
-第二步：趋势判定 (Trend Analysis)  
+第二步：趋势判定  
 - 确定短期（20日）、中期（50日）、长期（200日）趋势
 - 根据移动平均线的排列顺序判定趋势（多头排列/空头排列/震荡）
 - 分析价格相对于均线的位置关系
 
-第三步：技术指标确认 (Indicator Confirmation)
+第三步：技术指标确认
 - 解读RSI数值：30以下为超卖可能反弹，70以上为超买可能回调，30-70为中性区域
 - 解读MACD：DIF线上穿DEA线为金叉（看涨信号），下穿为死叉（看跌信号）
 - 解读布林带：价格触及上轨可能回调，触及下轨可能反弹，收窄后突破方向重要
 - 解读威廉指标：-20以上为超买区，-80以下为超卖区
 
-第四步：基本面评估 (Fundamental Assessment)
+第四步：基本面评估
 - 评估市盈率是否合理（对比行业平均、历史平均）
 - 评估PEG比率（1以下可能被低估，1以上可能被高估）
 - 评估ROE和利润率是否健康
 - 评估营收和盈利增长趋势
 
-第五步：风险识别 (Risk Identification)
+第五步：风险识别
 - 识别技术面风险：指标背离、趋势反转信号
 - 识别基本面风险：高PE、负增长、高负债等
 - 识别市场风险：Beta系数、市场情绪（卖空比率）
 
-第六步：综合判断 (Synthesis)
+第六步：综合判断
 - 综合技术面和基本面信息
 - 判断短期（1-4周）走势
 - 形成投资建议
@@ -414,13 +437,123 @@ class IFlowAIAnalyzer(AIAnalyzer):
 
         return prompt
     
-    def _call_iflow_api(self, prompt: str, model_name: str) -> tuple[Optional[str], Optional[str]]:
+    def _get_technical_indicators(self, hist: pd.DataFrame) -> str:
         """
-        调用心流 API
+        获取技术指标摘要
+        
+        优先使用预计算的指标，避免重复计算
+        """
+        if hist is None or hist.empty:
+            return "无技术指标数据"
+        
+        recent_data = hist.tail(100)
+        
+        def format_value(val, decimals=2):
+            if isinstance(val, (int, float)):
+                return f"{val:.{decimals}f}"
+            return str(val)
+        
+        # 尝试使用预计算的指标
+        if 'RSI_14' in hist.columns:
+            latest_rsi = hist['RSI_14'].iloc[-1]
+        else:
+            # 后备计算
+            delta = recent_data['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+            rs = gain / loss
+            latest_rsi = (100 - (100 / (1 + rs))).iloc[-1] if not rs.empty else "N/A"
+        
+        if 'MACD' in hist.columns and 'MACD_Signal' in hist.columns:
+            latest_macd = hist['MACD'].iloc[-1]
+            latest_signal = hist['MACD_Signal'].iloc[-1]
+        else:
+            exp12 = recent_data['Close'].ewm(span=12, adjust=False).mean()
+            exp26 = recent_data['Close'].ewm(span=26, adjust=False).mean()
+            macd = exp12 - exp26
+            signal = macd.ewm(span=9, adjust=False).mean()
+            latest_macd = macd.iloc[-1] if not macd.empty else "N/A"
+            latest_signal = signal.iloc[-1] if not signal.empty else "N/A"
+        
+        if 'ATR_14' in hist.columns:
+            latest_atr = hist['ATR_14'].iloc[-1]
+        else:
+            high_low = recent_data['High'] - recent_data['Low']
+            high_close = abs(recent_data['High'] - recent_data['Close'].shift())
+            low_close = abs(recent_data['Low'] - recent_data['Close'].shift())
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            latest_atr = tr.rolling(window=14, min_periods=1).mean().iloc[-1] if not tr.empty else "N/A"
+        
+        if 'BB_Upper' in hist.columns and 'BB_Lower' in hist.columns:
+            latest_upper = hist['BB_Upper'].iloc[-1]
+            latest_lower = hist['BB_Lower'].iloc[-1]
+        else:
+            sma20 = recent_data['Close'].rolling(window=20, min_periods=1).mean()
+            std20 = recent_data['Close'].rolling(window=20, min_periods=1).std()
+            latest_upper = (sma20 + std20 * 2).iloc[-1] if not sma20.empty else "N/A"
+            latest_lower = (sma20 - std20 * 2).iloc[-1] if not sma20.empty else "N/A"
+        
+        latest_close = hist['Close'].iloc[-1] if not hist.empty else "N/A"
+        
+        # 移动平均线
+        ma_values = {}
+        for period in [20, 50, 200]:
+            col_name = f'MA_{period}'
+            if col_name in hist.columns:
+                ma_values[period] = hist[col_name].iloc[-1]
+            else:
+                ma_values[period] = recent_data['Close'].rolling(window=period, min_periods=1).mean().iloc[-1]
+        
+        # 威廉指标
+        if 'WilliamsR_14' in hist.columns:
+            latest_williams_r = hist['WilliamsR_14'].iloc[-1]
+        else:
+            highest_high = recent_data['High'].rolling(window=14, min_periods=1).max()
+            lowest_low = recent_data['Low'].rolling(window=14, min_periods=1).min()
+            williams_r = ((highest_high - recent_data['Close']) / (highest_high - lowest_low)) * -100
+            latest_williams_r = williams_r.iloc[-1] if not williams_r.empty else "N/A"
+        
+        # 成交量均线
+        if 'Volume_MA_20' in hist.columns:
+            latest_volume_sma = hist['Volume_MA_20'].iloc[-1]
+        else:
+            latest_volume_sma = recent_data['Volume'].rolling(window=20, min_periods=1).mean().iloc[-1]
+        
+        return f"""
+【技术指标】
+- RSI (14): {format_value(latest_rsi)}
+- MACD: {format_value(latest_macd)} / Signal: {format_value(latest_signal)}
+- ATR (14): {format_value(latest_atr)}
+- 布林带上轨: {format_value(latest_upper)} / 下轨: {format_value(latest_lower)} / 当前价: {format_value(latest_close)}
+- 移动平均线: MA20: {format_value(ma_values[20])}, MA50: {format_value(ma_values[50])}, MA200: {format_value(ma_values[200])}
+- 威廉指标 (14): {format_value(latest_williams_r)}
+- 平均成交量 (20日): {format_value(latest_volume_sma, 0)}
+"""
+    
+    def _get_hist_summary(self, hist: pd.DataFrame) -> str:
+        """获取历史数据摘要（最近20天）"""
+        if hist is None or hist.empty:
+            return "无历史数据"
+        
+        hist_lines = []
+        for idx, row in hist.tail(20).iterrows():
+            date_str = idx.strftime('%Y-%m-%d')
+            close = row.get('Close', 'N/A')
+            volume = row.get('Volume', 'N/A')
+            close_str = f"{close:.2f}" if isinstance(close, (int, float)) else str(close)
+            volume_str = f"{volume:,.0f}" if isinstance(volume, (int, float)) else str(volume)
+            hist_lines.append(f"{date_str}: 收盘价 {close_str}, 成交量 {volume_str}")
+        
+        return "\n".join(hist_lines)
+    
+    def _call_iflow_api(self, prompt: str, model_name: str, max_retries: int = 3) -> tuple[Optional[str], Optional[str]]:
+        """
+        调用心流 API，带有自动重试机制
 
         Args:
             prompt: 分析提示词
             model_name: 要使用的模型名称
+            max_retries: 最大重试次数
 
         Returns:
             (API 返回的文本内容, 实际使用的模型名称) 的元组，如果调用失败返回 (None, None)
@@ -444,28 +577,44 @@ class IFlowAIAnalyzer(AIAnalyzer):
             "top_p": 0.7
         }
 
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=30
+                )
 
-            response.raise_for_status()
-            result = response.json()
+                response.raise_for_status()
+                result = response.json()
 
-            # 提取返回的文本和模型名称
-            if 'choices' in result and len(result['choices']) > 0:
-                content = result['choices'][0]['message']['content']
-                model = result.get('model', model_name)  # 从响应中提取 model，如果没有则使用默认值
-                return content, model
-            else:
-                return None, None
+                if 'choices' in result and len(result['choices']) > 0:
+                    content = result['choices'][0]['message']['content']
+                    model = result.get('model', model_name)
+                    return content, model
+                else:
+                    return None, None
 
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API 调用失败: {e}")
-            return None, None
-        except (json.JSONDecodeError, KeyError) as e:
-            self.logger.error(f"解析 API 响应失败: {e}")
-            return None, None
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    # 指数退避等待
+                    import time
+                    wait_time = 2 ** attempt
+                    self.logger.warning(f"API 调用失败 (尝试 {attempt + 1}/{max_retries})，{wait_time}秒后重试: {e}")
+                    time.sleep(wait_time)
+                continue
+            except (json.JSONDecodeError, KeyError) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    import time
+                    wait_time = 2 ** attempt
+                    self.logger.warning(f"解析响应失败 (尝试 {attempt + 1}/{max_retries})，{wait_time}秒后重试: {e}")
+                    time.sleep(wait_time)
+                continue
+
+        self.logger.error(f"API 调用最终失败 (共 {max_retries} 次尝试): {last_error}")
+        return None, None

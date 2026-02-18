@@ -1,10 +1,10 @@
 {
   "api": {
-    "base_delay": 0.5,
-    "max_delay": 2.0,
-    "min_delay": 0.1,
+    "base_delay": 1.0,
+    "max_delay": 5.0,
+    "min_delay": 0.5,
     "retry_attempts": 3,
-    "max_workers": 4
+    "max_workers": 2
   },
   "data": {
     "max_cache_days": 7,
@@ -31,13 +31,7 @@
     "bb_period": 20,
     "bb_std_dev": 2,
     "atr_period": 14,
-    "ma_periods": [
-      5,
-      10,
-      20,
-      50,
-      200
-    ],
+    "ma_periods": [5, 10, 20, 50, 200],
     "cmo_period": 14,
     "williams_r_period": 14,
     "stochastic_period": 14,
@@ -45,17 +39,60 @@
     "volume_z_score_period": 20
   },
   "strategies": {
+    "momentum_breakout": {
+      "price_breakout_threshold": 1.01,
+      "volume_burst_multiplier": 2.0,
+      "momentum_5d_threshold": 0.03,
+      "momentum_20d_threshold": 0.05,
+      "min_data_points": 21,
+      "confidence": 0.8
+    },
+    "accumulation_acceleration": {
+      "accumulation_period": 30,
+      "volatility_threshold": 0.15,
+      "volume_trend_period": 30,
+      "breakout_threshold": 1.015,
+      "volume_ratio_threshold": 2.5,
+      "rsi_prev_min": 40,
+      "rsi_prev_max": 60,
+      "rsi_current_threshold": 65,
+      "min_data_points": 30,
+      "confidence": 0.8
+    },
+    "volatility_squeeze": {
+      "bb_period": 20,
+      "bb_std_dev": 2,
+      "squeeze_lookback": 100,
+      "squeeze_percentile": 0.1,
+      "breakout_threshold": 0.02,
+      "volume_multiplier": 1.5,
+      "volume_period": 50,
+      "min_data_points": 100,
+      "confidence": 0.8
+    },
+    "signal_scorer": {
+      "weights": {
+        "trend_following": 0.25,
+        "momentum_breakout": 0.20,
+        "volume_confirmation": 0.15,
+        "market_correction": 0.20,
+        "sector_strength": 0.20
+      },
+      "pass_threshold": 0.7,
+      "min_data_points": 50
+    },
+    "market_regime": {
+      "min_data_points": 50,
+      "health_score_threshold": 0.6,
+      "trend_strength_threshold": 0.3,
+      "low_volatility_threshold": 0.15,
+      "high_volatility_threshold": 0.35,
+      "extreme_volatility_threshold": 0.4,
+      "risk_free_rate": 0.02
+    },
     "vcp_pocket_pivot": {
-      "ma_periods": [
-        50,
-        150,
-        200
-      ],
-      "volatility_windows": [
-        50,
-        20,
-        10
-      ],
+      "ma_periods": [50, 150, 200],
+      "volatility_windows": [50, 20, 10],
       "volume_avg_period": 50,
       "pp_lookback_period": 10,
       "pp_max_bias_ratio": 0.08
