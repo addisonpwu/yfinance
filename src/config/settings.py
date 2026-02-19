@@ -129,6 +129,19 @@ class NewsConfig:
     timeout: int = 60000
     max_news_items: int = 5
 
+# AI 提供商默认模型配置（统一配置源）
+DEFAULT_AI_PROVIDERS = {
+    "iflow": {
+        "default_model": "deepseek-v3.2",
+        "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
+    },
+    "nvidia": {
+        "default_model": "z-ai/glm5",
+        "available_models": ["z-ai/glm5", "deepseek-ai/deepseek-v3.2", "qwen/qwen3.5-397b-a17b", "moonshotai/kimi-k2.5"]
+    }
+}
+
+
 @dataclass
 class AIProviderConfig:
     """单个 AI 提供商配置"""
@@ -149,13 +162,13 @@ class AIProvidersConfig:
     def __post_init__(self):
         if self.iflow is None:
             self.iflow = AIProviderConfig(
-                default_model="deepseek-v3.2",
-                available_models=["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
+                default_model=DEFAULT_AI_PROVIDERS["iflow"]["default_model"],
+                available_models=DEFAULT_AI_PROVIDERS["iflow"]["available_models"]
             )
         if self.nvidia is None:
             self.nvidia = AIProviderConfig(
-                default_model="z-ai/glm5",
-                available_models=["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"]
+                default_model=DEFAULT_AI_PROVIDERS["nvidia"]["default_model"],
+                available_models=DEFAULT_AI_PROVIDERS["nvidia"]["available_models"]
             )
 
 
@@ -336,12 +349,12 @@ class ConfigManager:
                 max_data_points=ai_config.get('max_data_points', 100),
                 providers=AIProvidersConfig(
                     iflow=AIProviderConfig(
-                        default_model=iflow_config.get('default_model', 'deepseek-v3.2'),
-                        available_models=iflow_config.get('available_models', ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"])
+                        default_model=iflow_config.get('default_model', DEFAULT_AI_PROVIDERS["iflow"]["default_model"]),
+                        available_models=iflow_config.get('available_models', DEFAULT_AI_PROVIDERS["iflow"]["available_models"])
                     ),
                     nvidia=AIProviderConfig(
-                        default_model=nvidia_config.get('default_model', 'z-ai/glm5'),
-                        available_models=nvidia_config.get('available_models', ["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"])
+                        default_model=nvidia_config.get('default_model', DEFAULT_AI_PROVIDERS["nvidia"]["default_model"]),
+                        available_models=nvidia_config.get('available_models', DEFAULT_AI_PROVIDERS["nvidia"]["available_models"])
                     )
                 )
             ),
@@ -474,16 +487,7 @@ class ConfigManager:
                 "api_timeout": 30,
                 "model": "deepseek-v3.2",
                 "max_data_points": 100,
-                "providers": {
-                    "iflow": {
-                        "default_model": "deepseek-v3.2",
-                        "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
-                    },
-                    "nvidia": {
-                        "default_model": "z-ai/glm5",
-                        "available_models": ["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"]
-                    }
-                }
+                "providers": DEFAULT_AI_PROVIDERS
             }
         }
         

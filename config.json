@@ -125,7 +125,12 @@
       },
       "nvidia": {
         "default_model": "z-ai/glm5",
-        "available_models": ["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"]
+        "available_models": [
+          "z-ai/glm5",
+          "deepseek-ai/deepseek-v3.2",
+          "qwen/qwen3.5-397b-a17b",
+          "moonshotai/kimi-k2.5"
+        ]
       }
     }
   }

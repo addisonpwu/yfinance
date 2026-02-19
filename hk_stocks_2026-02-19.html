@@ -530,8 +530,8 @@
             <h1>📈 股票筛选报告</h1>
             <div class="meta">
                 <div class="meta-item"><span>🌏</span><span>市场: HK</span></div>
-                <div class="meta-item"><span>📅</span><span>2026-02-19 22:23</span></div>
-                <div class="meta-item"><span>⏱️</span><span>耗时: 589.5 秒</span></div>
+                <div class="meta-item"><span>📅</span><span>2026-02-19 23:11</span></div>
+                <div class="meta-item"><span>⏱️</span><span>耗时: 11.5 秒</span></div>
                 <div class="meta-item"><span>✅</span><span>筛选: 1 只</span></div>
             </div>
         </div>
@@ -555,7 +555,7 @@
             </div>
             <div class="stat-card">
                 <div class="icon">⚡</div>
-                <div class="value">590s</div>
+                <div class="value">12s</div>
                 <div class="label">分析耗时</div>
             </div>
         </div>
@@ -585,18 +585,18 @@
             
             <div class="score-gauge">
                 <div class="gauge-item">
-                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 80.0%"></div></div>
-                    <div class="score-text score-high">8.0/10</div>
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 75.0%"></div></div>
+                    <div class="score-text score-high">7.5/10</div>
                     <div class="label">技术面</div>
                 </div>
                 <div class="gauge-item">
-                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
-                    <div class="score-text score-low">2.0/10</div>
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 40.0%"></div></div>
+                    <div class="score-text score-low">4.0/10</div>
                     <div class="label">基本面</div>
                 </div>
                 <div class="gauge-item">
-                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
-                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
                     <div class="label">综合</div>
                 </div>
             </div>
@@ -656,10 +656,10 @@
 
 共识方向: 看涨
 共识置信度: 70%
-模型一致率: 100% (1 个模型投票)
+模型一致率: 100% (2 个模型投票)
 
 投票分布:
-- 看涨: 1 票
+- 看涨: 2 票
 - 看跌: 0 票
 - 中性: 0 票
 
@@ -667,24 +667,53 @@
 
 【各模型详细分析】
 
---- z-ai/glm5 模型 ---
+--- stg/mistralai/mixtral-8x22b-instruct-v0.1 模型 ---
 判断: 看涨 (置信度: 70%)
-【综合分析报告】
+ 【综合分析】
 
-**1. 综合评分**
-- **技术面评分: 8/10**
-  理由：股价呈现标准的多头排列，MACD金叉且柱状线扩大，RSI处于强势区（62.24），短期内突破布林带上轨，显示极强的上攻动能，符合“趋势延续型”与“突破确认型”特征。
-- **基本面评分: 2/10**
-  理由：市盈率高达187倍，ROE仅0.01%，利润率极低，基本面缺乏内在价值支撑，由于市值较小，股价极易受资金情绪驱动，属于典型的“高估值投机标的”。
-- **综合评分: 5/10**
-  理由：技术面强势与基本面疲软形成巨大反差，本次行情属于单纯的技术性资金推动，缺乏业绩安全垫，属于高风险高回报的交易性机会。
+1. 综合评分
+   - 技术面评分: 7.5/10
+      1945.HK在短期、中期和长期内均呈现上涨趋势，RSI和MACD指标也在上升。价格位于布林带上轨之外，表明股价可能仍有上涨空间。但需注意当前RSI已接近超买水平，并且市场情绪波动较大。
+   - 基本面评分: 4/10
+      1945.HK的市值 relatively low compared to some of its peers, while financial metrics like P/E and P/B look less attractive. The company's revenue growth is currently not available, making it difficult to assess its future earning potential.
+   - 综合评分: 6/10
 
-**2. 短期走势判断**
-- **方向: 看涨（短期技术性冲高）**
-- **置信度: 中 (50-70%)**
-- **主要驱动因素:**
-  1. **趋势惯性**：股价突破前高，均线系统发散向上，MACD动能强劲，参照“案例2(NVDA)”与“案例4(TSM)”，突破后往往有惯性上冲空间。
-  2. **资金博弈**：近期股价大幅跑赢大盘，市场关注度提升，出售联营公司的消息可能...
+2. 短期走势判断
+   - 方向: 看涨
+   - 置信度: 中(50%)
+   - 主要驱动因素:
+      技术指标看涨趋势，RSI和MACD指标在上升，价格创造新高...
+
+--- meta/llama-3.1-405b-instruct 模型 ---
+判断: 看涨 (置信度: 70%)
+根据提供的信息，我综合分析如下：
+
+**综合评分**
+
+* 技术面评分：8/10
+* 基本面评分：5/10
+* 综合评分：6.5/10
+
+**短期走势判断**
+
+* 方向：看涨
+* 置信度：中（60%）
+* 主要驱动因素：技术指标显示上升趋势，布林带上轨和下轨之间的距离较大，表明股价波动较大，但当前价位于上轨附近，支持上升趋势的判别。
+
+**投资建议**
+
+* 建议：买入
+* 理由：技术指标显示上升趋势，当前价位于上轨附近，支持上升趋势的判别。基本面方面，公司的营收增长和利润率需要改善，但市盈率相对较低。
+* 买入价：1.80
+* 目标价：2.10
+* 止损价：1.62
+
+**风险提示**
+
+* 最大风险点：基本面不佳，公司营收增长和利润率不尽如人意，可能对股价产生负面影响。
+* 建议仓位：30%（占总资金比例）
+
+注意：以上分析仅为参考，不构成具体的投资建议。投资时应综合考虑多种因素，不仅仅依赖技术分析。
 </div>
             <div class="ai-model">模型: nvidia_multi_model_consensus</div>
         </div>
@@ -694,7 +723,7 @@
         
         <!-- Footer -->
         <div class="footer">
-            <p>报告生成时间: 2026-02-19 22:33:28</p>
+            <p>报告生成时间: 2026-02-19 23:11:58</p>
             <p style="font-size: 0.8rem; margin-top: 8px;">⚠️ 本报告仅供参考，不构成投资建议</p>
         </div>
     </div>

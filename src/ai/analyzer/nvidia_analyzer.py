@@ -121,13 +121,14 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         self.config = config
         self.logger = get_ai_logger()
         
-        # 从配置读取模型列表
+        # 从配置读取模型列表（配置为唯一数据源）
         if config.ai.providers and config.ai.providers.nvidia:
-            self.DEFAULT_MODEL = config.ai.providers.nvidia.default_model or "z-ai/glm5"
-            self.AVAILABLE_MODELS = config.ai.providers.nvidia.available_models or []
+            self.DEFAULT_MODEL = config.ai.providers.nvidia.default_model
+            self.AVAILABLE_MODELS = config.ai.providers.nvidia.available_models
         else:
-            self.DEFAULT_MODEL = "z-ai/glm5"
-            self.AVAILABLE_MODELS = ["z-ai/glm5"]
+            # 后备：使用空列表，实际使用时会报错提示检查配置
+            self.DEFAULT_MODEL = ""
+            self.AVAILABLE_MODELS = []
         
         # 流式响应配置
         self.enable_streaming = enable_streaming
