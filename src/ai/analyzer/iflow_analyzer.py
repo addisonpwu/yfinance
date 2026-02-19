@@ -548,50 +548,106 @@ class IFlowAIAnalyzer(AIAnalyzer):
         if not models_to_use:
             self.logger.warning("未配置 iflow 可用模型，跳过多模型分析")
             return None
-        all_results = []
         
-        for model_name in models_to_use:
+        all_results = []
+        failed_models = []  # 记录失败的模型
+        total_models = len(models_to_use)
+        max_retry_rounds = 2  # 失败模型最多重试轮数
+        
+        def analyze_single_model(model_name: str) -> Optional[Dict]:
+            """分析单个模型，返回结果或 None"""
             cache_key = self._get_cache_key(stock_data, hist, interval, model_name)
             cached_result = self.cache_service.get_json(cache_key, self.AI_CACHE_SUBDIR)
             
             if cached_result:
-                all_results.append({
+                return {
                     'summary': cached_result.get('summary', ''),
                     'model_used': cached_result.get('model_used', model_name),
                     'direction': cached_result.get('direction', '中性'),
                     'confidence': cached_result.get('confidence', 0.5)
-                })
-            elif not self.api_key:
-                self.logger.warning(f"未找到 IFLOW_API_KEY，跳过 {model_name} 模型分析")
-            else:
-                prompt = self._build_analysis_prompt(stock_data, hist)
-                try:
-                    response, model_used = self._call_iflow_api(prompt, model_name)
-                    if response:
-                        direction, confidence = self._extract_direction_and_confidence(response)
-                        result = {
-                            'summary': response,
-                            'model_used': model_used,
-                            'direction': direction,
-                            'confidence': confidence
-                        }
-                        cache_data = {
-                            'symbol': stock_data.get('symbol', ''),
-                            'summary': response,
-                            'confidence': confidence,
-                            'model_used': model_used,
-                            'direction': direction,
-                        }
-                        self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
-                        all_results.append(result)
-                except Exception as e:
-                    self.logger.error(f"{model_name} 模型分析时出错: {e}")
-        
-        if not all_results:
+                }
+            
+            if not self.api_key:
+                return None
+            
+            prompt = self._build_analysis_prompt(stock_data, hist)
+            try:
+                response, model_used = self._call_iflow_api(prompt, model_name)
+                if response:
+                    direction, confidence = self._extract_direction_and_confidence(response)
+                    result = {
+                        'summary': response,
+                        'model_used': model_used,
+                        'direction': direction,
+                        'confidence': confidence
+                    }
+                    cache_data = {
+                        'symbol': stock_data.get('symbol', ''),
+                        'summary': response,
+                        'confidence': confidence,
+                        'model_used': model_used,
+                        'direction': direction,
+                    }
+                    self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
+                    return result
+            except Exception as e:
+                self.logger.error(f"{model_name} 模型分析时出错: {e}")
             return None
         
+        # 第一轮：分析所有模型
+        pending_models = list(models_to_use)
+        for model_name in pending_models:
+            result = analyze_single_model(model_name)
+            if result:
+                all_results.append(result)
+            else:
+                failed_models.append({'model': model_name, 'reason': '初次分析失败', 'retries': 0})
+        
+        # 重试轮：对失败的模型进行重试
+        for retry_round in range(1, max_retry_rounds + 1):
+            if not failed_models:
+                break
+            
+            retry_models = [f for f in failed_models if f.get('retries', 0) < retry_round]
+            if not retry_models:
+                break
+            
+            self.logger.info(f"第 {retry_round} 轮重试: {[f['model'] for f in retry_models]}")
+            still_failed = []
+            
+            for failed in retry_models:
+                model_name = failed['model']
+                import time
+                time.sleep(1)  # 重试前等待1秒
+                
+                result = analyze_single_model(model_name)
+                if result:
+                    all_results.append(result)
+                    self.logger.info(f"✓ {model_name} 重试成功")
+                else:
+                    failed['retries'] = retry_round
+                    failed['reason'] = f'重试 {retry_round} 次后仍失败'
+                    still_failed.append(failed)
+                    self.logger.warning(f"✗ {model_name} 重试失败")
+            
+            failed_models = [f for f in failed_models if f not in retry_models] + still_failed
+        
+        if not all_results:
+            self.logger.warning(f"所有模型分析均失败: {[f['model'] for f in failed_models]}")
+            return None
+        
+        # 检查成功率
+        success_rate = len(all_results) / total_models if total_models > 0 else 0
+        if success_rate < 0.5:
+            self.logger.warning(f"模型成功率较低 ({success_rate:.0%})，{len(failed_models)}/{total_models} 个模型失败")
+        
         # 合并所有模型的分析结果
-        combined_summary = "【多模型分析结果】\n\n"
+        combined_summary = f"【多模型分析结果】\n"
+        combined_summary += f"成功: {len(all_results)}/{total_models} 个模型\n"
+        if failed_models:
+            combined_summary += f"失败模型: {', '.join([f['model'] for f in failed_models])}\n"
+        combined_summary += "\n"
+        
         for result in all_results:
             combined_summary += f"--- {result['model_used']} 模型分析 ---\n"
             combined_summary += result['summary']
@@ -620,56 +676,110 @@ class IFlowAIAnalyzer(AIAnalyzer):
         
         all_results = []
         directions = []
+        failed_models = []  # 记录失败的模型
+        total_models = len(models_to_use)
+        max_retry_rounds = 2  # 失败模型最多重试轮数
         
-        for model_name in models_to_use:
+        def analyze_single_model_enhanced(model_name: str) -> Optional[Dict]:
+            """分析单个模型（增强版），返回结果或 None"""
             cache_key = self._get_cache_key(stock_data, hist, interval, f"enhanced_{model_name}")
             cached_result = self.cache_service.get_json(cache_key, self.AI_CACHE_SUBDIR)
             
             if cached_result:
-                all_results.append({
+                return {
                     'summary': cached_result.get('summary', ''),
                     'model_used': cached_result.get('model_used', model_name),
                     'direction': cached_result.get('direction', '中性'),
                     'confidence': cached_result.get('confidence', 0.5)
-                })
-                directions.append(cached_result.get('direction', '中性'))
-            elif self.api_key:
-                try:
-                    result = self._step_by_step_analysis(stock_data, hist, model_name, use_multi_timeframe=True)
-                    if result:
-                        direction = result.detailed_analysis.get('direction', '中性') if result.detailed_analysis else '中性'
-                        all_results.append({
-                            'summary': result.summary,
-                            'model_used': result.model_used,
-                            'direction': direction,
-                            'confidence': result.confidence
-                        })
-                        directions.append(direction)
-                        
-                        # 缓存
-                        cache_data = {
-                            'symbol': stock_data.get('symbol', ''),
-                            'summary': result.summary,
-                            'confidence': result.confidence,
-                            'model_used': result.model_used,
-                            'direction': direction,
-                        }
-                        self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
-                except Exception as e:
-                    self.logger.error(f"{model_name} 模型分析时出错: {e}")
+                }
+            
+            if not self.api_key:
+                return None
+            
+            try:
+                result = self._step_by_step_analysis(stock_data, hist, model_name, use_multi_timeframe=True)
+                if result:
+                    direction = result.detailed_analysis.get('direction', '中性') if result.detailed_analysis else '中性'
+                    cache_data = {
+                        'symbol': stock_data.get('symbol', ''),
+                        'summary': result.summary,
+                        'confidence': result.confidence,
+                        'model_used': result.model_used,
+                        'direction': direction,
+                    }
+                    self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
+                    return {
+                        'summary': result.summary,
+                        'model_used': result.model_used,
+                        'direction': direction,
+                        'confidence': result.confidence
+                    }
+            except Exception as e:
+                self.logger.error(f"{model_name} 模型分析时出错: {e}")
+            return None
+        
+        # 第一轮：分析所有模型
+        pending_models = list(models_to_use)
+        for model_name in pending_models:
+            result = analyze_single_model_enhanced(model_name)
+            if result:
+                all_results.append(result)
+                directions.append(result['direction'])
+            else:
+                failed_models.append({'model': model_name, 'reason': '初次分析失败', 'retries': 0})
+        
+        # 重试轮：对失败的模型进行重试
+        for retry_round in range(1, max_retry_rounds + 1):
+            if not failed_models:
+                break
+            
+            retry_models = [f for f in failed_models if f.get('retries', 0) < retry_round]
+            if not retry_models:
+                break
+            
+            self.logger.info(f"第 {retry_round} 轮重试: {[f['model'] for f in retry_models]}")
+            still_failed = []
+            
+            for failed in retry_models:
+                model_name = failed['model']
+                import time
+                time.sleep(1)  # 重试前等待1秒
+                
+                result = analyze_single_model_enhanced(model_name)
+                if result:
+                    all_results.append(result)
+                    directions.append(result['direction'])
+                    self.logger.info(f"✓ {model_name} 重试成功")
+                else:
+                    failed['retries'] = retry_round
+                    failed['reason'] = f'重试 {retry_round} 次后仍失败'
+                    still_failed.append(failed)
+                    self.logger.warning(f"✗ {model_name} 重试失败")
+            
+            failed_models = [f for f in failed_models if f not in retry_models] + still_failed
         
         if not all_results:
+            self.logger.warning(f"所有模型分析均失败: {[f['model'] for f in failed_models]}")
             return None
+        
+        # 检查成功率
+        success_rate = len(all_results) / total_models if total_models > 0 else 0
+        if success_rate < 0.5:
+            self.logger.warning(f"模型成功率较低 ({success_rate:.0%})，{len(failed_models)}/{total_models} 个模型失败")
         
         # 计算共识
         consensus = self._calculate_consensus(directions, all_results)
         
         # 构建合并结果
+        failed_models_str = ', '.join([f['model'] for f in failed_models]) if failed_models else '无'
         combined_summary = f"""【多模型共识分析】
 
 共识方向: {consensus.direction.value}
 共识置信度: {consensus.confidence:.0%}
 模型一致率: {consensus.agreement_ratio:.0%} ({consensus.models_voted} 个模型投票)
+
+分析成功率: {success_rate:.0%} ({len(all_results)}/{total_models} 个模型)
+失败模型: {failed_models_str}
 
 投票分布:
 - 看涨: {consensus.bullish_votes} 票

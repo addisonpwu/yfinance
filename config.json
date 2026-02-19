@@ -1,11 +1,11 @@
 {
-  "speed_mode": "balanced",
+  "speed_mode": "fast",
   "api": {
     "base_delay": 0.1,
     "max_delay": 1.0,
     "min_delay": 0.1,
     "retry_attempts": 3,
-    "max_workers": 2
+    "max_workers": 4
   },
   "data": {
     "max_cache_days": 7,
@@ -121,12 +121,15 @@
     "providers": {
       "iflow": {
         "default_model": "deepseek-v3.2",
-        "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
+        "available_models": ["kimi-k2", "deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
       },
       "nvidia": {
-        "default_model": "deepseek-ai/deepseek-v3.2",
+        "default_model": "z-ai/glm5",
         "available_models": [
-          "deepseek-ai/deepseek-v3.2"
+          "z-ai/glm5",
+          "deepseek-ai/deepseek-v3.2",
+          "qwen/qwen3.5-397b-a17b",
+          "moonshotai/kimi-k2.5"
         ]
       }
     }

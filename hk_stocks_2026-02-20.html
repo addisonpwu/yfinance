@@ -1,0 +1,5220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票筛选报告 - HK - 2026-02-20</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #93c5fd;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        
+        .header .meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+        
+        .header .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.95;
+            font-size: 0.9rem;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        
+        /* Strategy Tags */
+        .strategy-section {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .strategy-section h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .strategy-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .strategy-tag {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .strategy-tag:hover {
+            transform: scale(1.02);
+        }
+        
+        .strategy-tag .name {
+            font-weight: 600;
+        }
+        
+        .strategy-tag .count {
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        
+        /* Stock Cards */
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        
+        .stock-card {
+            background: var(--card);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        /* Stock Header */
+        .stock-header {
+            padding: 20px;
+            position: relative;
+        }
+        
+        .stock-header.bullish {
+            background: linear-gradient(135deg, var(--success-light) 0%, #ecfdf5 100%);
+            border-left: 4px solid var(--success);
+        }
+        
+        .stock-header.bearish {
+            background: linear-gradient(135deg, var(--danger-light) 0%, #fef2f2 100%);
+            border-left: 4px solid var(--danger);
+        }
+        
+        .stock-header.neutral {
+            background: linear-gradient(135deg, var(--warning-light) 0%, #fffbeb 100%);
+            border-left: 4px solid var(--warning);
+        }
+        
+        .stock-header .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .stock-header h3 {
+            font-size: 1.1rem;
+            color: var(--text);
+            max-width: 250px;
+        }
+        
+        .stock-header .symbol {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            background: var(--primary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        
+        .stock-strategies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .stock-strategies .badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        /* Score Gauge */
+        .score-gauge {
+            display: flex;
+            gap: 16px;
+            padding: 16px 20px;
+            background: #fafbfc;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .gauge-item {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .gauge-item .gauge-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        
+        .gauge-item .gauge-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .gauge-item .gauge-fill.high { background: linear-gradient(90deg, var(--success), #34d399); }
+        .gauge-item .gauge-fill.medium { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+        .gauge-item .gauge-fill.low { background: linear-gradient(90deg, var(--danger), #f87171); }
+        
+        .gauge-item .score-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        
+        .gauge-item .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .score-high { color: var(--success); }
+        .score-medium { color: var(--warning); }
+        .score-low { color: var(--danger); }
+        
+        .stock-body {
+            padding: 16px 20px;
+        }
+        
+        /* Data Grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #fafbfc;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        
+        .data-item .label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .data-item .value {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .data-item .value.positive {
+            color: var(--success);
+        }
+        
+        .data-item .value.negative {
+            color: var(--danger);
+        }
+        
+        /* Direction Indicator */
+        .direction-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .direction-indicator.bullish {
+            background: var(--success-light);
+            color: #065f46;
+        }
+        
+        .direction-indicator.bearish {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+        
+        .direction-indicator.neutral {
+            background: var(--warning-light);
+            color: #92400e;
+        }
+        
+        /* News Section */
+        .news-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+        
+        .news-section h4 {
+            color: #0369a1;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .news-item {
+            padding: 10px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
+        
+        .news-title {
+            color: #0c4a6e;
+            text-decoration: none;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            display: block;
+        }
+        
+        .news-title:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        
+        .news-meta {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        
+        /* AI Analysis */
+        .ai-section {
+            margin-top: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .ai-header {
+            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            padding: 12px 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ai-header h4 {
+            color: #92400e;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .ai-header .toggle {
+            transition: transform 0.3s;
+        }
+        
+        .ai-section.collapsed .toggle {
+            transform: rotate(-90deg);
+        }
+        
+        .ai-content {
+            padding: 14px;
+            background: #fffef5;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #78350f;
+            white-space: pre-wrap;
+            line-height: 1.7;
+        }
+        
+        .ai-section.collapsed .ai-content {
+            display: none;
+        }
+        
+        .ai-model {
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #a16207;
+            text-align: right;
+            padding-top: 8px;
+            border-top: 1px dashed #fde047;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            margin-top: 40px;
+        }
+        
+        .footer p {
+            margin-bottom: 4px;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body { background: white; }
+            .container { max-width: 100%; }
+            .stock-card { break-inside: avoid; }
+            .header { box-shadow: none; }
+            .ai-content { max-height: none; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stocks-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .header { padding: 24px; }
+            .header h1 { font-size: 1.4rem; }
+            .data-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script>
+        function toggleAI(id) {
+            const section = document.getElementById(id);
+            section.classList.toggle('collapsed');
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📈 股票筛选报告</h1>
+            <div class="meta">
+                <div class="meta-item"><span>🌏</span><span>市场: HK</span></div>
+                <div class="meta-item"><span>📅</span><span>2026-02-20 01:10</span></div>
+                <div class="meta-item"><span>⏱️</span><span>耗时: 1304.9 秒</span></div>
+                <div class="meta-item"><span>✅</span><span>筛选: 18 只</span></div>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">📊</div>
+                <div class="value">18</div>
+                <div class="label">符合条件股票</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🎯</div>
+                <div class="value">1</div>
+                <div class="label">命中策略数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🏆</div>
+                <div class="value">18</div>
+                <div class="label">最高命中次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">⚡</div>
+                <div class="value">1305s</div>
+                <div class="label">分析耗时</div>
+            </div>
+        </div>
+        
+        <!-- Strategy Stats -->
+        <div class="strategy-section">
+            <h3>策略命中统计</h3>
+            <div class="strategy-tags">
+                <div class="strategy-tag" style="border-color: #3b82f6"><span class="name">信号评分器</span><span class="count">18</span></div>
+            </div>
+        </div>
+        
+        <!-- Stock Cards -->
+        <div class="stocks-grid">
+            
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Century Ginwa Retail Holdings Limited</h3>
+                    <span class="symbol">0162</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
+                    <div class="score-text score-low">2.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 40.0%"></div></div>
+                    <div class="score-text score-low">4.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Consumer Cyc</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">0.63 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">57.6 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-19.1%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.cgrh.com.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (74%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-0">
+            <div class="ai-header" onclick="toggleAI('ai-0')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 74%
+模型一致率: 100% (5 个模型投票)
+
+分析成功率: 83% (5/6 个模型)
+失败模型: iflow-rome-30ba3b
+
+投票分布:
+- 看涨: 5 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 6/10  
+基本面评分: 2/10  
+综合评分: 4/10  
+
+2. 短期走势判断  
+方向: 看跌  
+置信度: 中(55%)  
+主要驱动因素: RSI 75 超买+顶背离、0.06 元天量长上影、随后两日无量回落，量价背离与案例3 高度相似；0.055 元已触及布林带极轨，乖离过大，均值回归压力陡增。  
+
+3. 投资建议  
+建议: 卖出/强烈观望  
+理由: 微盘仙股，基本面近乎空白；短期急涨 57% 后放量倒锤头，超买+背离+成交骤减，回调概率远大于续升。若已持仓，宜趁 0.05 元以上减仓；未持仓者勿追高。  
+（如执意短线博弈）  
+买入价≤0.045 元，目标价 0.055 元，止损价 0.035 元，盈亏比 2:1，但滑点高，执行难度大。  
+
+4. 风险提示  
+最大风险点: 流动性枯竭—日均成交仅数万港元，11 日对倒天量后已归零，急跌时无法出货；仙股操纵风险极高。  
+建议仓位: ≤1% 总资金，且须分单限价，严禁市价追单。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面呈现强势突破特征：股价突破布林带上轨（0.055），MACD金叉确认动能，多周期均线呈多头排列（MA20/MA50/MA200）。  
+  - 短期量价配合：2月11日放量11,184,000股启动上涨，近期成交量显著高于20日均量（883,375股）。  
+  - 超买风险抑制空间：RSI=75已进入超买区间，且股价接近阻力位0.07，需警惕回调。  
+
+**3. 投资建议**  
+- 建议: **买入**（短线交易）  
+- 理由：  
+  技术面符合“突破确认型”案例特征（如TSM），布林带突破伴随放量，MACD金叉支撑短期动能。尽管基本面薄弱（市净率0.19反映资产折价，但盈利指标缺失），但资金驱动和趋势强度占主导。超买信号需通过严格风控管理。  
+- 买入价: 0.053-0.055（现价附近）  
+- 目标价: 0.07（前高阻力）  
+- 止损价: 0.04（支撑位下方）  
+
+**4. 风险提示**  
+- 最大风险点：  
+  - RSI超买可能引发获利回吐，若成交量萎缩则突破失效。  
+  - 基本面缺乏支撑（无PE/ROE数据），长期价值存疑。  
+- 建议仓位：≤5%（低市值、高波动品种宜轻仓）。  
+
+**总结**：短期技术突破提供交易机会，但需严守止损，仅适合风险偏好较高的短线投资者。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分（必填）  
+   - 技术面评分: 6/10  
+   - 基本面评分: 2/10  
+   - 综合评分: 4/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看跌  
+   - 置信度: 高(>70%)  
+   - 主要驱动因素：RSI高达75，显著超买；价格触及布林带上轨（0.055 vs 上轨0.0557），短期涨幅过大（5日+57%）；2月16日放量上涨后迅速缩量回调至0.05，显示上攻动能衰竭；MACD虽为正但柱状体可能即将缩窄，存在顶背离风险。结合案例3（XYZ）的高危特征高度吻合。
+
+3. 投资建议（必填）  
+   - 建议: 卖出  
+   - 理由：技术面呈现典型超买+量价背离+布林极端位置，缺乏基本面支撑（市净率仅0.19但无盈利数据），短期回调概率极高。历史类似形态（如案例3）后续平均下跌超15%。  
+   - （不适用买入条件）
+
+4. 风险提示  
+   - 最大风险点：流动性极差（多日零成交），易被操纵或闪崩；基本面信息缺失，存在退市或财务风险。  
+   - 建议仓位：0%（空仓回避）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 7/10  
+  - 短期趋势强劲，突破布林带上轨（0.055 vs 上轨0.05568），MACD金叉延续，成交量显著放大（2月11日11.18M vs 20日均量0.88M）。但RSI（75）超买且威廉指标（-39.47）显示短期回调压力。
+- **基本面评分**: 4/10  
+  - 缺乏市盈率、ROE等关键数据，市净率0.19显示股价显著低于净资产，但需警惕财务数据缺失风险。
+- **综合评分**: 6.5/10  
+  - 技术面突破有效但超买，基本面提供安全边际但信息不透明，短期博弈属性较强。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **技术突破**: 价格突破布林带上轨，成交量激增（2月13日4.75M），MACD持续走强。  
+  2. **超跌反弹**: 2月4日-10日连续跌停后，2月11日单日暴涨66.7%，短期超卖修复需求强烈。  
+  3. **市场情绪**: 高波动环境下，资金可能追逐低价股反弹。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  短期技术面突破有效，MACD金叉与放量突破布林带上轨形成共振。2月13日跳空高开突破0.05阻力位，若站稳该位置，上方目标价0.07（布林带中轨）可期。基本面低市净率提供安全垫，但需警惕财务数据缺失风险。  
+- **具体操作**:  
+  - **买入价**: 0.05-0.055（突破确认区间）  
+  - **目标价**: 0.07（布林带中轨）  
+  - **止损价**: 0.03（前期低点，跌破则趋势破坏）
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **流动性风险**: 历史成交量波动剧烈（0-11.18M），大额抛售可能导致价格闪崩。  
+  2. **基本面不确定性**: 缺乏营收、利润等数据支撑，估值逻辑依赖市净率。  
+  3. **技术面超买**: RSI（75）接近超买区域，若量能萎缩可能引发回调。  
+- **建议仓位**: ≤10%（占总资金）  
+  - 高波动性与信息不透明性要求严格控制仓位，避免单一标的过度暴露风险。
+
+---
+
+### 总结  
+短期博弈超跌反弹，技术面突破与低市净率提供短期交易机会，但需严守止损纪律并控制仓位。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10** - RSI超买(75)显示强势，但存在回调风险；短期涨幅巨大(5日+57.1%)，MACD金叉向上，多时间框架上升趋势明显
+- **基本面评分: 3/10** - 市盈率N/A，基本面指标缺失，市净率0.19虽低但缺乏参考价值，零售行业周期性强
+- **综合评分: 5/10** - 技术面强势但基本面薄弱，风险收益并存
+
+### 2. 短期走势判断
+- **方向: 看跌**
+- **置信度: 中(50-70%)**
+- **主要驱动因素**: RSI严重超买(75)预示回调压力，价格接近布林带上轨，前期暴涨后存在获利回吐需求
+
+### 3. 投资建议
+- **建议: 卖出**
+- **理由**: 股价短期暴涨57%，RSI高达75严重超买，技术指标显示回调风险极高。虽然多头趋势强劲，但当前价位风险收益比不佳，建议规避高位风险。
+- **如持有**: 建议在0.055附近获利了结，止损位0.045，目标价0.04
+
+### 4. 风险提示
+- **最大风险点**: 基本面信息缺失，股价波动剧烈，可能存在内幕消息驱动的非理性上涨
+- **建议仓位: 0%** - 不建议建仓，现有仓位应考虑减仓或清仓，等待回调企稳后的介入机会
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Culturecom Holdings Limited</h3>
+                    <span class="symbol">0343</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Communicatio</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">3.27 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">15.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+4.3%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.culturecom.com.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (74%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-1">
+            <div class="ai-header" onclick="toggleAI('ai-1')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 74%
+模型一致率: 100% (5 个模型投票)
+
+分析成功率: 83% (5/6 个模型)
+失败模型: deepseek-v3.2
+
+投票分布:
+- 看涨: 5 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 3/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素：① 价格已放量突破布林上轨与所有均线，符合“突破确认”模板；② MACD正值扩大、RSI 54 未超买，动能仍在；③ 但 Beta 1.4、ATR 高、VIX 20.4，波动剧烈，易回踩。
+
+3. 投资建议  
+建议: 买入（短线快进快出）  
+理由：港股小盘壳股，基本面薄弱，但技术形态完成“布林带+量能”双突破，历史案例4 显示此类结构 3 周平均+18%。现价 0.196 可小仓位追入，目标前高 0.23，止损破 5 日线 0.165，盈亏比约 1:2，适合高波动交易者。  
+
+买入价: 0.195–0.200  
+目标价: 0.23  
+止损价: 0.165  
+
+4. 风险提示  
+最大风险点：仙股流动性突变、VIX 飙升导致快速回撤；公司无盈利，若突发配股或监管问询，跌幅可能>20%。  
+建议仓位：≤总资金 3%，且设硬止损，不补仓。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 6/10  
+- 基本面评分: 4/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI处于中性偏强区域(54.37)，MACD金叉，短期和中期均呈上升趋势，但长期涨幅有限，显示上升动能一般。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由：技术面显示短期上升趋势，RSI和MACD均呈现积极信号，但基本面数据有限，需谨慎关注。  
+- 买入价: 0.195 港元  
+- 目标价: 0.215 港元  
+- 止损价: 0.185 港元  
+
+**风险提示：**  
+- 最大风险点: 市净率偏高(5.30)，Beta值1.41显示波动性较大，市场情绪谨慎。  
+- 建议仓位: 占总资金比例不超过15%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 6.5/10**
+  - 短期上升趋势明显，多头排列支撑
+  - 但RSI 54.37接近超买，威廉指标-0.0显示顶部压力
+  - 成交量近期萎缩，上涨动能减弱
+
+- **基本面评分: 3/10** 
+  - 市净率5.30偏高，基本面支撑不足
+  - 营收增长仅0.15%，盈利能力存疑
+  - 市盈率N/A显示盈利状况不佳
+
+- **综合评分: 4.8/10**
+
+### 2. 短期走势判断
+- **方向: 中性偏弱**
+- **置信度: 中(55%)**
+- **主要驱动因素:** 技术面超买回调压力 vs 短期上升趋势惯性
+
+### 3. 投资建议
+- **建议: 卖出**
+- **理由:** 虽然技术面显示短期上升趋势，但基本面严重不足（PB偏高、盈利不佳）。RSI接近超买区，威廉指标显示顶部信号，成交量萎缩暗示上涨动能不足。当前价格0.196已接近阻力位0.205-0.21，回调风险较大。
+- **操作参数:** 无买入建议，现有持仓建议在0.19-0.20区间分批减仓
+
+### 4. 风险提示
+- **最大风险点:** 基本面支撑不足，技术面超买回调风险
+- **建议仓位:** 0%（不建议建仓）
+
+**总结:** 该股存在明显的技术面与基本面背离，短期风险大于机会，建议规避。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分（必填）  
+   - 技术面评分: 8.5/10  
+   - 基本面评分: 3.0/10（缺乏关键盈利数据，市净率偏高，营收增长微弱）  
+   - 综合评分: 6.0/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 高（>70%）  
+   - 主要驱动因素：股价突破布林带上轨（0.196 > 0.1947），短期放量拉升（2月16日跳涨至0.20），多时间框架均线呈多头排列（MA20 > MA50 > MA200），MACD金叉且为正，符合“突破确认型”与“趋势延续型”特征。  
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现强势突破，量能配合良好（1月22日及2月9日显著放量），RSI处于健康区间（54.4），无超买或顶背离风险，符合历史成功模式。  
+   - 买入价：≤0.195（当前价0.196，可略回调介入）；目标价：0.25；止损价：0.16  
+
+4. 风险提示  
+   - 最大风险点：基本面薄弱（无盈利数据、高市净率）、市值极小（流动性风险），且2月16日成交量为0，存在价格操纵或数据异常可能。  
+   - 建议仓位：≤3%（因高Beta=1.41、低流动性及基本面缺失，仅适合短线轻仓博弈）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 6/10  
+  技术指标显示短期趋势偏强（价格突破布林带上轨、短期涨幅显著），但MACD动能不足、RSI接近超买区（54），且近期成交量波动剧烈（最大单日成交量占比超50%），显示短期可能面临技术性调整压力。
+- **基本面评分**: 4/10  
+  市值较小（3.27亿港元）、市净率偏高（5.3），营收增长仅0.15%，缺乏明确基本面支撑。
+- **综合评分**: 5/10  
+  技术面短期强势与基本面薄弱形成对冲，需警惕量价背离风险。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 中性偏多  
+- **置信度**: 中（55%）  
+- **主要驱动因素**:  
+  - **技术面支撑**：短期趋势（5日）涨幅13.3%，突破布林带上轨形成短期阻力位（0.194）；若站稳0.19上方可能延续反弹。  
+  - **风险因素**：MACD双线粘合、RSI接近超买区（54）、成交量萎缩（近3日均量仅1.2亿，较1月22日峰值下降76%），暗示短期动能不足。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 持有（若已持有）或轻仓观望  
+- **理由**:  
+  技术面短期突破需成交量配合，但当前量能萎缩且MACD动能衰减，反弹持续性存疑。基本面薄弱（营收零增长、高市净率）难以支撑长期上涨。  
+  - **买入价**: 0.18（短期支撑位）  
+  - **目标价**: 0.21（布林带上轨压力位）  
+  - **止损价**: 0.17（跌破短期趋势线）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. 技术面超买后快速回调（若跌破0.17可能下探0.15）；  
+  2. 基本面缺乏业绩支撑，高波动性加剧风险。  
+- **建议仓位**: ≤5%（占总资金）  
+
+---
+
+### 关键逻辑总结
+- **技术面矛盾**：短期突破需量能确认，但近期缩量上涨形成“量价背离”，MACD动能不足暗示回调风险。  
+- **基本面薄弱**：营收零增长、高市净率反映市场对估值分歧，需警惕基本面进一步恶化。  
+- **操作策略**：建议等待明确突破信号（如成交量放大至2亿以上）或回调至0.17附近再介入，控制仓位防范波动风险。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Frontier Services Group Limited</h3>
+                    <span class="symbol">0500</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Industrials</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">1.85 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">43.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-43.4%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.fsgroup.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-2">
+            <div class="ai-header" onclick="toggleAI('ai-2')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (1 个模型投票)
+
+分析成功率: 17% (1/6 个模型)
+失败模型: kimi-k2, deepseek-v3.2, qwen3-max, iflow-rome-30ba3b, qwen3-coder-plus
+
+投票分布:
+- 看涨: 1 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：Frontier Services Group Limited（0500.HK）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分：7/10**  
+  短期技术面偏强：价格突破布林带上轨（0.077 vs 上轨0.0766），短期均线（MA20/50）呈多头排列，MACD底背离信号初现。但RSI（58）未超买，成交量波动较大（近期多日缩量），需警惕假突破风险。
+- **基本面评分：5/10**  
+  缺乏关键财务数据（PE、ROE等均为N/A），仅能通过市净率0.70判断估值较低，但无法验证盈利能力与成长性，信息透明度不足。
+- **综合评分：6/10**  
+  技术面短期占优但需验证，基本面支撑有限，估值偏低但风险较高。
+
+---
+
+#### **2. 短期走势判断**
+- **方向：看涨**  
+- **置信度：中（60%）**  
+- **主要驱动因素：**  
+  1. **技术突破**：价格站稳布林带上轨，短期均线多头排列，MACD底背离可能触发反弹。  
+  2. **量价配合**：2月16日放量突破0.07关键价位（成交量0 vs 前日2.48亿股），短期抛压释放。  
+  3. **支撑验证**：若0.07支撑有效（历史密集成交区），可能开启上行通道。  
+
+**风险点**：  
+- 基本面信息缺失，业绩不确定性高。  
+- 成交量持续萎缩（近期多日低于均量），缺乏持续上涨动能。  
+
+---
+
+#### **3. 投资建议**
+- **建议：买入**  
+- **理由：**  
+  技术面显示短期突破有效性增强，MACD底背离与布林带开口向上形成共振，估值（PB 0.70）处于历史低位。若0.07支撑位稳固，目标价可看至0.10（布林带中轨压力位）。  
+- **具体操作：**  
+  - **买入价：0.07**（支撑位验证后介入）  
+  - **目标价：0.10**（需关注成交量能否持续放大）  
+  - **止损价：0.06**（跌破前低需离场）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点：**  
+  基本面恶化（如财报暴雷）或市场情绪转向导致资金流出，港股流动性偏弱可能加剧波动。  
+- **建议仓位：10-15%**  
+  因信息透明度低且短期波动较大，建议控制仓位，优先观察成交量与支撑位有效性。  
+
+---
+
+**总结**：技术面短期占优，但需警惕基本面风险，建议轻仓参与突破行情，严格止损。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Starcoin Group Limited</h3>
+                    <span class="symbol">0399</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
+                    <div class="score-text score-low">2.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 45.0%"></div></div>
+                    <div class="score-text score-low">4.5/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Consumer Cyc</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">2.89 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">9791.5 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-25.4%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.starcoingroup.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (61%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-3">
+            <div class="ai-header" onclick="toggleAI('ai-3')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 61%
+模型一致率: 83% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 5 票
+- 看跌: 1 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7/10  
+- 基本面评分: 2/10  
+- 综合评分: 4.5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面强势突破：股价突破布林带上轨，5日内涨幅达114.3%，威廉指标-0.0显示极强动能。  
+  - 量能支撑：2月13日成交量激增141,155,000股，确认资金介入。  
+  - 均线支撑：当前价（0.135）远高于MA20（0.078）和MA50（0.093），短期趋势向上。  
+
+**3. 投资建议**  
+- 建议: **买入**（仅限短线交易）  
+- 理由：  
+  技术面呈现突破性上涨，RSI（69.6）未极端超买，量价配合良好，短期动能充沛。但基本面薄弱（营收增长仅0.06%，关键财务指标缺失），且长期均线MA200（0.267）形成强阻力，需警惕高位回调风险。建议严格止损，快进快出。  
+- 买入价: 0.130-0.135  
+- 目标价: 0.160（阻力位）  
+- 止损价: 0.080（支撑位）  
+
+**4. 风险提示**  
+- 最大风险点：  
+  - 基本面无法支撑高估值，缺乏盈利和成长性背书；  
+  - 波动率极高（ATR=0.012），易受情绪影响闪崩；  
+  - 港股流动性风险，2月16日成交量为0需警惕。  
+- 建议仓位：≤5%（总资金），仅适合高风险偏好者短线参与。  
+
+**总结**：短期技术突破主导行情，但基本面堪忧，建议轻仓博弈反弹，严格风控。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分（必填）  
+   - 技术面评分: 5/10  
+   - 基本面评分: 2/10  
+   - 综合评分: 3/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看跌  
+   - 置信度: 高(>70%)  
+   - 主要驱动因素：股价已远超布林带上轨（当前价0.135 vs 上轨0.121），RSI高达69.6接近超买，且近期出现极端放量异动（2月13日成交量暴增至1.41亿股，2月16日无成交），价格在5日内暴涨114.3%缺乏基本面支撑，呈现典型“脉冲式炒作”特征，与案例3（XYZ）的高位风险模式高度相似。
+
+3. 投资建议（必填）  
+   - 建议: 强烈卖出  
+   - 理由：技术面严重超买+价格远超布林带+量价异常（巨量拉升后无成交），叠加基本面数据缺失、市值极小（仅2.89亿港元），极易回调。历史类似形态（如案例3）后续平均下跌15%以上。  
+   - （不适用买入，故无需提供价位）
+
+4. 风险提示  
+   - 最大风险点：流动性枯竭与投机退潮导致闪崩；公司基本面信息缺失，存在重大不确定性。  
+   - 建议仓位：0%（空仓观望）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 7/10  
+  - 短期趋势强劲（+114.3%），价格突破布林带上轨，成交量显著放大（2月13日单日141万手）。MACD短期动能占优，但长期均线（MA200）仍处高位压制。RSI中性偏高（69.6），未超买但需警惕回调。
+- **基本面评分**: 4/10  
+  - 缺乏关键财务数据（PE、ROE等均为N/A），营收仅微增0.06%，市值较小（2.89亿港元），行业竞争激烈，风险较高。
+- **综合评分**: 6/10  
+  - 技术面短期占优，但基本面薄弱，市场波动加剧（VIX 20.4），需警惕流动性风险。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **技术突破**: 价格从0.05美元低位快速反弹（+180%），突破布林带上轨与前低阻力位（0.16），短期超跌反弹需求强烈。  
+  2. **成交量配合**: 2月13日单日成交量达1.41亿股，远超20日均量（1555万股），显示资金介入明显。  
+  3. **市场情绪**: 高波动环境下，小市值股票易受短期资金推动，但需警惕追高风险。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  短期技术面强势突破，成交量与价格形成正向循环，目标价0.20-0.25美元（布林带上轨与MA200压力位）。若回调至0.12美元（短期支撑）可加仓。  
+- **具体操作**:  
+  - **买入价**: 0.12-0.14（支撑位附近）  
+  - **目标价**: 0.20（突破前高）  
+  - **止损价**: 0.10（前期低点，风险收益比约1:3）
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面薄弱**: 缺乏财务数据支撑，营收停滞，市值较小易受市场波动影响。  
+  2. **技术面超买**: RSI中性偏高（69.6），若量能萎缩可能引发回调。  
+  3. **流动性风险**: 历史成交量波动剧烈，大额抛售可能导致价格急跌。  
+- **建议仓位**: ≤10%（占总资金比例）  
+  - 短期趋势虽强，但基本面与市场情绪不确定性高，需严格控制仓位。
+
+---
+
+### 总结  
+短期技术面信号明确，建议在0.12-0.14区间分批建仓，目标价0.20，止损0.10。需密切关注成交量与MA200突破情况，若量能萎缩或价格跌破支撑位，需果断止损。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**
+
+- 技术面评分: 6/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**
+
+- 方向: 看跌  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 69.6 超买但 MACD 为负，显示动能减弱；价格在布林带上轨附近受压，成交量萎缩。  
+
+**投资建议：**
+
+- 建议: 持有  
+- 理由: 技术面显示超买回调风险，但基本面数据缺失，短期难以判断明确方向。建议观望等待更明确信号。  
+- 买入价/目标价/止损价: 无需操作  
+
+**风险提示：**
+
+- 最大风险点: RSI超买+MACD背离+成交量萎缩，可能引发回调  
+- 建议仓位: 0%（观望期）
+
+--- qwen3-coder-plus 模型 ---
+判断: 看跌 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - 短期强势上涨（5日+114.3%），MACD金叉，突破布林带上轨
+  - RSI接近超买区（69.6），存在回调风险
+- **基本面评分: 3/10** 
+  - 市盈率、PEG等关键指标缺失
+  - 营收增长仅0.06%，基本面支撑不足
+- **综合评分: 5/10**
+  - 技术面强势但基本面薄弱，风险收益比一般
+
+### 2. 短期走势判断
+- **方向: 看跌**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** RSI接近超买区（69.6），威廉指标-0.0显示极度超买，历史数据显示从0.05快速涨至0.14（180%涨幅）存在回调压力
+
+### 3. 投资建议
+- **建议: 卖出**
+- **理由:** 虽然技术面显示短期强势，但RSI高达69.6接近超买区，威廉指标-0.0显示极度超买，且基本面缺失关键指标支撑。从0.05涨至0.135的快速涨幅（170%）存在较大回调风险，建议规避高位风险。
+- **如持有仓位：** 建议在0.13-0.14区间分批减仓，目标价0.09，止损价0.15
+
+### 4. 风险提示
+- **最大风险点:** 技术面超买严重，可能出现快速回调；基本面信息不足，存在信息不对称风险
+- **建议仓位: 0-5%**（如已持有建议轻仓或清仓，等待回调后的机会）
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 2/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素: ① 5 日暴涨 114%，动能惯性仍在；② 价格已站上 MA20/50，且布林带开口放大，短线趋势强劲；③ RSI 69.6 临近超买，但尚未背离，仍有上冲 0.16–0.20 阻力区的可能；④ 2 月 13 日放量 1.4 亿股创 20 日峰值，资金博弈活跃。
+
+3. 投资建议  
+建议: 买入（快进快出）  
+理由: 微型市值+消息真空期的暴力拉升，属典型“筹码博弈”行情。当前量价配合良好，未现明确顶部信号，可小仓位跟随惯性做多，目标前高 0.20，跌破 10 日低点 0.10 立即止损。  
+买入价: 0.125–0.135 港元（回踩 1 分钟 MA20 或盘中回落 5% 内低吸）  
+目标价: 0.20 港元（≥+48%）  
+止损价: 0.10 港元（–23%）
+
+4. 风险提示  
+最大风险点: 基本面空白，无业绩支撑；市值<3 亿港元，极易出现闪崩或停牌；RSI 已接近 70，随时可能单日反转。  
+建议仓位: ≤5% 总资金，且单笔亏损上限控制在总资金 1.5% 以内。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Silkwave Inc</h3>
+                    <span class="symbol">0471</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Technology</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">1.07 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">212.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-17.1%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.silkwave.com.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-4">
+            <div class="ai-header" onclick="toggleAI('ai-4')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 3/10（市值极小、财务数据缺失，仅PB 0.44提供安全边际）  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素:  
+- 价格已站上MA20/MA50，MACD即将金叉，RSI 58未超买，威廉指标-6.6显示短线动能仍强；  
+- 近两次放量（2月9日、13日）均对应单日大涨，说明低位有资金博弈；  
+- 高波动市下，小盘股易受情绪推动，0.75前高阻力一旦突破，可快速冲0.80。  
+
+3. 投资建议  
+建议: 买入  
+理由: 技术形态符合“趋势延续+突破确认”混合特征，成交量间歇放大，止损位明确，风险收益比约1:2，适合短线快进快出。  
+买入价: 0.67–0.69（回踩日内均价或次日低开）  
+目标价: 0.80（前高+布林带外延）  
+止损价: 0.60（MA50与平台下沿，亏损≤10%）  
+
+4. 风险提示  
+最大风险点: 流动性骤减（日均成交仅200万港元，易操纵）、基本面空白、港股系统性波动。  
+建议仓位: ≤5%总资金，单票亏损上限2%账户净值。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 4/10  
+- 综合评分: 6/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI处于中性偏强区域(58.89)，短期5日上涨13.3%，布林带价格在中轨上方运行，但MACD动能减弱，成交量波动较大。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面呈现温和上升趋势，RSI未超买，短期突破关键阻力位，但需警惕MACD动能减弱风险。  
+- 买入价: 0.68港元  
+- 目标价: 0.75港元  
+- 止损价: 0.62港元  
+
+**风险提示：**  
+- 最大风险点: MACD柱状线收窄，动能减弱，价格在布林带中轨上方运行，短期波动加剧，成交量不稳。  
+- 建议仓位: 占总资金15-20%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - 短期强势上涨13.3%，MACD金叉，RSI 58.9处于健康区间
+  - 但中期震荡，量价配合不够稳定
+- **基本面评分: 3/10** 
+  - 市盈率N/A，财务数据缺失，市值较小仅1.07亿
+  - 市净率0.44偏低，存在基本面风险
+- **综合评分: 5/10**
+  - 技术面短期向好但基本面薄弱，风险收益平衡
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 短期技术指标向好，价格接近布林带上轨，但基本面支撑不足
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 短期技术面呈现上升趋势，RSI 58.9未超买，MACD金叉向上，5日涨幅13.3%显示动能强劲。当前价格0.68接近0.725阻力位，有进一步上涨空间。但需注意基本面数据缺失的风险。
+- **具体参数:** 
+  - 买入价: 0.67-0.68
+  - 目标价: 0.78
+  - 止损价: 0.54
+
+### 4. 风险提示
+- **最大风险点:** 基本面信息严重不足，财务数据缺失，小市值股票波动性大，可能存在信息不对称风险
+- **建议仓位:** 3-5%总资金（轻仓参与，严格止损）
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 6.5/10  
+- 基本面评分: 4/10  
+- 综合评分: 5.5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（50-70%）  
+- 主要驱动因素：  
+  - 技术面短期突破信号显著：股价突破MA20（0.578）并接近MA200（0.661），布林带上轨（0.725）附近运行，显示上升动能；  
+  - 量价配合：2月13日放量至560万（远超20日均量208万），确认资金介入；  
+  - RSI（58.9）处于强势区间，威廉指标（-6.67）反映短期超买但未衰竭。  
+
+**3. 投资建议**  
+- 建议: **买入**  
+- 理由：  
+  该股短期技术面呈现“突破确认型”特征，类比历史案例TSM：布林带突破、放量上涨、RSI走强。当前价格（0.68）接近关键阻力0.66，若突破则打开上行空间。基本面支撑较弱（市净率0.44偏低，但盈利指标缺失），需依赖技术动能。建议严格风控，捕捉短期反弹。  
+- 买入价: 0.66（突破后）或现价0.68（轻仓）  
+- 目标价: 0.88（前高阻力）  
+- 止损价: 0.58（支撑位下方）  
+
+**4. 风险提示**  
+- 最大风险点：基本面缺乏支撑（无PE/ROE数据）、市场高波动（VIX=20.4）可能放大回撤；  
+- 建议仓位：总资金5%-8%（低估值技术反弹策略，需严控仓位）。  
+
+---  
+**总结**：短期技术突破主导，但基本面拖累综合评分，建议轻仓参与，严格止损。
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：Silkwave Inc（0471.HK）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 7/10  
+  - 短期趋势偏强（+13.3%），但布林带收窄显示动能减弱；RSI中性（58）未超买，MACD仍处弱势区域。  
+- **基本面评分**: 4/10  
+  - 缺乏关键财务数据（PE、ROE等），市值较小（1.07亿港元）可能带来流动性风险。  
+- **综合评分**: 6/10  
+  - 技术面短期占优，但基本面支撑不足，需警惕市场情绪波动。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **技术突破**: 1月23日放量突破0.68关键阻力位（+19%），成交量达8.14万手，远超20日均量。  
+  2. **动能延续**: 短期均线（MA20）上穿MA50形成金叉，短期趋势转强。  
+  3. **市场情绪**: 高波动环境下，小市值科技股易受资金轮动影响。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  - **买入逻辑**: 短期突破0.68阻力位后，若站稳0.65支撑位（MA50），可能测试0.70（+7.4%）及0.75（+10%）目标位。  
+  - **风险控制**: 止损设于0.60（斐波那契回撤位），跌破则趋势反转概率增加。  
+- **具体操作**:  
+  - **买入价**: 0.65（当前价附近关键支撑）  
+  - **目标价**: 0.75（基于60日最高价反推）  
+  - **止损价**: 0.60  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **流动性风险**: 日均成交量波动大（0-5.6万手），大额抛售可能引发价格异动。  
+  2. **基本面不确定性**: 缺乏财务数据支撑，技术面突破可能为短期炒作。  
+  3. **市场情绪反转**: VIX指数20.4显示高波动，若市场避险情绪升温，股价或快速回调。  
+- **建议仓位**: ≤5%（总资金）  
+  - 小市值股票波动剧烈，低仓位分散风险。
+
+---
+
+### 总结  
+Silkwave短期技术面突破明确，但需警惕基本面薄弱和流动性风险。建议在0.65附近轻仓介入，目标价0.75，止损0.60，仓位控制在5%以内。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 7.5/10  
+   - 基本面评分: 3.0/10（缺乏关键财务数据，仅市净率0.44显示资产折价，但无盈利支撑）  
+   - 综合评分: 6.0/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中（50-70%）  
+   - 主要驱动因素：价格站上MA20与MA50，MACD金叉（-0.0067 > -0.0194），短期5日涨幅13.3%，布林带中上轨运行；但威廉指标超买（-6.67）及近期量能不稳定（2月16日零成交）限制上行动能。  
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现“趋势延续+突破确认”混合特征（类似NVDA与TSM案例），当前价0.68接近布林带上轨且量能曾显著放大（2月13日560万成交量），具备短期上攻潜力。但基本面缺失，仅适合短线交易。  
+   - 买入价：≤0.68，目标价：0.78，止损价：0.62  
+
+4. 风险提示  
+   - 最大风险点：流动性风险（多日成交量极低甚至为零）及缺乏基本面支撑，若市场情绪转弱易快速回调。  
+   - 建议仓位：≤5%总资金（中高风险等级+低市值+高波动）
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Edensoft Holdings Limited</h3>
+                    <span class="symbol">1147</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Technology</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">3.33 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">2.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">16.30</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+114.5%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.edensoft.com.cn" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (77%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-5">
+            <div class="ai-header" onclick="toggleAI('ai-5')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 77%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 3/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素: ① 价格已站上全部均线且布林带中轨向上，趋势结构完好；② MACD正值并刚现金叉，动能温和放大；③ 近三日成交量重新放大至4000万股以上，量价配合；④ 威廉指标-4 显示短线资金仍活跃；⑤ 但0.17–0.18 为前期密集套牢区，且VIX 20+ 带来高波动，易反复。
+
+3. 投资建议  
+建议: 买入  
+理由: 小盘科技壳股，基本面薄弱但筹码轻，技术形态呈“趋势延续+温和放量”特征，符合案例2与案例4的混合模板，可博弈3–5 日惯性冲高。  
+买入价: 0.160–0.162（回踩布林中轨或日内-2% 低吸）  
+目标价: 0.190（前高+ATR 一倍）  
+止损价: 0.149（MA20 与布林带下轨重合，跌破即离场）
+
+4. 风险提示  
+最大风险点: 市值仅3 亿港元，流动性骤降时可单日滑点>5%；壳股基本面对股价零支撑，一旦炒作风停极易A 字杀。  
+建议仓位: ≤5% 总资金，单票亏损上限-1% 总净值。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面呈多头排列（股价站上所有均线，MACD金叉，RSI处于健康看涨区间）；  
+  - 布林带突破上轨且多时间框架均显示上升趋势（短期+8.7%，中期+19.0%）；  
+  - 市场情绪谨慎但波动性可控（VIX=20.4）。  
+
+**3. 投资建议**  
+- 建议: **买入**  
+- 理由：  
+  技术面短期动能强劲，符合“突破确认型”特征（布林带上轨突破、均线多头排列）。基本面薄弱（低ROE、利润率），但技术驱动占主导。需注意阻力位0.17及高波动风险，建议严格止损。  
+- 买入价: ≤0.163（现价附近）  
+- 目标价: 0.18（+10.4%）  
+- 止损价: 0.14（-14.1%）  
+
+**4. 风险提示**  
+- 最大风险点：基本面支撑不足（盈利能力和增长性弱），若突破失败可能快速回踩支撑位。  
+- 建议仓位：总资金3%-5%（低市值股需控制仓位）。  
+
+**总结**：短期技术突破信号明确，但需警惕基本面缺陷与市场高波动。建议轻仓参与，严格风控。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分（必填）  
+   - 技术面评分: 8.5/10  
+   - 基本面评分: 3.0/10  
+   - 综合评分: 6.0/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 高(>70%)  
+   - 主要驱动因素：多头排列（MA20 > MA50 > MA200）、股价站稳布林带上轨、MACD金叉且柱状线扩大、RSI处于中性偏强区域（56.1），叠加近期量能阶段性放大（如1月21日、1月29-30日），符合“趋势延续型”成功模式（参考NVDA案例）。  
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面强势，短期趋势明确，具备突破前高动能；但基本面极弱（ROE仅0.05%、利润率0.01%），仅适合短线交易。  
+   - 买入价：≤0.163（当前价附近）；目标价：0.19；止损价：0.13  
+
+4. 风险提示  
+   - 最大风险点：基本面严重支撑不足，若市场情绪转弱或成交量持续萎缩，易引发快速回调；此外，低流动性（日均成交约300万股）可能放大波动风险。  
+   - 建议仓位：≤5%（因属高波动小盘股，仅限短线博弈）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 90%)
+### 综合分析报告：Edensoft Holdings Limited（1147.HK）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分：8/10**  
+  短期、中期、长期趋势均呈上升，技术指标（布林带收窄、MA多头排列、成交量稳定）支持趋势延续，但RSI（56）未形成超买信号，MACD金叉后动能温和。
+- **基本面评分：4/10**  
+  低ROE（0.05%）、低营收增长与利润率（0.01%）显示基本面薄弱，市值较小（3.3亿港元）可能放大波动性，但低Beta（0.15）反映抗风险能力较强。
+- **综合评分：6/10**  
+  技术面强势与基本面弱势形成对冲，短期趋势占优，但需警惕基本面拖累。
+
+---
+
+#### **2. 短期走势判断**
+- **方向：看涨**  
+- **置信度：高（>70%）**  
+- **主要驱动因素：**  
+  1. **技术面共振**：布林带收窄后价格接近上轨，MA20/50形成支撑，成交量逐步放大（近期日均3M股）。  
+  2. **市场情绪适配**：高波动环境下，小市值科技股易受资金轮动影响。  
+  3. **关键突破契机**：若站稳0.17阻力位，可能触发技术性追涨。
+
+---
+
+#### **3. 投资建议**
+- **建议：买入**  
+- **理由：**  
+  短期技术形态（布林带收窄+MA多头）显示趋势延续，RSI中性偏强（56）未超买，成交量温和放大（近期峰值6.6M股）验证资金介入。基本面虽弱，但市值小、波动弹性高，或受市场情绪驱动上行。  
+- **具体操作：**  
+  - **买入价：** 0.16（当前价）  
+  - **目标价：** 0.19（历史高点0.20的平滑过渡位）  
+  - **止损价：** 0.14（60日最低价支撑位下方1%）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点：**  
+  基本面疲软（ROE、利润率接近零）若持续，可能引发技术性抛压；市场情绪转向时，小市值股波动加剧。  
+- **建议仓位：10-15%**  
+  因基本面支撑不足，仓位需严格控制在总资金15%以内，止损线设为0.14以控制风险。
+
+---
+
+**结论：** 短期技术面占优，建议轻仓参与突破，目标价0.19，止损0.14。需密切关注成交量与基本面动态，若营收/利润数据改善可上调仓位。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 4/10  
+- 综合评分: 5.5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI(56.14)与MACD(0.004 > 0.004)显示积极信号，价格站上MA20(0.1535)和MA50(0.1422)，但成交量萎缩，趋势动能中等。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面呈现多头排列，短期趋势向上，但基本面指标偏弱，需控制仓位。  
+- 买入价: 0.16（当前价）  
+- 目标价: 0.18  
+- 止损价: 0.13  
+
+**风险提示：**  
+- 最大风险点: 成交量萎缩，基本面指标疲软，市场情绪谨慎。  
+- 建议仓位: 占总资金15-20%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - 多时间框架上升趋势明显（5日+8.7%，20日+19%，60日+40.5%）
+  - RSI 56处于中性偏强区域，未超买
+  - 价格接近布林带上轨显示短期强势
+
+- **基本面评分: 3/10**
+  - ROE仅0.05%，利润率0.01%，基本面极弱
+  - 市值较小（3.3亿），流动性风险较高
+  - Beta值0.15显示波动性较低但成长性存疑
+
+- **综合评分: 5/10**
+  - 技术面强势但基本面支撑不足
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 技术面多头排列和上升趋势，但基本面薄弱构成制约
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 技术面呈现多时间框架上升趋势，RSI未超买，价格接近阻力位0.17但仍有上涨空间。短期动能较强，但需警惕基本面风险。成交量近期有所放大，显示资金关注度提升。
+- **具体参数:** 
+  - 买入价: 0.16附近
+  - 目标价: 0.17-0.18
+  - 止损价: 0.15
+
+### 4. 风险提示
+- **最大风险点:** 基本面极弱（ROE仅0.05%），可能存在业绩不达预期风险；小市值股票流动性风险
+- **建议仓位:** 2-3%（轻仓参与，严格止损）
+
+**注意:** 该股技术面虽强但基本面支撑不足，建议严格控制仓位并设置止损。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Huili Resources (Group) Limited</h3>
+                    <span class="symbol">1303</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 80.0%"></div></div>
+                    <div class="score-text score-high">8.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Energy</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">6.10 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">40.4 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">14.50</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+9.4%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.huili.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-6">
+            <div class="ai-header" onclick="toggleAI('ai-6')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 8/10  
+基本面评分: 3/10  
+综合评分: 6/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素：  
+- 价格已站上全部均线，5/20/60日涨幅>25%，动能强劲  
+- MACD金叉且柱状线持续放大，RSI 64.7未超买，威廉指标-23显示仍有上攻空间  
+- 2月4日、13日两次放量突破，量能峰值达20日均量2.2倍，符合“突破确认型”特征  
+- 行业属高波动煤炭，VIX 20.4下资金偏好短线周期品  
+
+3. 投资建议  
+建议: 买入  
+理由：技术动能与量能配合良好，0.29刚突破前高，可回踩跟涨；PB 0.5提供估值安全垫，但ROE仅0.04%限制上行空间，宜短炒。  
+买入价: 0.28–0.29（回踩5日线）  
+目标价: 0.35（前期平台+12%）  
+止损价: 0.22（跌破MA50与ATR 2倍）  
+
+4. 风险提示  
+最大风险点：流动性极低（日均20万股），单笔大单即可造成滑点；基本面疲弱，若煤价或港股情绪转弱，跌幅可能超预期。  
+建议仓位: ≤5%
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7.5/10  
+- 基本面评分: 3/10  
+- 综合评分: 5.5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面呈强势特征：股价突破布林带上轨，MACD金叉向上，均线多头排列（MA20>MA50>MA200），短期涨幅达26.1%且威廉指标（-23.53）显示超买但未极端。  
+  - 量价配合：2月13日、16日放量上涨（成交量56.6万+），确认突破有效性。  
+  - 行业与市场情绪：能源板块短期热度支撑，但基本面疲软限制上行空间。  
+
+**3. 投资建议**  
+- 建议: **买入**（短线交易）  
+- 理由：  
+  技术面突破信号明确（布林带上轨突破+MACD金叉），均线系统支撑强劲，短期动能充足。但基本面薄弱（低ROE、利润率），需严格风控。建议抓住突破后的惯性上涨，目标位为前期阻力位。  
+- 买入价: ≤0.29（当前价）  
+- 目标价: 0.33（涨幅13.8%）  
+- 止损价: 0.22（基于支撑位与ATR波动率）  
+
+**4. 风险提示**  
+- 最大风险点：  
+  - 基本面无法支撑估值（市净率虽低但盈利极弱），若市场转向或行业利空，可能快速回调。  
+  - RSI（64.7）接近超买区，需警惕短期获利盘抛压。  
+- 建议仓位：3%-5%（低仓位博弈技术面机会，避免基本面风险暴露）。  
+
+**总结**：短期技术突破提供交易机会，但需严守止损，快进快出。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 7.5/10  
+   - 基本面评分: 3.0/10  
+   - 综合评分: 5.5/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中(50-70%)  
+   - 主要驱动因素：股价突破布林带上轨、多时间框架上涨、MACD金叉且为正、RSI处于强势区（64.7）未超买，符合“突破确认型”与“趋势延续型”特征。但近期成交量极度不稳，多日为零，仅在波动日放量，存在流动性风险。
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现强势突破结构，短期动能充足，目标价0.36具备合理性；但基本面极弱（ROE仅0.04%、利润率0.02%、市净率0.5），仅适合短线博弈。  
+   - 买入价：≤0.29（当前价）；目标价：0.36；止损价：0.24  
+
+4. 风险提示  
+   - 最大风险点：极低流动性（多日零成交）导致难以及时平仓，叠加基本面疲软，易受市场情绪或行业政策冲击。  
+   - 建议仓位：≤3% 总资金（高风险小盘股，仅限短线投机）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 8/10  
+  - 短期趋势强劲，布林带突破上轨后持续走高，MACD保持金叉状态，成交量配合突破（2月13日566,000手放量）。RSI中性偏高（64.68）未超买，显示短期动能仍有空间。
+- **基本面评分**: 4/10  
+  - 市盈率14.5处于行业合理区间，但ROE仅0.04%、利润率0.02%，营收增长数据缺失，显示基本面薄弱。市值6亿港元在港股中偏小，抗风险能力有限。
+- **综合评分**: 6.5/10  
+  - 技术面强势与基本面弱势形成对冲，短期依赖市场情绪驱动，需警惕基本面风险。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 高（>70%）  
+- **主要驱动因素**:  
+  1. **技术面突破**：布林带收窄后放量突破上轨，短期目标位0.33-0.35阻力区。  
+  2. **量价配合**：2月13日成交量骤增566,000手，突破前期横盘区间，释放资金入场信号。  
+  3. **市场情绪**：港股高波动环境下，资金对超跌反弹或趋势股关注度提升。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  短期技术面强势明确，布林带突破后回踩确认支撑（0.29附近），MACD维持金叉，成交量逐步放大。目标价0.40（历史高点1.5倍），止损设于0.25（MA200支撑）。  
+- **具体操作**:  
+  - **买入价**: 0.29（当前价）  
+  - **目标价**: 0.40  
+  - **止损价**: 0.25  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面脆弱**：营收与利润数据缺失，若财报不及预期可能引发抛压。  
+  2. **市场情绪逆转**：港股高Beta属性下，若VIX指数飙升或政策风险加剧，短期涨幅可能回吐。  
+- **建议仓位**: 5%-8%（占总资金）  
+  - 技术面虽强，但基本面支撑不足，需严格控制仓位以对冲潜在风险。
+
+---
+
+### 总结  
+短期技术面信号占优，但需警惕基本面与市场情绪的双重风险。建议在0.29附近轻仓介入，若突破0.33且成交量持续放大可加仓，目标价0.40，止损0.25。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 4/10  
+- 综合评分: 6/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 64.68 显示超买但未严重背离，MACD 金叉且呈上升趋势，短期、中期和长期均显示上升，但 ATR 0.026 显示波动适中，趋势强度为中等。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由：技术面显示上升趋势，MACD 金叉且呈上升趋势，短期、中期和长期均显示上升，但 ATR 0.026 显示波动适中，趋势强度为中等。  
+- 具体价格：买入价 0.29，目标价 0.35，止损价 0.18。  
+
+**风险提示：**  
+- 最大风险点：RSI 64.68 显示超买，存在回调风险。  
+- 建议仓位：占总资金比例 20%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - 多时间框架上升趋势强劲（5日+26.1%，20日+45%）
+  - RSI 64.68显示强势但接近超买
+  - MACD金叉向上，布林带触及上轨
+- **基本面评分: 3/10** 
+  - ROE仅0.04%，利润率0.02%，基本面极弱
+  - 市净率0.50虽低但反映资产质量担忧
+- **综合评分: 5/10**
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 技术面强势突破，多头排列明显，但基本面支撑不足
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 技术面呈现强势上升趋势，多时间框架共振向上，短期动能强劲。虽基本面较弱，但当前价格0.29已突破关键阻力，符合突破确认型交易机会。RSI接近超买但未达危险区域。
+- **买入价:** 0.28-0.29
+- **目标价:** 0.33（第一阻力位）
+- **止损价:** 0.25（关键支撑位）
+
+### 4. 风险提示
+- **最大风险点:** 基本面极度疲弱，ROE和利润率接近零，存在业绩爆雷风险；当前价格已触及布林带上轨，回调压力增大
+- **建议仓位:** 5-8%（轻仓参与，严格止损）
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>AI X Tech Inc.</h3>
+                    <span class="symbol">1490</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
+                    <div class="score-text score-low">2.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 25.0%"></div></div>
+                    <div class="score-text score-low">2.5/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Communicatio</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">2.59 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">166.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+6.1%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.cheshi.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (80%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-7">
+            <div class="ai-header" onclick="toggleAI('ai-7')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 80%
+模型一致率: 100% (4 个模型投票)
+
+分析成功率: 67% (4/6 个模型)
+失败模型: iflow-rome-30ba3b, qwen3-coder-plus
+
+投票分布:
+- 看涨: 4 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分  
+技术面评分: 3/10  
+基本面评分: 2/10  
+综合评分: 2.5/10  
+
+2. 短期走势判断  
+方向: 看跌  
+置信度: 高(>70%)  
+主要驱动因素: RSI 80.8 极端超买+威廉指标0值，近5日急升18%但2月16日成交量归零，量价背离；MACD虽正值但柱状线已现收窄迹象，且价格已偏离布林上轨6%以上，历史显示此类“无量空涨”后平均回撤-12%。
+
+3. 投资建议  
+建议: 强烈卖出（已持仓）/观望（未持仓）  
+理由: 微型市值+Beta 2.13，情绪退潮时跌幅放大；缺乏基本面支撑，市净率0.39反映资产持续减值；超买+无量+顶背离三信号共振，回调概率>70%。  
+若执意短线博弈，仅可挂回撤单：买入价≤0.195，目标价0.22，止损价0.188，盈亏比1:1.3，仓位≤3%。
+
+4. 风险提示  
+最大风险点: 流动性枯竭，单日零成交再现将导致滑点巨大；Beta高，若恒指突发下跌，该股可能单日-15%以上。  
+建议仓位: ≤总资金2%，且须分两天阶梯卖出，避免砸盘。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面强势突破：股价突破布林带上轨，MACD金叉向上，均线呈多头排列，短期涨幅达18%。  
+  - 超买风险与动量并存：RSI高达80.77，威廉指标-0.0，显示极端超买，但量价配合（近期放量）可能延续短期冲高动能。  
+  - 市场情绪支撑：高波动环境下，资金可能流向中小盘题材股。  
+
+**3. 投资建议**  
+- 建议: **买入**（短线交易，严控风险）  
+- 理由：  
+  技术面短期动能强劲，突破布林带上轨且均线多头排列，MACD金叉确认买点。尽管RSI超买存在回调压力，但量价配合与低市值特性可能推动股价进一步上探阻力位。需快进快出，避免追高。  
+- 买入价: 0.20-0.21  
+- 目标价: 0.24  
+- 止损价: 0.18  
+
+**4. 风险提示**  
+- 最大风险点：  
+  - RSI极端超买（80.77）与顶背离风险，若成交量萎缩或市场转弱，可能引发快速回调。  
+  - 基本面薄弱（市净率0.39反映资产质量存疑，Beta=2.13波动性极高）。  
+- 建议仓位：不超过总资金的5%（高波动品种需低仓位应对）。  
+
+**总结**：短期技术面占主导，超买状态下的突破需谨慎参与，严格止损。
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：AI X Tech Inc. (1490.HK)
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 7/10  
+  - **优势**: 短期趋势强劲（+18%），突破布林带上轨，MACD短期动能减弱但整体维持正值，成交量放大支持突破。  
+  - **风险**: RSI超买（80.76），MACD Signal线走弱暗示短期回调可能，布林带开口扩大需警惕价格回撤。  
+- **基本面评分**: 5/10  
+  - **劣势**: 缺乏市盈率、ROE等关键数据，市净率0.39显示低估值但需结合行业特性判断，营收与利润数据缺失。  
+- **综合评分**: 6.5/10  
+  - **核心矛盾**: 技术面超买信号与趋势延续需求博弈，基本面信息不足制约评估深度。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **突破确认**: 价格突破布林带上轨（0.21）且短期趋势强度显著（+18%），技术面存在惯性上冲可能。  
+  2. **量价配合**: 1月23日单日成交量激增至992K，释放多头动能。  
+  3. **市场情绪**: 高波动环境下，资金可能追逐突破个股。  
+- **风险提示**: RSI超买（80.76）与MACD顶背离暗示短期回调压力，若跌破0.18支撑位可能加速下跌。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  - **技术面**: 突破布林带上轨后回踩确认支撑（0.18）为潜在买点，短期目标价0.23（前高+5%）。  
+  - **风险收益比**: 若突破0.21阻力位，上行空间约15%；若跌破0.18支撑位，最大回撤约14%。  
+- **具体操作**:  
+  - **买入价**: 0.18（支撑位测试后低吸）  
+  - **目标价**: 0.23（前高+5%）  
+  - **止损价**: 0.17（跌破支撑位且MACD死叉确认）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **技术超买**: RSI持续高于80可能引发回调，若量能无法配合突破，趋势可能反转。  
+  2. **基本面不确定性**: 缺乏营收、利润等数据，估值逻辑依赖行业对比，存在信息缺失风险。  
+- **建议仓位**: 5%-8%（占总资金比例）  
+  - **逻辑**: 高波动性（Beta=2.13）需严格控制仓位，避免单一个股风险集中。
+
+---
+
+### 总结  
+AI X Tech短期技术面突破明确，但需警惕超买风险。建议在0.18附近低吸，止损设于0.17，目标价0.23。仓位控制在5%-8%，优先观察成交量与RSI变化。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分  
+   - 技术面评分: 4/10  
+   - 基本面评分: 2/10（缺乏盈利数据，仅市净率低但可能反映资产质量差）  
+   - 综合评分: 3/10  
+
+2. 短期走势判断  
+   - 方向: 看跌  
+   - 置信度: 高（>70%）  
+   - 主要驱动因素：RSI高达80.8，严重超买；价格（0.21）显著突破布林带上轨（0.196），属极端偏离；MACD虽金叉但绝对值极小，动能不足；近期成交量异常（多日为0或极低），2月16日跳涨至0.21无量能确认，疑似对倒或流动性枯竭下的虚涨。  
+
+3. 投资建议  
+   - 建议: 强烈卖出（若持有） / 观望（若未持仓）  
+   - 理由：技术面呈现典型“风险警示型”特征（类比案例3）：RSI超买 + 价格与布林带极端偏离 + 无量上涨，存在强烈回调压力。基本面信息缺失且市值极小（约2.59亿港元），流动性风险高。  
+   - （不适用买入，故无价位）  
+
+4. 风险提示  
+   - 最大风险点：流动性枯竭导致价格失真，叠加高Beta（2.13）在市场波动中易剧烈回撤；基本面数据缺失暗示潜在财务问题。  
+   - 建议仓位：0%（不建议参与）
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Synertone Communication Corporation</h3>
+                    <span class="symbol">1613</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Technology</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">1.16 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">81.3 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-46.2%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.synertone.net" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-8">
+            <div class="ai-header" onclick="toggleAI('ai-8')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (5 个模型投票)
+
+分析成功率: 83% (5/6 个模型)
+失败模型: qwen3-coder-plus
+
+投票分布:
+- 看涨: 5 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 3/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素：① 价格已站上MA20/MA50且布林带中轨向上，动能未竭；② MACD正值并刚金叉，RSI 61仍处安全区；③ 近三日出现“放量阳线+缩量整理”组合，符合案例4“突破确认”早期特征；④ 上方距MA200（0.234）仍有15%空间，吸引动量资金。
+
+3. 投资建议  
+建议: 买入  
+理由：小盘通信设备股，基本面虽弱但市净率0.87提供地板估值；技术形态完成“中轨突破+量能放大”，短期惯性向上，盈亏比优于3:1。  
+买入价：0.195 – 0.200（回踩布林中轨或日内-2%时低吸）  
+目标价：0.235（MA200附近，对应约18%空间）  
+止损价：0.175（跌破MA50与布林下轨，-10%强制离场）
+
+4. 风险提示  
+最大风险点：流动性骤降（日均成交仅1-2百万港元），大单出货可瞬间砸盘；港市高波动（VIX 20.4）加剧回撤。  
+建议仓位：≤5%总资金，分批建仓，单日买入不超过1/3，严防滑点。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 6/10  
+- 基本面评分: 4/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 中性偏多  
+- 置信度: 中（55%-60%）  
+- 主要驱动因素：  
+  - 技术面短期均线多头排列，MACD金叉且RSI处于健康区间（61），支撑短期上行动能；  
+  - 股价接近布林带上轨（0.203）和长期MA200（0.234）压力，需突破确认趋势；  
+  - 成交量极度不稳定（单日最高1.3亿股，最低0股），量能配合不足，削弱上涨可靠性。  
+
+**3. 投资建议**  
+- 建议: **持有**（现有仓位可保留，但不宜新建仓）  
+- 理由：  
+  技术面显示短期上升趋势，但基本面缺乏支撑（市盈率、ROE缺失，市值小且流动性差）。股价面临关键阻力0.22-0.23区间，需放量突破才能打开上行空间。当前成交量萎靡且波动剧烈，趋势延续性存疑，建议等待更明确的量价配合信号。  
+- 若已持仓，可设置：  
+  - 买入价：不建议新建仓，若突破0.22且成交量放大至300万股以上可轻仓介入  
+  - 目标价：0.22（第一阻力位）  
+  - 止损价：0.18（支撑位）  
+
+**4. 风险提示**  
+- 最大风险点：流动性风险（成交量极端不稳定）、基本面数据缺失导致估值不确定性、长期均线压制。  
+- 建议仓位：不超过总资金的**3%**（仅适合风险承受能力高的投资者）。  
+
+---  
+**总结**：该股短期技术面偏多，但基本面和量能缺陷限制上行空间，建议谨慎持有并观察突破情况。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 7/10  
+   - 基本面评分: 4/10（缺乏关键财务数据，仅市净率<1显示估值偏低，但无盈利支撑）  
+   - 综合评分: 6/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中（50-70%）  
+   - 主要驱动因素：股价站上MA20与MA50形成短期多头排列；MACD金叉且柱状线为正；RSI处于中性偏强区域（61.2）；近期两次放量上涨（2月10日、13日成交量超1000万），显示资金介入；当前价接近布林带上轨，具备突破动能。  
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现“趋势延续+放量突破”特征，类似NVDA案例2与TSM案例4的混合信号，短期动能较强，但受制于长期MA200压制，上行空间有限，适合波段操作。  
+   - 买入价：≤0.20；目标价：0.22；止损价：0.17  
+
+4. 风险提示  
+   - 最大风险点：长期均线（MA200=0.234）构成强阻力，若无法放量突破可能回调；基本面数据缺失，存在信息不对称风险；市场整体处于高波动状态（VIX=20.4），港股科技股易受情绪冲击。  
+   - 建议仓位：不超过总资金的5%（因流动性波动大、基本面不明，属高风险短线标的）。
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：1613.HK（Synertone Communication）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 7/10  
+  - 短期/中期趋势向上（+10.6% / +13.7%），但长期震荡（-2.0%），趋势强度中等。  
+  - RSI（61）中性偏高，布林带收窄显示波动减弱，需警惕假突破。  
+  - 成交量波动剧烈（最高896,000，最低0），缺乏持续量能支撑。  
+- **基本面评分**: 5/10  
+  - 市净率0.87（低估值），但缺乏盈利数据（N/A），营收、ROE等关键指标缺失。  
+- **综合评分**: 6/10  
+  - 技术面与基本面均无显著优势，需依赖短期趋势延续性。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **技术面信号**：短期/中期趋势向上，突破0.20关键位后反弹动能可能延续。  
+  2. **量价配合**：1月23日、2月4日、2月13日放量显著，显示资金关注。  
+  3. **阻力位突破**：0.20已成支撑，若突破0.22阻力位，可能触发技术性买盘。  
+
+**风险点**：  
+- 长期均线（MA200=0.23）压制，突破需量能配合。  
+- 成交量萎缩（2月16日为0），可能预示短期动能衰竭。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  短期技术面趋势向上，突破0.20后反弹动能较强，MACD与价格同步走高，量能局部放大。  
+- **具体操作**:  
+  - **买入价**: 0.20（当前价）  
+  - **目标价**: 0.22（阻力位）  
+  - **止损价**: 0.18（MA50支撑位）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. 成交量持续萎缩导致假突破，跌破0.18支撑位可能加速下跌。  
+  2. 缺乏基本面支撑，若财报不及预期可能引发估值回调。  
+- **建议仓位**: ≤10%  
+  - 技术面趋势强度中等，且市场情绪谨慎，需严格控制风险敞口。
+
+---
+
+### 总结  
+短期技术面信号偏多，但需警惕量能不足与基本面缺失风险。建议在0.20附近轻仓参与，突破0.22后可加仓，目标价0.22，止损严格设于0.18。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 5/10  
+- 综合评分: 6/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 61.19 显示强势但未超买，MACD 金叉信号，短期和中期趋势向上，布林带收口后价格接近上轨。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面呈现积极信号，价格站上 MA20 和 MA50，成交量在关键节点放大，但需警惕长期趋势震荡及市场高波动环境。  
+- 买入价: 0.195（当前价附近）  
+- 目标价: 0.25（阻力位 0.22-0.23 区域突破后）  
+- 止损价: 0.175（跌破 MA50 及支撑位 0.18）  
+
+**风险提示：**  
+- 最大风险点: 长期趋势震荡，VIX 偏高导致市场情绪谨慎，可能引发回调。  
+- 建议仓位: 占总资金 15-20%，分批建仓以控制风险。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Sino Harbour Holdings Group Limited</h3>
+                    <span class="symbol">1663</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 75.0%"></div></div>
+                    <div class="score-text score-high">7.5/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 55.0%"></div></div>
+                    <div class="score-text score-medium">5.5/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Real Estate</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">2.29 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">0.4 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-1.1%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.sinoharbour.com.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-9">
+            <div class="ai-header" onclick="toggleAI('ai-9')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+   - 技术面评分: 7.5/10  
+   - 基本面评分: 3/10（缺乏关键财务数据，市净率极低但无盈利验证）  
+   - 综合评分: 5.5/10  
+
+2. 短期走势判断  
+   - 方向: 看涨  
+   - 置信度: 中（60%）  
+   - 主要驱动因素：股价站上MA20/50/200形成多头排列，中期涨幅达47.6%，布林带中上轨运行，RSI处于强势区（62）未超买，近期两次放量突破（1月23日、2月5日、2月12-13日）显示资金介入迹象。  
+
+3. 投资建议  
+   - 建议: 买入  
+   - 理由：技术面呈现“趋势延续型”特征（类似NVDA案例），量能配合良好，价格处于布林带上轨附近且未出现顶背离，短期动能偏强。  
+   - 买入价：≤0.093；目标价：0.12；止损价：0.065  
+
+4. 风险提示  
+   - 最大风险点：基本面信息缺失（无PE、ROE、利润等），属高风险地产股，易受政策或流动性冲击；近期部分交易日成交量极低（如2月3日仅166,000股），存在流动性风险。  
+   - 建议仓位：不超过总资金的3%（因高波动、中高风险等级及基本面不明）
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 3/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素: ① 价格已站上全部均线，20日涨幅48%，动能仍在；② RSI 62 未超买，威廉指标-23 显示仍有上攻空间；③ 近三日放量（8.9M→10.4M→0，停牌前抢筹）符合“突破+放量”模型；④ 0.10 港元为前高颈线，突破后量度涨幅≈0.115，与布林带开口向上匹配。
+
+3. 投资建议  
+建议: 买入  
+理由: 小盘港地产股博弈资金推动，技术形态满足“趋势延续+突破前高”特征，0.093 距止损仅7%，盈亏比>3:1。  
+买入价: 0.092–0.095 分批  
+目标价: 0.115（前高+量度涨幅）  
+止损价: 0.075（MA50 与下轨重合，跌破即趋势破坏）
+
+4. 风险提示  
+最大风险点: 基本面真空+市值极小，易出现闪崩；港股通外，流动性骤降可致滑点巨大。  
+建议仓位: ≤5% 总资金，单日内仓位建满，破止损立即离场，不补仓。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面呈现突破形态：股价站上布林带上轨（0.093），且位于所有关键均线（MA20/50/200）之上，形成多头排列。  
+  - RSI（62）处于强势区间，威廉指标（-23.07）显示短期超买但动量未衰竭。  
+  - 中期涨幅显著（20日+47.6%），成交量近期放大（如2月5日量能骤增），支撑趋势延续。  
+  - 市场高波动环境（VIX=20.4）可能放大涨幅，但需警惕回调风险。  
+
+**3. 投资建议**  
+- 建议: **买入**  
+- 理由：  
+  技术面符合“突破确认型”特征（类比案例4 TSM），布林带突破、均线多头排列及量能配合表明短期上涨动能强劲。尽管基本面薄弱（市净率0.12反映资产折价，但盈利指标缺失），但技术驱动主导短期走势。需严格风控，避免追高。  
+- 买入价: 0.090-0.092  
+- 目标价: 0.105（+14%）  
+- 止损价: 0.085（破位MA20）  
+
+**4. 风险提示**  
+- 最大风险点：  
+  - 基本面缺乏支撑（无市盈率、ROE数据），纯技术博弈易受市场情绪反转冲击。  
+  - RSI接近超买区，若量能萎缩可能引发获利回吐。  
+- 建议仓位：3%-5%（低市值股需控制单票风险）  
+
+**总结**：短期技术突破提供交易机会，但需快进快出，严守止损。
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：1663.HK（Sino Harbour Holdings）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 8/10  
+  - 趋势强劲（短期/中期/长期均上涨），布林带收窄后突破中轨，MACD金叉，成交量温和放大。  
+  - 风险点：RSI（62）接近超买区，需警惕短期回调。  
+- **基本面评分**: 5/10  
+  - 市净率仅0.12（显著低估），但缺乏盈利数据（市盈率、ROE等均为N/A），存在信息不透明风险。  
+- **综合评分**: 7/10  
+  - 技术面支撑趋势延续，但基本面不确定性高，需结合市场情绪谨慎操作。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. 技术面：布林带收窄后突破中轨，短期均线（MA20）上穿中长期均线（MA50/MA200），MACD金叉。  
+  2. 量价配合：近期成交量波动放大（尤其2月12日单日8.8百万股），显示资金关注度提升。  
+  3. 市场情绪：港股地产板块近期反弹，叠加低估值吸引短线资金。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  技术面显示趋势强劲且突破关键阻力位（0.093→0.10），市净率0.12提供安全边际。短期目标价0.12（突破前高），止损价0.06（历史低点）。  
+- **具体操作**:  
+  - **买入价**: 0.09（当前价）  
+  - **目标价**: 0.12（技术性反弹）  
+  - **止损价**: 0.06（风险控制）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. 基本面缺失：缺乏盈利数据，市净率过低可能反映市场疑虑。  
+  2. 技术面超买：RSI（62）接近超买区，若量能萎缩或市场情绪转弱，可能引发回调。  
+- **建议仓位**: 5%-8%（占总资金）  
+  - 地产板块波动性较高，需严格止损并控制仓位。
+
+---
+
+### 总结  
+1663.HK短期技术面信号积极，但基本面不确定性高，建议在0.09附近轻仓参与，止损设于0.06，目标价0.12。需密切关注成交量变化及市场情绪波动。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 2/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 62处于中性偏强区，布林带接近上轨，中期趋势上升47.6%，但成交量萎缩，缺乏强劲动能支撑。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面显示短期趋势向上，价格接近阻力位0.10，有望突破。基本面数据缺失，但技术信号相对积极。  
+- 买入价: 0.095（当前价附近）  
+- 目标价: 0.12（阻力位0.11上方）  
+- 止损价: 0.08（支撑位下方）  
+
+**风险提示：**  
+- 最大风险点: 成交量萎缩，缺乏资金推动，可能突破乏力；市场情绪谨慎，波动加剧。  
+- 建议仓位: 5%-10%（占总资金比例）
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - 多头排列确认上升趋势，短期涨幅强劲
+  - RSI 62接近超买区，MACD略低于信号线显示动能减弱
+  - 布林带接近上轨，存在回调压力
+
+- **基本面评分: 3/10** 
+  - 市盈率N/A，基本面信息缺失
+  - 市净率0.12极低，存在基本面风险
+  - 房地产行业面临政策和市场双重压力
+
+- **综合评分: 5/10**
+
+### 2. 短期走势判断
+- **方向: 中性偏看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 技术面多头排列提供支撑，但RSI高位和基本面不确定性制约上涨空间
+
+### 3. 投资建议
+- **建议: 持有**
+- **理由:** 技术面呈现上升趋势，MA20>MA50>MA200多头排列，短期涨幅可观。但RSI 62接近超买区，MACD动能减弱，且基本面信息缺失，房地产行业面临政策风险。当前价格0.09接近阻力位0.095-0.10，建议观望等待回调确认。
+- **当前操作:** 暂不建议新建仓位
+
+### 4. 风险提示
+- **最大风险点:** 基本面信息严重缺失，市净率异常偏低暗示潜在财务风险；房地产行业政策不确定性；技术面接近关键阻力位可能回调
+
+- **建议仓位:** 如已有持仓建议轻仓(不超过总资金5%)，新投资者建议观望等待基本面明朗化及技术面回调确认机会
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Zero2IPO Holdings Inc.</h3>
+                    <span class="symbol">1945</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 80.0%"></div></div>
+                    <div class="score-text score-high">8.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Financial Se</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">5.59 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">171.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">187.00</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+43.8%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.zero2ipo.cn" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+        <div class="news-section">
+            <h4>📰 近期新闻 (1 条)</h4>
+            <div class="news-list">
+                
+            <div class="news-item">
+                <a href="https://hk.finance.yahoo.com/news/%E6%B8%85%E7%A7%91%E6%8E%A7%E8%82%A1-01945-hk-%E9%99%84%E5%B1%AC%E5%87%BA%E5%94%AE%E5%B1%95%E8%A6%BD%E8%81%AF%E7%87%9F20-%E4%BD%9C%E5%83%B9561%E8%90%AC%E4%BA%BA%E6%B0%91%E5%B9%A3-101557149.html?.tsrc=rss" target="_blank" class="news-title">清科控股(01945.HK)附屬出售展覽聯營20%  作價561萬人民幣</a>
+                <div class="news-meta">
+                    <span>2026-02-15 10:15</span>
+                </div>
+            </div>
+            </div>
+        </div>
+                
+                
+        <div class="ai-section collapsed" id="ai-10">
+            <div class="ai-header" onclick="toggleAI('ai-10')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 8/10  
+基本面评分: 3/10  
+综合评分: 6/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素: ① 价格已站上所有均线且布林上轨外轨，趋势动能强；② MACD金叉后柱体持续放大，RSI 62 未超买，仍有上行空间；③ 1 月 28 日放量突破后，2 月 16 日再收光头阳线，量价配合尚可；④ 但 187 倍市盈率、0.02% 利润率及高 Beta 环境下，任何利空都可能触发快速回撤。
+
+3. 投资建议  
+建议: 买入  
+理由: 技术面呈“趋势延续+突破”组合，与案例2/4特征吻合；短期资金博弈情绪浓，可顺势参与。  
+买入价: 1.82–1.88 港元（回踩 1.82 或盘中回落不破 1.80 时分批）  
+目标价: 2.25 港元（前高+ATR 1.5 倍）  
+止损价: 1.70 港元（跌破 20 日线与布林中轨，亏损约 7% 强制离场）
+
+4. 风险提示  
+最大风险点: 基本面极度脆弱，高估值+低盈利，若大市波动或公司再出资产出售利空，易闪崩。  
+建议仓位: ≤5% 总资金，单票亏损上限 1% 账户净值。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7.5/10  
+- 基本面评分: 3/10  
+- 综合评分: 6/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%-65%）  
+- 主要驱动因素:  
+  - 技术面呈现强势突破形态（股价突破布林带上轨、站上所有均线且MACD金叉）；  
+  - 短期成交量显著放大（1月28-30日均量超百万），资金介入明显；  
+  - 多时间框架均显示上升趋势（短期+17.6%，中期+39.5%）。  
+
+**3. 投资建议**  
+- 建议: **买入**  
+- 理由:  
+  技术面突破信号明确（布林带突破+均线多头排列），RSI（62）处于强势区间且未超买，MACD金叉支持短期上行。基本面虽弱（高市盈率、低ROE），但技术动能与量价配合占主导。需严格风控，捕捉突破后的惯性上涨空间。  
+- 买入价: ≤1.85  
+- 目标价: 2.10（对应+13%涨幅）  
+- 止损价: 1.54（破位MA20则趋势转弱）  
+
+**4. 风险提示**  
+- 最大风险点:  
+  - 基本面支撑薄弱（市盈率187倍，盈利能力和增长性不足）；  
+  - 流动性风险（日均成交量不稳定，2月16日成交量为0）；  
+  - 市场整体波动（VIX=20.4，高波动环境易放大个股震荡）。  
+- 建议仓位: 总资金的3%-5%（低基本面评分需限制仓位）。  
+
+---  
+**总结**：短期技术突破提供交易机会，但需警惕基本面缺陷与流动性风险，建议轻仓参与并严格执行止损。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 8/10  
+   - 基本面评分: 2/10  
+   - 综合评分: 5/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中(50-70%)  
+   - 主要驱动因素：股价突破布林带上轨（当前价1.87 > 上轨1.804），均线多头排列（MA20>MA50>MA200），MACD金叉且柱状线为正，短期涨幅显著（5日+17.6%）。但成交量在近期突破日（2月16日）为0，缺乏量能确认，削弱信号可靠性。
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术形态符合“突破确认型”特征（参考案例4），价格站稳关键均线上方且RSI处于强势区（62.2），但基本面极弱（ROE仅0.01%，PE高达187），仅适合短线博弈。  
+   - 买入价：≤1.85；目标价：2.10；止损价：1.54  
+
+4. 风险提示  
+   - 最大风险点：基本面严重背离（高PE、近零盈利）、突破日无成交量验证，易受市场情绪或流动性冲击回调。  
+   - 建议仓位：不超过总资金的3%
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：Zero2IPO Holdings Inc. (1945.HK)
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 8/10  
+  - 短期、中期、长期趋势均呈上升，技术面强势；布林带收窄后突破上轨，MACD金叉且柱状线扩大，成交量配合上涨（1月28日单日成交量达113.64万）。  
+  - 风险点：RSI（62）接近超买区，需警惕短期回调。  
+- **基本面评分**: 3/10  
+  - 市盈率（187）、市净率（0.88）均偏离行业合理区间，ROE（0.01%）和利润率（0.02%）极低，营收增长未披露，基本面支撑薄弱。  
+- **综合评分**: 6/10  
+  - 技术面主导短期交易机会，但基本面风险显著，需严格止损。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 高（>70%）  
+- **主要驱动因素**:  
+  1. **技术面突破**：价格突破布林带上轨（1.87 vs 上轨1.80），MACD持续走强，成交量近期显著放大。  
+  2. **市场情绪**：短期趋势强度高（+17.6%），市场对金融股风险偏好回升。  
+  3. **催化剂**：近期新闻显示公司出售联营公司股权（561万人民币），可能优化现金流。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  技术面显示趋势强劲，价格突破布林带且MACD金叉延续，短期目标价2.10（上行空间12%）。基本面虽弱，但短期交易以技术信号为主。  
+- **具体操作**:  
+  - **买入价**: 1.80-1.85（当前价1.87附近回调至心理支撑位）。  
+  - **目标价**: 2.10（基于趋势强度和历史波动幅度）。  
+  - **止损价**: 1.70（支撑位下沿，安全边际明确）。
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面恶化**：低ROE和利润率可能引发市场重新定价。  
+  2. **技术面回调**：RSI接近超买区，若量能萎缩或价格跌破MA20（1.62），可能触发趋势反转。  
+- **建议仓位**: ≤10%（占总资金比例）  
+  - 高Beta属性叠加基本面风险，需严格控制仓位。
+
+---
+
+**总结**: 短期技术面信号明确，建议在1.80-1.85区间分批建仓，目标价2.10，止损1.70，仓位不超过10%。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 62.2 与 MACD 金叉显示短期动能向好，价格突破布林带上轨，但受制于 1.87 阻力位。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面呈现温和上升趋势，多时间框架显示中期向好，但基本面指标疲弱，需警惕估值风险。  
+- 买入价: 1.87（当前价）  
+- 目标价: 2.07  
+- 止损价: 1.54  
+
+**风险提示：**  
+- 最大风险点: 市盈率 187 高估，基本面盈利能力弱，短期可能受市场情绪波动影响。  
+- 建议仓位: 占总资金 5-8%，严格止损控制风险。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 8/10** - 多时间框架强势上涨，RSI 62.24处于健康强势区，MACD金叉向上，但当前价格1.87已突破布林带上轨1.80，存在超买风险
+- **基本面评分: 3/10** - 市盈率187倍过高，ROE仅0.01%，利润率0.02%，基本面严重恶化
+- **综合评分: 5/10** - 技术面强势但基本面堪忧，存在明显背离
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)** 
+- **主要驱动因素:** 技术面多头排列和强劲上涨动能支撑短期上涨，但基本面恶化和高估值构成下行风险
+
+### 3. 投资建议
+- **建议: 买入**（轻仓）
+- **理由:** 技术面呈现强势上涨趋势，多时间框架均向上，RSI处于强势区，短期动能强劲。但基本面严重恶化，市盈率过高存在估值风险，需谨慎操作。
+- **买入价:** 1.82（回调支撑位）
+- **目标价:** 1.97（第一阻力位）
+- **止损价:** 1.69
+
+### 4. 风险提示
+- **最大风险点:** 基本面严重恶化（ROE 0.01%，高市盈率187倍），存在基本面与技术面背离风险
+- **建议仓位:** 5-10%（轻仓操作，严格止损）
+
+**特别提醒:** 该股基本面存在重大隐患，建议仅轻仓参与技术性反弹，密切关注基本面变化和成交量配合情况。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Lai Si Enterprise Holding Limited</h3>
+                    <span class="symbol">2266</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 45.0%"></div></div>
+                    <div class="score-text score-low">4.5/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Industrials</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">1.60 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">10.4 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">8.00</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+61.3%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.lai-si.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-11">
+            <div class="ai-header" onclick="toggleAI('ai-11')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 6/10  
+基本面评分: 3/10  
+综合评分: 4.5/10  
+
+2. 短期走势判断  
+方向: 中性  
+置信度: 中(55%)  
+主要驱动因素: 股价已贴布林带上轨，RSI≈70处超买区；2-11单日864k放量突破后连续无量，动能衰减；MACD虽金叉但柱状线缩短，显示上行趋缓。缺少基本面配合，高波动市况下易回落。
+
+3. 投资建议  
+建议: 持有（激进交易者可小仓位高抛）  
+理由: 微型基建股，估值虽低但盈利稀薄、营收停滞；技术面临近0.42-0.44前高阻力，量价背离风险大。已持仓者设0.34止损锁定利润；未持仓者等待0.36-0.35回踩放量再考虑低吸，勿追高。  
+买入价: 0.355±0.005（回踩区）  
+目标价: 0.42  
+止损价: 0.34  
+
+4. 风险提示  
+最大风险点: 无量假突破后快速回踩，流动性差导致滑点大。  
+建议仓位: ≤3%
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 6/10  
+- 基本面评分: 3/10  
+- 综合评分: 4.5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（55%-65%）  
+- 主要驱动因素:  
+  - 技术面短期强势（价格突破布林带上轨、站上所有均线、MACD金叉）；  
+  - 低估值（PE=8）提供安全边际；  
+  - 流动性低（日均成交量仅6.4万）可能放大波动风险。  
+
+**3. 投资建议**  
+- 建议: **持有**（若已持仓）或 **轻仓买入**（若未持仓）  
+- 理由:  
+  技术面显示短期上升趋势确立（RSI接近70但未超买，均线多头排列），但基本面疲弱（ROE仅0.17%，营收增长0.36%）和低成交量制约上涨空间。当前价触及布林带上轨，需观察能否放量突破前高0.44。建议谨慎参与，严格风控。  
+- 买入价: ≤0.39（回调至MA20附近）  
+- 目标价: 0.44（前高阻力）  
+- 止损价: 0.32（MA200下方）  
+
+**4. 风险提示**  
+- 最大风险点: 流动性匮乏导致价格闪崩；基本面无改善支撑长期上涨。  
+- 建议仓位: ≤5%（总资金比例），仅适合高风险偏好投资者。  
+
+---
+**结论概要**：短期技术面偏多，但基本面与流动性存隐患，建议轻仓博弈反弹，严格设置止损。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 7.5/10  
+   - 基本面评分: 3.0/10  
+   - 综合评分: 5.5/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中(50-70%)  
+   - 主要驱动因素：股价突破布林带上轨并站稳0.40，短期放量（2月11日864,000股）确认突破，多周期均线多头排列，MACD金叉且为正，技术形态类似“突破确认型”（参考TSM案例）。但RSI接近70，存在超买风险。
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现强势突破特征，量能配合关键上涨日，符合历史成功模式；但基本面极弱（ROE仅0.17%，利润率不足0.1%），仅适合短线博弈。  
+   - 买入价：≤0.40；目标价：0.48；止损价：0.34  
+
+4. 风险提示  
+   - 最大风险点：基本面严重支撑不足，低流动性（多日零成交）易导致价格操纵或闪崩；RSI逼近超买区，若无持续放量可能快速回调。  
+   - 建议仓位：不超过总资金的3%（高风险微型股，仅限短线投机）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：2266.HK（Lai Si Enterprise Holding）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 8/10  
+  - 短期趋势强劲（连续5日+12.7%），突破布林带上轨后站稳高位，MACD金叉延续，成交量配合突破放大（2月11日单日成交量864k，占20日均量134%）。  
+  - 风险点：RSI=69.99接近超买区，需警惕短期回调压力。  
+- **基本面评分**: 4/10  
+  - 低估值（PE=8.00）但盈利能力极弱（ROE=0.17%，利润率0.08%），营收增长仅0.36%，基本面支撑不足。  
+- **综合评分**: 6.5/10  
+  - 技术面短期占优，但基本面薄弱，需依赖趋势延续性。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 高（>70%）  
+- **主要驱动因素**:  
+  1. **技术突破**：突破布林带上轨后站稳0.40关口，成交量显著放大（2月11日单日864k）。  
+  2. **趋势惯性**：短期、中期、长期均呈上升趋势，MACD金叉延续。  
+  3. **关键支撑验证**：0.34支撑位多次测试后反弹，显示短期多头控盘。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  技术面突破明确，短期目标价0.48-0.50（布林带上轨+10%空间）。基本面虽弱，但低估值（PB=1.23）或吸引资金博弈反弹。  
+- **具体操作**:  
+  - **买入价**: 0.40（当前价）  
+  - **目标价**: 0.48（布林带上轨）、0.50（心理关口）  
+  - **止损价**: 0.38（低于现价5%，防范趋势反转）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面恶化**：营收与利润持续低迷可能拖累股价。  
+  2. **技术面回调**：RSI超买+量价背离（2月11日放量后连续缩量）或引发短期回调。  
+- **建议仓位**: 5%-8%（占总资金）  
+  - 技术面趋势虽强，但基本面风险较高，需严格止损。
+
+---
+
+### 总结  
+短期技术面信号占优，但需警惕基本面与量价背离风险。建议在0.40附近轻仓介入，止损严守0.38，目标价0.48-0.50。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 5/10  
+- 综合评分: 6/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI超买但未破位，MACD金叉且正值扩大，短期、中期、长期均呈上升趋势，但布林带显示价格接近上轨，需警惕回调风险。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面显示多头排列，MACD金叉且正值扩大，短期、中期、长期均呈上升趋势，但布林带显示价格接近上轨，需警惕回调风险。  
+- 具体价格:  
+  - 买入价: 0.40  
+  - 目标价: 0.48  
+  - 止损价: 0.30  
+
+**风险提示：**  
+- 最大风险点: RSI超买但未破位，MACD金叉且正值扩大，短期、中期、长期均呈上升趋势，但布林带显示价格接近上轨，需警惕回调风险。  
+- 建议仓位: 占总资金比例不超过20%
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - RSI 69.99接近超买但未达危险区，MACD金叉向上，价格突破布林带上轨
+  - 短期涨幅强劲（5日+12.7%），均线多头排列
+  - 但成交量在关键突破日（2月11日）放大后迅速萎缩，存疑
+
+- **基本面评分: 4/10**
+  - 市净率1.23相对合理，市盈率8倍偏低
+  - 但ROE仅0.17%，利润率0.08%极低，营收增长0.36%微弱
+  - 小市值1.6亿港元，流动性风险较高
+
+- **综合评分: 5.5/10**
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 技术面强势突破，短期资金推动；但基本面支撑不足，成交量配合度存疑
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 技术面呈现强势突破特征，RSI虽偏高但未超买，MACD金叉有效，价格突破布林带上轨显示短期动能强劲。基本面虽一般但估值相对合理。风险在于成交量配合度不足，需谨慎操作。
+- **具体参数:** 
+  - 买入价: 0.38-0.40港元
+  - 目标价: 0.44港元（第一阻力位）
+  - 止损价: 0.35港元
+
+### 4. 风险提示
+- **最大风险点:** 
+  - 基本面支撑薄弱，ROE和利润率极低
+  - 成交量在突破后迅速萎缩，上涨动能可持续性存疑
+  - 小市值股票流动性风险
+
+- **建议仓位:** 3-5%总资金比例，严格止损，分批建仓
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Jintai Energy Holdings Limited</h3>
+                    <span class="symbol">2728</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 40.0%"></div></div>
+                    <div class="score-text score-low">4.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
+                    <div class="score-text score-low">2.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Energy</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">1.20 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">49.2 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-10.0%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.jintaienergy.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (67%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-12">
+            <div class="ai-header" onclick="toggleAI('ai-12')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 67%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 50%)
+1. 综合评分  
+技术面评分: 4/10  
+基本面评分: 2/10  
+综合评分: 3/10  
+
+2. 短期走势判断  
+方向: 中性  
+置信度: 低(<50%)  
+主要驱动因素: ① RSI 50 无方向；② MACD 仍在零轴下方，动能未转正；③ 0.027 紧贴布林带上轨，但 ATR 仅 0.0016，波动空间极窄；④ 近 20 日多次“放量→无量”交替，疑似对倒出货；⑤ 长期 60 日趋势仍跌，缺乏基本面催化。
+
+3. 投资建议  
+建议: 卖出（强烈观望）  
+理由: 迷你市值仙股，基本面空白；短期急涨 12.5% 但量价背离，隔日即无量；上方 0.031-0.032 为历史套牢区，突破需持续放量，目前条件不足；向下 0.022 缺口未补，风险收益比极差。  
+（若执意短线博弈）  
+买入价: 0.027 下方仅 0.025（20 日线）  
+目标价: 0.031  
+止损价: 0.026（收盘跌破即出）
+
+4. 风险提示  
+最大风险点: 流动性枯竭，单日零成交常见，滑点可达 5-8%；大股东减持或供股突袭。  
+建议仓位: ≤1% 总资金，且须分三档挂单，避免一次性接盘。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 4/10  
+- 基本面评分: 3/10  
+- 综合评分: 3.5/10  
+
+**2. 短期走势判断**  
+- 方向: 中性  
+- 置信度: 中（50-70%）  
+- 主要驱动因素：  
+  - 技术面矛盾：股价位于布林带上轨附近，但均线系统（MA20≈MA50）粘合，RSI=50无方向信号，MACD接近零轴但未形成金叉/死叉，威廉指标超买但量能不足。  
+  - 量能异常：近期成交量极度不稳定（单日最高744万，最低为0），缺乏持续资金推动。  
+  - 市场环境：高波动期（VIX=20.4）抑制小盘股动能。  
+
+**3. 投资建议**  
+- 建议: **持有**（现有仓位）或 **观望**（新开仓位）  
+- 理由：  
+  该股处于弱势震荡格局，缺乏明确趋势信号。技术指标中性偏弱，基本面无显著亮点（市净率2.08偏高，营收增长仅1.11%）。虽短期涨幅12.5%，但量价配合不足，且长期趋势向下（-3.6%）。建议等待突破关键阻力0.031或跌破0.028后再决策。  
+- 操作计划（若持有）：  
+  - 买入价：不建议新开仓  
+  - 目标价：0.031（若放量突破）  
+  - 止损价：0.028  
+
+**4. 风险提示**  
+- 最大风险点：流动性风险（成交量骤降）、技术面假突破。  
+- 建议仓位：≤2%（若已持仓），新开仓建议0%。  
+
+> **总结**：该股暂未出现历史案例中的明确信号（如超卖反弹、趋势延续或突破确认），建议以观望为主，严格风控。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 6/10  
+   - 基本面评分: 3/10（缺乏关键财务数据，营收增长微弱，市值极小，流动性风险高）  
+   - 综合评分: 5/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中（50-70%）  
+   - 主要驱动因素：短期与中期价格均上涨12.5%，当前价接近布林带上轨，MACD已金叉（虽微弱），且近期多次在0.03港元获得支撑，显示短期买盘活跃。但量能不稳定，部分交易日零成交，削弱信号可靠性。
+
+3. 投资建议（必填）  
+   - 建议: 买入（谨慎）  
+   - 理由：技术面呈现弱多头结构，符合“突破确认型”部分特征（价格站上MA20/MA50、布林带上轨附近），但缺乏基本面支撑与持续放量。仅适合短线博弈反弹。  
+   - 买入价：≤0.028港元；目标价：0.035港元；止损价：0.024港元  
+
+4. 风险提示  
+   - 最大风险点：极低流动性（多日零成交或成交量骤降）、基本面信息缺失、股价波动剧烈易受操纵，且长期趋势仍为下跌（60日-3.6%）。  
+   - 建议仓位：不超过总资金的2%（高风险微型股，仅限投机性配置）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 6/10  
+  - 短期技术指标（RSI中性、布林带收窄）显示方向模糊，MACD负向背离暗示潜在回调风险，但价格突破布林带上轨后形成短期支撑。  
+- **基本面评分**: 4/10  
+  - 缺乏市盈率、ROE等关键数据，市净率2.08高于行业平均水平，营收仅微增1.11%，基本面支撑较弱。  
+- **综合评分**: 5.5/10  
+  - 技术面与基本面均无显著优势，需依赖短期市场情绪驱动。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨（中性偏多）  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **技术突破**: 股价多次突破0.03阻力位后形成短期支撑，成交量放大（如2026-01-26的612万手）显示资金关注。  
+  2. **市场情绪**: VIX指数20.4反映市场整体谨慎，但能源板块近期波动可能吸引短线交易者。  
+  3. **关键价位**: 0.03阻力位若被突破，可能触发技术性追涨行情。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  - 短期技术面显示价格在0.03附近形成支撑，MACD负向背离后若金叉形成，可能开启反弹。  
+  - 能源板块近期受地缘风险扰动，存在事件驱动机会。  
+- **具体操作**:  
+  - **买入价**: 0.025（接近MA50支撑位）  
+  - **目标价**: 0.03（阻力位突破后看高至0.035）  
+  - **止损价**: 0.02（60日最低价，防范趋势反转）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面薄弱**: 缺乏盈利数据，市净率偏高，业绩不达预期可能引发抛压。  
+  2. **市场情绪波动**: VIX指数高位，若全球风险资产回调，港股能源板块或受拖累。  
+  3. **量能萎缩**: 近期多日成交量低于平均水平（如2026-01-23仅9.6万手），缺乏持续上涨动能。  
+- **建议仓位**: ≤10%（占总资金）  
+  - 技术面与基本面均未形成强支撑，需严格控制风险敞口。
+
+---
+
+### 总结  
+短期关注0.03阻力位突破情况，若站稳可轻仓参与反弹，但需警惕基本面薄弱与量能不足的风险。建议结合市场情绪动态调整仓位，止损严格设定在0.02。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 6/10  
+- 基本面评分: 4/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: 短期和中期呈上升趋势，RSI处于中性偏强区域(50)，MACD接近金叉，布林带显示价格在中轨附近震荡，成交量在关键价位有所放大。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 短期趋势向上，价格在布林带中轨附近获得支撑，RSI未超买，MACD即将形成金叉，具备反弹潜力。但需警惕长期趋势向下及高波动市场环境。  
+- 具体价格：  
+  - 买入价: 0.027  
+  - 目标价: 0.035  
+  - 止损价: 0.023  
+
+**风险提示：**  
+- 最大风险点: 长期趋势向下，市场波动加剧，若跌破0.02支撑位可能加速下跌。  
+- 建议仓位: 占总资金比例不超过15%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 6/10**
+- **基本面评分: 3/10** 
+- **综合评分: 4/10**
+
+### 2. 短期走势判断
+- **方向: 中性偏看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 短期技术指标显示上升趋势，但基本面缺乏支撑，长期趋势向下存隐患
+
+### 3. 投资建议
+- **建议: 持有**
+- **理由:** 技术面显示短期上升趋势，RSI中性，MACD金叉，但基本面薄弱（PE/N/A，营收增长仅1.11%），长期趋势向下。当前价格0.027接近阻力位0.0278，上涨空间有限，风险收益比不佳。
+- **价格区间:** 买入价0.025，目标价0.032，止损价0.022
+
+### 4. 风险提示
+- **最大风险点:** 基本面支撑不足，长期趋势向下，可能面临基本面回归风险
+- **建议仓位:** 5-10%（轻仓参与，严格止损）
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Almana Limited</h3>
+                    <span class="symbol">8186</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 80.0%"></div></div>
+                    <div class="score-text score-high">8.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
+                    <div class="score-text score-low">2.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Basic Materi</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">2.13 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">30.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">187.00</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+206.6%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.mfpy.com.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-13">
+            <div class="ai-header" onclick="toggleAI('ai-13')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (5 个模型投票)
+
+分析成功率: 83% (5/6 个模型)
+失败模型: qwen3-coder-plus
+
+投票分布:
+- 看涨: 5 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 8/10  
+基本面评分: 2/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素：  
+- 价格已站上布林上轨并突破前高，短期均线呈多头发散；  
+- RSI 58 未超买，仍有上行空间；  
+- 近三日缩量整理后再度放量上攻，量价配合符合“趋势延续型”特征；  
+- Beta 3.57 放大波动，若大盘情绪转暖，资金易继续追逐高弹性小盘股。  
+
+3. 投资建议  
+建议: 买入  
+理由：技术面强势突破，量价结构类似案例2/4，短线动能充足；基本面虽差，但短期交易主导，可博弈惯性冲高。  
+买入价: 1.85±0.02 HKD  
+目标价: 2.20 HKD（+19%）  
+止损价: 1.50 HKD（-19%）  
+
+4. 风险提示  
+最大风险点：极高估值+微利基本面，一旦情绪退潮易出现闪崩；港股通外的小市值股流动性脆弱，滑点大。  
+建议仓位: ≤5% 总资金，务必设硬止损，不可补仓。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 8/10  
+- 基本面评分: 2/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面呈现强势突破：股价突破布林带上轨，均线多头排列（MA20>MA50>MA200），短期涨幅显著（60日+293.7%）。  
+  - 成交量近期放大（如1月27-29日均超200万），量价配合良好。  
+  - RSI（58.6）处于健康看涨区间，威廉指标（-23.6）显示短期超买但动能强劲。  
+
+**3. 投资建议**  
+- 建议: **买入**（仅限短线交易）  
+- 理由：  
+  技术面多重信号支持短期上升趋势延续，符合历史案例中的“突破确认型”特征（布林带突破+放量+RSI走强）。但基本面极弱（市盈率187倍、ROE仅0.07%），且Beta高达3.57，波动风险突出。建议严格遵循技术信号操作，快进快出。  
+- 买入价：当前价1.87或回调至1.71（支撑位）  
+- 目标价：2.20（接近前高阻力）  
+- 止损价：1.60（跌破关键支撑）  
+
+**4. 风险提示**  
+- 最大风险点：  
+  - 基本面无法支撑高估值，长期持有风险极大；  
+  - 流动性不足（部分交易日成交量归零），可能加剧价格波动。  
+- 建议仓位：不超过总资金的3%（高风险品种需严格控制仓位）。  
+
+---  
+**总结**：此股为纯技术面驱动交易机会，需忽略基本面，紧盯止损与目标位，适用于高风险偏好投资者。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 8.5/10  
+   - 基本面评分: 2.0/10  
+   - 综合评分: 5.5/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中(50-70%)  
+   - 主要驱动因素：股价强势突破布林带上轨，远高于所有均线，多时间框架均呈显著上涨；近期放量拉升（1月27–28日）显示资金介入，当前RSI处于健康区间（58.6），未超买，MACD虽略低于信号线但整体动能仍强。  
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现典型“突破确认型”特征（参考TSM案例），量价配合良好，短期趋势强劲。但基本面极弱（高PE、低ROE、微利），仅适合短线交易，不宜长期持有。  
+   - 买入价：≤1.85；目标价：2.10；止损价：1.65  
+
+4. 风险提示  
+   - 最大风险点：基本面严重背离技术走势，市盈率高达187倍、利润率仅0.05%，存在估值泡沫；高Beta（3.57）放大波动，若市场情绪转冷或成交量无法维持，可能快速回调。  
+   - 建议仓位：≤5%总资金（高风险投机仓位）
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 58.62 处于中性偏强区域，MACD 金叉信号，布林带开口向上，成交量稳定，但基本面估值偏高，Beta 较大。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面呈现上升趋势，多时间框架均向好，但需警惕高估值和波动风险。  
+- 具体价格: 买入价 1.75，目标价 2.00，止损价 1.60。  
+
+**风险提示：**  
+- 最大风险点: 市盈率 187.00 过高，Beta 3.57 显示高波动性，可能受市场情绪影响大幅回调。  
+- 建议仓位: 占总资金 5%-8%。
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：Almana Limited（8186.HK）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分：8/10**  
+  短期趋势强劲（5日+10.7%），价格突破布林带上轨，MACD维持正向差值，成交量放大至历史高位（单日最高6.26M）。但RSI（58）接近超买区，需警惕短期回调风险。
+- **基本面评分：2/10**  
+  市盈率（187）、市净率（9.08）均远高于行业均值，ROE（0.07%）和利润率（0.05%）极低，营收增长仅0.24%，显示基本面与股价严重背离。
+- **综合评分：5/10**  
+  技术面短期占优，但基本面风险极高，需依赖市场情绪短期推动。
+
+---
+
+#### **2. 短期走势判断**
+- **方向：看涨**  
+- **置信度：中（60%）**  
+- **主要驱动因素**：  
+  1. **技术面超买后的惯性**：价格突破布林带上轨（1.87），短期动能可能延续至阻力位（2.00）。  
+  2. **成交量异常波动**：1月22日-28日单日成交量超6M，释放市场关注度。  
+  3. **市场情绪高波动**：VIX指数20.4反映风险偏好，但需警惕突发利空。
+
+---
+
+#### **3. 投资建议**
+- **建议：买入**  
+- **理由**：  
+  短期技术面强势（突破布林带、MACD金叉），且1.87为关键阻力位，若突破可能触发跟风买盘。基本面虽差，但若市场情绪持续亢奋，股价或借势冲高。  
+- **具体操作**：  
+  - **买入价**：1.70-1.75（接近当前价，规避止损风险）。  
+  - **目标价**：2.20（突破2.00后前高压力区）。  
+  - **止损价**：1.70（与买入区间下沿持平，保留安全边际）。
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**：  
+  基本面持续恶化（营收、利润、ROE均为极低值），若技术面突破失败，可能引发资金快速撤离。  
+- **建议仓位**：  
+  不超过总资金5%，因基本面风险极高且行业波动性大（Beta=3.57）。
+
+---
+
+### 总结  
+短期技术面信号占优，但需密切关注成交量能否持续放大及基本面是否改善。建议快进快出，严格止损。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Winto Group (Holdings) Limited</h3>
+                    <span class="symbol">8238</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
+                    <div class="score-text score-low">2.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Communicatio</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">0.25 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">105.1 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-25.7%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.wintogroup.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-14">
+            <div class="ai-header" onclick="toggleAI('ai-14')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 2/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中(55%)  
+主要驱动因素: 价格已站上全部均线且突破布林上轨，MACD金叉、RSI 65未超买，量价同步放大，符合“突破确认+趋势延续”双模板；但市值极小、Beta 1.7，VIX 20.4环境下易剧烈波动，限制置信度。
+
+3. 投资建议  
+建议: 买入  
+理由: 微型壳股纯技术博弈，当前动量强劲，历史案例显示类似“放量突破上轨+RSI 60-65”组合3周内平均涨幅+15%~+20%，可小仓位跟随，快进快出。  
+买入价: 0.255 HKD 附近（盘中回踩不破上轨）  
+目标价: 0.30 HKD（前高密集区，风险收益比 1:2.3）  
+止损价: 0.21 HKD（跌破MA20即离场）
+
+4. 风险提示  
+最大风险点: 基本面真空+流通量极低，单日无量闪崩可达-20%；VIX若升至25以上，微型股流动性瞬间蒸发。  
+建议仓位: ≤3%总资金，单日内分两次进场，严禁补仓。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面呈现突破形态：股价突破布林带上轨（0.252）并站上所有关键均线（MA20/50/200），MACD金叉且柱状线扩大，RSI（65）偏强但未超买，符合“突破确认型”案例特征。  
+  - 量价配合：近期成交量显著放大（如1月21日154万），支撑短期动能。  
+  - 市场情绪与波动限制涨幅：VIX高位（20.4）及高Beta（1.70）预示波动风险，基本面疲软（低营收增长、无盈利指标）制约长期空间。  
+
+**3. 投资建议**  
+- 建议: **买入**（短期交易）  
+- 理由：技术突破信号明确（布林带上轨突破+均线多头排列），短期动能延续概率较高，但基本面薄弱且流动性差（部分日期零成交量），需严格风控。目标价0.30对应15%涨幅，止损价0.22控制下行风险。  
+- 买入价：当前价附近（0.25-0.26）  
+- 目标价：0.30  
+- 止损价：0.22  
+
+**4. 风险提示**  
+- 最大风险点：基本面缺乏支撑（无PE/PB/ROE）、流动性不足可能导致价格闪崩，高Beta放大市场波动影响。  
+- 建议仓位：极轻仓（≤总资金2%），仅适合高风险偏好短线交易者。  
+
+---  
+**总结**：短期技术面占主导，突破信号与历史成功案例（TSM、NVDA）相似，但需警惕基本面空洞和流动性风险，严控仓位与止损。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 8/10  
+   - 基本面评分: 3/10（缺乏关键财务数据，营收增长微弱，估值指标不可用）  
+   - 综合评分: 6/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中（约65%）  
+   - 主要驱动因素：股价突破布林带上轨（0.26 > 0.252），多时间框架均线呈多头排列（MA20 > MA50 > MA200），MACD金叉且转正，RSI处于强势区（65）但未超买，符合“突破确认型”与“趋势延续型”特征。  
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现强势突破，量能配合尚可（2月16日放量至0需核实，但前期有显著放量），符合历史成功模式。基本面虽弱，但短期交易以技术为主。  
+   - 买入价：≤0.26；目标价：0.28；止损价：0.22  
+
+4. 风险提示  
+   - 最大风险点：流动性极低（多日成交量为0或极小），易受操纵或闪崩；基本面信息缺失，存在潜在财务风险；Beta高达1.7，市场波动放大个股风险。  
+   - 建议仓位：≤3%（因高波动、低流动性，仅限短线轻仓参与）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：Winto Group (8238.HK)
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 8/10  
+  - 趋势强度：短期、中期、长期均呈上升趋势，布林带收窄后突破上轨，MACD持续走强，成交量配合。  
+  - 关键信号：RSI（65）略超买但未过度偏离，威廉指标中性，突破后动能延续概率较高。  
+  - 风险点：MACD柱状线缩窄，短期超买可能引发回调。  
+
+- **基本面评分**: 4/10  
+  - 缺乏市盈率、ROE等关键数据，营收仅微增0.54%，市值较小（2541万美元），流动性风险较高。  
+  - 行业属性（广告代理）在低利率环境下或受益于消费复苏，但缺乏具体业务数据支撑。  
+
+- **综合评分**: 6.5/10  
+  - 技术面强势但基本面薄弱，需警惕小市值股波动风险。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 高（>70%）  
+- **主要驱动因素**:  
+  1. **技术面突破**：价格突破布林带上轨，成交量放大至历史高位，MACD金叉延续。  
+  2. **趋势惯性**：短期、中期、长期均呈上升趋势，RSI回调后可能再次反弹。  
+  3. **市场情绪**：高波动环境下，资金可能追逐突破股。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  技术面显示突破有效，短期目标价0.28（布林带上轨）、0.30（斐波那契扩展）。基本面虽弱，但行业周期性复苏或提供支撑。  
+- **具体操作**:  
+  - **买入价**: 0.26（当前价）  
+  - **目标价**: 0.28（第一目标）、0.30（第二目标）  
+  - **止损价**: 0.24（跌破则趋势反转风险显著）。
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面不确定性**：缺乏财务数据支撑，小市值股易受市场情绪波动影响。  
+  2. **超买风险**：RSI（65）接近超买区，若成交量无法持续放大，可能引发回调。  
+  3. **流动性风险**：平均成交量较低（990万），大额抛售可能导致价格剧烈波动。  
+
+- **建议仓位**: 占总资金5%-8%  
+  - 技术面强势但基本面薄弱，需严格止损并控制仓位。
+
+---
+
+### 总结  
+短期技术面信号明确，建议在0.26买入，目标价0.30，止损0.24。需密切关注成交量变化及基本面动态，小仓位参与。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 6/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 65.05 显示超买但未严重背离，MACD 金叉信号弱，布林带开口向上，短期、中期、长期均呈上升趋势，但缺乏强劲动能支撑。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 股价处于上升趋势，布林带开口向上，但需警惕超买风险。  
+- 具体价格:  
+  - 买入价: 0.26  
+  - 目标价: 0.30  
+  - 止损价: 0.21  
+
+**风险提示：**  
+- 最大风险点: RSI 超买可能导致回调，成交量萎缩影响上涨动能。  
+- 建议仓位: 占总资金比例 10-15%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - RSI 65.05处于强势区间但接近超买
+  - MACD金叉且柱状线放大，显示上涨动能
+  - 价格突破布林带上轨，短期涨幅显著(15.6%)
+- **基本面评分: 3/10** 
+  - 市盈率、PEG、ROE等关键指标缺失
+  - 营收增长仅0.54%，基本面薄弱
+  - 市值仅2541万港元，属于小盘股
+- **综合评分: 5/10**
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 技术面强势突破，成交量配合，短期多头排列
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 技术面呈现强势突破特征，RSI虽偏高但仍在可操作区间，MACD金叉确认上涨动能，价格突破布林带上轨显示短期强势。但需注意基本面薄弱和高Beta值(1.70)带来的波动风险。
+- **具体操作:** 
+  - 买入价: 0.25-0.26港元
+  - 目标价: 0.32港元
+  - 止损价: 0.21港元
+
+### 4. 风险提示
+- **最大风险点:** 基本面支撑不足，高Beta值(1.70)意味着波动性远超大盘，一旦市场情绪转向可能面临大幅回调
+- **建议仓位:** 2-3%总资金比例，严格控制风险敞口
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Zhongshi Minan Holdings Limited</h3>
+                    <span class="symbol">8283</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 80.0%"></div></div>
+                    <div class="score-text score-high">8.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Consumer Cyc</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">2.21 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">220.8 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">3.76</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-74.9%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value">N/A</span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (73%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-15">
+            <div class="ai-header" onclick="toggleAI('ai-15')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 73%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 8/10  
+基本面评分: 3/10  
+综合评分: 6/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素：  
+- 价格已放量突破布林上轨与所有均线，短期动能强劲；  
+- RSI 64.7 仍处强势区，MACD 红柱放大，未见顶背离；  
+- 但 0.64 已贴近第一阻力 0.69，且 2 月 12-13 日巨量后 16 日缩量涨停，追价资金放缓。  
+
+3. 投资建议  
+建议: 买入（快进快出）  
+理由：微型市值+低估值提供炒作借口，技术形态符合“突破确认”模板，短线仍有 8-12% 惯性上冲空间；但基本面薄弱，只能以高波动投机对待。  
+买入价：0.63-0.64 区间回踩不破 0.60 时低吸  
+目标价：0.69（1 档）/0.75（终极）  
+止损价：0.58（跌破 20MA 即离场）  
+
+4. 风险提示  
+最大风险点：  
+- 港股整体高波动，VIX 20+，小盘股流动性瞬间枯竭；  
+- 公司利润率仅 0.06%，无增长故事，一旦情绪退潮易 A 字杀。  
+建议仓位：≤5% 总资金，单日内务必设硬止损，不补仓。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分（必填）  
+   - 技术面评分: 8.5/10  
+   - 基本面评分: 3.0/10  
+   - 综合评分: 6.0/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 高(>70%)  
+   - 主要驱动因素：股价强势突破布林带上轨（0.64 > 0.594），短期/中期/长期均线多头排列，MACD金叉且为正，RSI=64.7处于强势区但未超买，配合近期23.1%的5日涨幅及2月12–13日显著放量（合计超330万股 vs 20日均量20万），显示突破获量能确认，符合“突破确认型”成功模式（参考TSM案例）。
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现典型有效突破特征，量价配合良好，趋势强度高；但基本面极弱（ROE仅0.13%、利润率0.06%、市净率0.51），仅适合短期博弈。  
+   - 买入价：≤0.64（当前价）；目标价：0.75；止损价：0.53  
+
+4. 风险提示  
+   - 最大风险点：基本面极度疲软，缺乏持续盈利支撑，若市场情绪转冷或大盘回调，易快速回吐涨幅；此外，2月16日成交量为0，流动性存疑。  
+   - 建议仓位：≤3%（因属高波动小盘股，仅限短线轻仓参与）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 8/10  
+  - 趋势明确：短期、中期、长期均呈上升趋势，突破布林带上轨后加速上行。  
+  - 量价配合：近期成交量显著放大（2月12日单日1.78亿股），突破平台后动能充足。  
+  - 指标共振：RSI中性偏强（64），MACD金叉持续，威廉指标未超卖。  
+- **基本面评分**: 4/10  
+  - 估值极低：市盈率3.76、市净率0.51，ROE仅0.13%，反映公司盈利能力极弱。  
+  - 风险提示：营收增长、利润率等关键指标缺失，需警惕基本面与股价背离风险。  
+- **综合评分**: 7/10  
+  - 技术面强势但基本面支撑不足，需警惕市场情绪反转风险。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 高（>70%）  
+- **主要驱动因素**:  
+  1. **技术突破**：价格突破布林带上轨（0.64 vs 上轨0.59），成交量激增，突破有效。  
+  2. **均线支撑**：短期均线（MA20=0.52）形成强支撑，与长期趋势线共振。  
+  3. **市场情绪**：高波动环境下，资金更倾向追逐突破性机会，短期惯性上冲概率高。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  技术面显示突破有效，短期目标价0.75（+17%空间），支撑位0.52提供安全边际。基本面虽弱，但极端低估值可能吸引抄底资金。  
+- **具体操作**:  
+  - **买入价**: 0.64（当前价）  
+  - **目标价**: 0.75（布林带上轨延伸）  
+  - **止损价**: 0.62（跌破则趋势动能衰竭）
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面恶化**：若财报显示盈利持续为负，估值逻辑可能崩塌。  
+  2. **市场情绪逆转**：高波动环境下，若成交量无法持续放大，可能引发回调。  
+- **建议仓位**: 5%-8%（占总资金）  
+  - 低风险偏好者可控制在5%以下，高风险偏好者不超过10%。
+
+---
+
+### 总结  
+技术面强势突破提供短期交易机会，但需严格止损并控制仓位。基本面风险需持续跟踪，建议结合财报进一步验证。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 4/10  
+- 综合评分: 5.5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 64.7 接近超买但未破位，MACD金叉信号，价格突破布林带中轨，中期趋势向上但成交量偏弱。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面呈现积极信号，价格站上关键阻力区域，但需警惕RSI超买风险。  
+- 买入价: 0.64（当前价）  
+- 目标价: 0.75  
+- 止损价: 0.58  
+
+**风险提示：**  
+- 最大风险点: RSI接近超买区，若成交量无法持续放大，可能面临回调风险。  
+- 建议仓位: 占总资金15-20%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7.5/10**
+  - 强劲上升趋势（多时间框架均上涨30%+），MACD金叉向上，但RSI 64.7接近超买区域
+- **基本面评分: 4/10** 
+  - 市净率0.51偏低有安全边际，但ROE仅0.13%，利润率0.06%，基本面较弱
+- **综合评分: 5.8/10**
+  - 技术面强势但基本面偏弱，存在背离风险
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 技术面强势突破，成交量放大支撑上涨，但基本面支撑不足
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 技术面呈现强劲上升趋势，多时间框架均显示上涨动能，布林带突破上轨，MACD金叉向上。虽RSI偏高但未达超买，短期仍有上涨空间。基本面虽弱但估值较低提供安全边际。
+- **具体参数:** 
+  - 买入价: 0.64
+  - 目标价: 0.69
+  - 止损价: 0.58
+
+### 4. 风险提示
+- **最大风险点:** RSI已升至64.7，接近超买区域，可能出现技术性回调；基本面ROE仅0.13%缺乏长期支撑
+- **建议仓位:** 5-8%（轻仓参与，控制风险）
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7.5/10  
+- 基本面评分: 4/10  
+- 综合评分: 6/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面强势突破：股价突破布林带上轨并站上所有均线，MACD金叉确认短期动能。  
+  - 量价异动：2月12-13日出现巨量成交（日均168万股），远超20日均量（20.3万股），资金介入明显。  
+  - 超跌反弹需求：中期涨幅40.7%反映情绪修复，低估值（PB=0.51）提供安全边际。  
+
+**3. 投资建议**  
+- 建议: **买入**  
+- 理由：  
+  技术面呈现“突破确认型”特征，类比历史案例TSM，布林带突破配合放量及RSI走强（64.7未超买），短期趋势明确。基本面虽弱（低ROE、利润率），但低市净率及低Beta（0.42）削弱下行风险。目标价0.75对应17%上涨空间，止损价0.52控制回撤。  
+- 具体操作：  
+  - 买入价：现价0.64或回调至0.60  
+  - 目标价：0.75  
+  - 止损价：0.52  
+
+**4. 风险提示**  
+- 最大风险点：  
+  基本面疲软（ROE仅0.13%），盈利支撑不足，若突破后量能无法持续，可能快速回踩支撑。  
+- 建议仓位：  
+  总资金3%-5%（低市值港股流动性风险需控制仓位）。  
+
+**结论**：技术突破主导短期机会，建议轻仓参与，严格止损。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Asia-express Logistics Holdings Limited</h3>
+                    <span class="symbol">8620</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 20.0%"></div></div>
+                    <div class="score-text score-low">2.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 40.0%"></div></div>
+                    <div class="score-text score-low">4.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Industrials</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">0.79 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">10209.0 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+48.0%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.asia-expresslogs.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (62%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-16">
+            <div class="ai-header" onclick="toggleAI('ai-16')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 62%
+模型一致率: 80% (5 个模型投票)
+
+分析成功率: 83% (5/6 个模型)
+失败模型: tstars2.0
+
+投票分布:
+- 看涨: 4 票
+- 看跌: 1 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看跌 (置信度: 70%)
+1. 综合评分  
+技术面评分: 6/10  
+基本面评分: 2/10  
+综合评分: 4/10  
+
+2. 短期走势判断  
+方向: 看跌  
+置信度: 中(55%)  
+主要驱动因素: RSI 77.5+威廉指标-14.5双超买；0.149 已高出布林上轨 18%，且 2-16 巨量 102M 后两日未续攻，出现“放量滞涨”雏形；历史案例 3 显示同类组合 2 周平均回调 15%。
+
+3. 投资建议  
+建议: 卖出（持仓者止盈，空仓者观望）  
+理由: 微型市值(<8 亿港元)缺乏基本面承接，纯资金博弈；超买+量价背离+高波动市况，风险收益比恶化。  
+如仍执意短线博弈，需等待 0.135 附近回踩且 RSI<55 再考虑，目标 0.16，止损 0.128。
+
+4. 风险提示  
+最大风险点: 流动性骤减，巨量后一旦买盘撤单可单日回撤 20%+。  
+建议仓位: ≤3% 总资金，且须设硬止损。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 技术面强势突破：股价突破布林带上轨，MACD金叉向上，均线呈多头排列（MA20>MA50>MA200），短期涨幅超50%。  
+  - 量能激增：2月16日成交量放大至1.02亿股（为20日均量18倍），确认资金介入。  
+  - 超买风险：RSI达77.5，威廉指标-14.5，显示短期过热，需警惕回调。  
+
+**3. 投资建议**  
+- 建议: **买入**（仅限短线交易）  
+- 理由：  
+  技术面呈现突破形态，量价配合良好，短期动能充沛。但基本面支撑薄弱（市值小、市盈率无效、行业竞争激烈），且RSI超买暗示追高风险。建议严格止损，博弈短期趋势延续至目标位。  
+- 买入价: ≤0.145（现价0.149，等待小幅回调）  
+- 目标价: 0.18（阻力位，涨幅≈21%）  
+- 止损价: 0.13（跌破支撑位则趋势转弱）  
+
+**4. 风险提示**  
+- 最大风险点：  
+  - 高波动性：单日涨幅53.6%后获利盘抛压可能引发快速回调。  
+  - 流动性风险：平日成交量极低（多数日期<100万股），大资金难以退出。  
+- 建议仓位：≤3%（总资金），仅适合高风险偏好投资者。  
+
+**总结**：技术突破与量能支撑短期上涨，但超买信号与基本面弱势限制空间，需严格风控。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分  
+   - 技术面评分: 4/10  
+   - 基本面评分: 2/10（关键指标缺失，市值极小，缺乏盈利数据）  
+   - 综合评分: 3/10  
+
+2. 短期走势判断  
+   - 方向: 看跌  
+   - 置信度: 高（>70%）  
+   - 主要驱动因素：RSI高达77.5（严重超买），股价远超布林带上轨（0.149 vs 上轨0.126），出现典型“价格-指标顶背离”风险；2月16日单日放巨量（1.02亿股，超20日均量18倍）拉升至0.15，但此前长期无成交，疑似对倒或短期炒作，缺乏持续买盘支撑。
+
+3. 投资建议  
+   - 建议: 强烈卖出 / 规避  
+   - 理由：技术面呈现极端超买与量价异常，符合历史“风险警示型”案例（如XYZ）特征；基本面信息缺失、市值不足8000万港元，流动性风险高，易被操纵。  
+   - （不适用买入）
+
+4. 风险提示  
+   - 最大风险点：股价已严重脱离技术轨道，存在快速回调至布林带中轨（约0.102）甚至支撑位0.10的可能；低流动性叠加高波动，易出现闪崩。  
+   - 建议仓位：0%（不建议持有或建仓）
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 90%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 5/10  
+- 综合评分: 6/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 高(>70%)  
+- 主要驱动因素: RSI超买(77.5)显示强势，MACD金叉，价格突破布林带上轨，20日均量放大至1020万，短期、中期、长期均呈上升趋势。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面强势，多头排列，突破关键阻力位，但需警惕超买回调风险。  
+- 买入价: 0.15  
+- 目标价: 0.18  
+- 止损价: 0.13  
+
+**风险提示：**  
+- 最大风险点: RSI超买(77.5)可能引发技术性回调，成交量萎缩风险。  
+- 建议仓位: 占总资金15-20%。
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 7/10**
+  - RSI超买(77.5)显示短期强势，但存在回调风险
+  - MACD金叉，多头排列，趋势向好
+  - 价格突破布林带上轨，短期涨幅巨大(53.6%)
+- **基本面评分: 3/10** 
+  - 市盈率N/A，基本面信息缺失
+  - 市值仅7867万，属于小盘股，风险较高
+  - Beta=0.58，波动性相对较低
+- **综合评分: 5/10**
+
+### 2. 短期走势判断
+- **方向: 看跌**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** RSI严重超买(77.5)，威廉指标-14.5%，技术性回调压力大；股价从0.10跃升至0.149，涨幅过快；基本面支撑不足
+
+### 3. 投资建议
+- **建议: 卖出**
+- **理由:** 股价短期暴涨53.6%，RSI高达77.5严重超买，威廉指标显示极度超买状态。技术面存在强烈回调信号，且基本面信息缺失，小市值股票风险较高。当前价格已远超合理估值区间。
+- **操作参数:** 无买入建议，当前价格0.149建议减仓，若持有则止损价0.12
+
+### 4. 风险提示
+- **最大风险点:** 技术性回调风险，可能回撤至0.10-0.12区间
+- **建议仓位:** 0%，不建议建仓，现有仓位建议部分或全部减仓
+
+**特别提醒:** 该股短期涨幅过大，技术指标严重超买，建议谨慎操作，避免追高。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>China Hongguang Holdings Limited</h3>
+                    <span class="symbol">8646</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">信号评分器</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Industrials</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">1.56 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">19.8 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">2.20</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-26.7%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.hongguang.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-17">
+            <div class="ai-header" onclick="toggleAI('ai-17')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 3/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素: ① 价破布林上轨且5/20日双升，动能延续；② MACD金叉、RSI 65未超买，仍有上行空间；③ 2-13单日放量10倍突破0.20平台，筹码激活；④ 长期仍处下降通道，VIX高波动，压制置信度。
+
+3. 投资建议  
+建议: 买入  
+理由: 微型市值+超低估值（PB 0.24、PE 2.2）提供下跌缓冲，技术面刚放量突破，可博弈惯性冲高。  
+买入价: 0.215 HKD（回踩5日MA或开盘-2%）  
+目标价: 0.25 HKD（前高+ATR一倍）  
+止损价: 0.19 HKD（平台下破，-12%严格离场）
+
+4. 风险提示  
+最大风险点: 流动性骤减（多日零成交）、基本面薄弱、高Beta放大波动。  
+建议仓位: ≤5%总资金，单票亏损上限1.5%。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 6/10  
+- 基本面评分: 3/10  
+- 综合评分: 4.5/10  
+
+**2. 短期走势判断**  
+- 方向: 看涨  
+- 置信度: 中（50-70%）  
+- 主要驱动因素：  
+  - 技术面短期突破：股价突破布林带上轨（0.22 > 0.218），站上MA20/MA50，RSI（65.7）接近超买区但未极端，显示短期动能偏强。  
+  - 量能配合：2月13日成交量骤增（507万 vs 20日均量52万），支撑突破有效性。  
+  - 长期基本面拖累：低ROE（0.12%）、利润率（0.18%）及长期下降趋势（60日-9.8%）限制上行空间。  
+
+**3. 投资建议**  
+- 建议: **买入**（短期交易机会）  
+- 理由：  
+  技术面短期突破布林带上轨且放量，RSI未超买，符合“突破确认型”案例特征。但基本面疲软（低盈利、低ROE）及长期下行趋势表明上涨可持续性存疑，需严格止损。建议捕捉短期动能，目标阻力位0.26。  
+- 买入价: 当前价0.22（或回调至0.20支撑）  
+- 目标价: 0.26（+18%）  
+- 止损价: 0.17（破位即离场）  
+
+**4. 风险提示**  
+- 最大风险点：基本面缺乏支撑（极低ROE、利润率），若量能无法持续，突破可能失效；VIX指数偏高预示市场波动加剧。  
+- 建议仓位：≤5%（高风险品种，低仓位参与）  
+
+**总结**：短期技术突破提供交易机会，但需警惕基本面疲软及市场高波动风险，严格风控。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分（必填）  
+   - 技术面评分: 7/10  
+   - 基本面评分: 2/10  
+   - 综合评分: 4.5/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看涨  
+   - 置信度: 中(50-70%)  
+   - 主要驱动因素：价格突破布林带上轨（0.2179），当前价0.22；MACD金叉（0.0028 > -0.0007）；短期+14%、中期+20.9%涨幅显示动能强劲；2月13日放巨量（507万 vs 20日均量52万）确认突破。
+
+3. 投资建议（必填）  
+   - 建议: 买入  
+   - 理由：技术面呈现“突破确认型”特征（类比TSM案例），放量突破+RSI走强+MACD金叉，但基本面极弱（ROE仅0.12%、利润率0.18%、市净率0.24），仅适合短线博弈。  
+   - 买入价：≤0.22；目标价：0.26；止损价：0.19  
+
+4. 风险提示  
+   - 最大风险点：基本面严重恶化（低ROE、微利）、长期趋势仍下行（MA200=0.2415 > 当前价）、港股小盘股流动性风险（多日零成交）。  
+   - 建议仓位：≤3%总资金
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 7/10  
+  - 短期趋势偏强（5日+14%，布林带收窄后突破），MACD金叉雏形，成交量放大至历史高位（2月11日5.07M手）。  
+  - 风险点：RSI超买（65.71）、布林带收窄后突破需确认，MA200压制（0.24）。  
+- **基本面评分**: 4/10  
+  - 低估值（市净率0.24，市盈率2.2），但ROE仅0.12%，营收增长缺失，盈利能力极弱。  
+- **综合评分**: 6/10  
+  - 技术面短期占优，但基本面支撑不足，市场情绪谨慎（VIX 20.4），需警惕流动性风险。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **技术突破**：2月13日放量突破布林带上轨（0.22），成交量达5.07M手，为20日均量的9倍。  
+  2. **均线修复**：短期均线（MA20/MA50）上穿长期均线（MA200），形成短期多头排列。  
+  3. **市场情绪**：高波动环境下，资金可能追逐超跌反弹。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  技术面显示短期突破有效，成交量激增释放做多信号，目标价0.24（MA200）。基本面低估值提供安全边际，但需警惕盈利持续性风险。  
+- **具体操作**:  
+  - **买入价**: 0.22（当前价）  
+  - **目标价**: 0.24（MA200）  
+  - **止损价**: 0.19（MA50支撑位下方1%）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面恶化**：营收与利润持续为负，市净率过低可能反映市场分歧。  
+  2. **技术回调**：若无法站稳0.22，可能回踩布林带中轨（0.20）。  
+  3. **市场波动**：VIX指数20.4显示风险偏好脆弱，流动性冲击或导致超调。  
+- **建议仓位**: 5%-8%（占总资金）  
+
+---
+
+### 总结  
+短期技术面信号占优，但需紧密跟踪成交量与MA200突破有效性。基本面薄弱限制上行空间，建议快进快出，控制风险。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 7/10  
+- 基本面评分: 3/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**  
+- 方向: 看涨  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 65.71 仍处强势区，MACD 金叉信号，短期和中期趋势向上，但长期趋势向下，需警惕回调风险。  
+
+**投资建议：**  
+- 建议: 买入  
+- 理由: 技术面显示短期强势，价格突破布林带上轨，成交量放大，但基本面估值偏低，需控制仓位。  
+- 买入价: 0.22，目标价: 0.28，止损价: 0.16  
+
+**风险提示：**  
+- 最大风险点: 长期趋势向下，RSI超买回调风险  
+- 建议仓位: 5%-10%
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 6/10**
+  - 短期强势上涨，MACD金叉，但RSI 65.7超买，威廉指标-0显示极度超买
+- **基本面评分: 3/10** 
+  - 市净率0.24极低但ROE仅0.12%，利润率0.18%微薄，基本面薄弱
+- **综合评分: 4/10**
+  - 技术面短期强势但超买严重，基本面支撑不足
+
+### 2. 短期走势判断
+- **方向: 看跌**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** RSI超买+威廉指标-0+布林带触及上轨+成交量放大后可能萎缩
+
+### 3. 投资建议
+- **建议: 卖出**
+- **理由:** 虽然短期趋势向上，但RSI 65.7接近超买区，威廉指标-0显示严重超买，布林带触及上轨，存在强烈回调风险。基本面市净率虽低但盈利能力极差，缺乏持续上涨基础。
+- **操作建议:** 不建议追高买入，现有持仓可考虑获利了结
+
+### 4. 风险提示
+- **最大风险点:** 技术面超买严重，可能面临深度回调至0.20支撑位
+- **建议仓位:** 0%（不建议建仓）
+
+**总结:** 该股短期涨幅过大，技术指标显示超买，基本面支撑不足，建议观望或减仓，等待回调后的企稳机会。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>报告生成时间: 2026-02-20 01:32:29</p>
+            <p style="font-size: 0.8rem; margin-top: 8px;">⚠️ 本报告仅供参考，不构成投资建议</p>
+        </div>
+    </div>
+</body>
+</html>

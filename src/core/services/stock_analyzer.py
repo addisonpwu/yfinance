@@ -116,10 +116,10 @@ class StockAnalyzer:
         self._apply_rate_limit()
         
         try:
-            # 获取股票数据
+            # 获取股票数据（不包含新闻，新闻在策略筛选后获取）
             hist = self.data_repo.get_historical_data(symbol, market, interval=interval)
             info = self.data_repo.get_financial_info(symbol)
-            news = self.data_repo.get_news(symbol, market)  # 传递 market 参数
+            news = []  # 新闻在策略筛选后才获取
             
             # 数据质量检查
             if hist.empty or len(hist) < 2 or info is None or (isinstance(info, dict) and len(info) == 0):
@@ -205,18 +205,21 @@ class StockAnalyzer:
                     if result.passed:
                         passed_strategies.append(strategies_to_run[i].name)
             
-            # 如果未通过任何策略且未跳过策略，返回失败
+            # 如果未通过任何策略且未跳过策略，返回失败（不获取新闻）
             if not passed_strategies and not skip_strategies:
                 return StockAnalysisResult(
                     symbol=symbol,
                     exchange=info.get('exchange', 'UNKNOWN'),
                     strategies=[],
                     info=info,
-                    news=news,
+                    news=[],  # 未通过策略，不获取新闻
                     ai_analysis=None,
                     success=False,
                     error="未通过任何策略"
                 )
+            
+            # 策略筛选通过后才获取新闻
+            news = self.data_repo.get_news(symbol, market)
             
             # AI 分析
             ai_analysis = None
