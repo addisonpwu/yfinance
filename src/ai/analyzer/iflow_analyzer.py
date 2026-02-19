@@ -212,9 +212,18 @@ class IFlowAIAnalyzer(AIAnalyzer):
         self.api_key = os.environ.get("IFLOW_API_KEY", "")
         config = config_manager.get_config()
         self.cache_service = OptimizedCache(enabled=config.data.enable_cache)
-        self.config = config_manager.get_config()
+        self.config = config
         self.logger = get_ai_logger()
         self.api_url = "https://apis.iflow.cn/v1/chat/completions"
+        
+        # 从配置读取模型列表（配置为唯一数据源）
+        if config.ai.providers and config.ai.providers.iflow:
+            self.DEFAULT_MODEL = config.ai.providers.iflow.default_model
+            self.AVAILABLE_MODELS = config.ai.providers.iflow.available_models
+        else:
+            # 后备：使用空列表，实际使用时会报错提示检查配置
+            self.DEFAULT_MODEL = ""
+            self.AVAILABLE_MODELS = []
         
         # 新增：预测追踪器
         self.prediction_tracker = PredictionTracker()
@@ -239,7 +248,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
             AIAnalysisResult 或 None
         """
         interval = kwargs.get('interval', '1d')
-        model = kwargs.get('model', 'deepseek-v3.2')
+        model = kwargs.get('model', self.DEFAULT_MODEL or 'deepseek-v3.2')
         use_multi_timeframe = kwargs.get('use_multi_timeframe', True)
         use_consensus = kwargs.get('use_consensus', False)
         
@@ -534,13 +543,11 @@ class IFlowAIAnalyzer(AIAnalyzer):
         self, stock_data: Dict, hist: pd.DataFrame, interval: str
     ) -> Optional[AIAnalysisResult]:
         """使用所有可用模型进行分析并合并结果"""
-        models_to_use = [
-            'iflow-rome-30ba3b',
-            'qwen3-max',
-            'tstars2.0',
-            'deepseek-v3.2',
-            'qwen3-coder-plus'
-        ]
+        # 从配置读取模型列表
+        models_to_use = self.AVAILABLE_MODELS
+        if not models_to_use:
+            self.logger.warning("未配置 iflow 可用模型，跳过多模型分析")
+            return None
         all_results = []
         
         for model_name in models_to_use:
@@ -605,14 +612,11 @@ class IFlowAIAnalyzer(AIAnalyzer):
         """
         增强版多模型分析 - 使用投票机制
         """
-        models_to_use = [
-            'deepseek-v3.2',
-            'qwen3-max',
-            'tstars2.0',
-            'iflow-rome-30ba3b',
-            'tstars2.0',
-            'qwen3-coder-plus'
-        ]
+        # 从配置读取模型列表
+        models_to_use = self.AVAILABLE_MODELS
+        if not models_to_use:
+            self.logger.warning("未配置 iflow 可用模型，跳过多模型分析")
+            return None
         
         all_results = []
         directions = []

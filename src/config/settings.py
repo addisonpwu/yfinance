@@ -30,13 +30,13 @@ from src.config.constants import (
 
 
 # 速度模式预设配置
+# 注意：enable_cache 由配置文件单独控制，不随速度模式改变
 SPEED_MODE_PRESETS = {
     "fast": {
         "base_delay": 0.2,
         "max_delay": 1.0,
         "min_delay": 0.1,
         "max_workers": 8,
-        "enable_cache": True,
         "ai_timeout": 20,
         "description": "快速模式：高并行、低延迟，适合测试"
     },
@@ -45,7 +45,6 @@ SPEED_MODE_PRESETS = {
         "max_delay": API_MAX_DELAY,
         "min_delay": API_MIN_DELAY,
         "max_workers": API_MAX_WORKERS,
-        "enable_cache": True,
         "ai_timeout": AI_API_TIMEOUT,
         "description": "平衡模式：速度与稳定性兼顾，推荐日常使用"
     },
@@ -54,7 +53,6 @@ SPEED_MODE_PRESETS = {
         "max_delay": 5.0,
         "min_delay": 0.5,
         "max_workers": 2,
-        "enable_cache": True,
         "ai_timeout": 45,
         "description": "安全模式：低并行、高延迟，避免 API 限流"
     }
@@ -242,7 +240,7 @@ class AppConfig:
         self.api.max_delay = preset["max_delay"]
         self.api.min_delay = preset["min_delay"]
         self.api.max_workers = preset["max_workers"]
-        self.data.enable_cache = preset["enable_cache"]
+        # enable_cache 由配置文件控制，不随速度模式改变
         self.ai.api_timeout = preset["ai_timeout"]
         self.speed_mode = mode
         

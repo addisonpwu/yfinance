@@ -40,7 +40,7 @@ class YahooFinanceRepository(StockRepository):
         """设置缓存目录结构"""
         os.makedirs(f"data_cache/{'US'}", exist_ok=True)
         os.makedirs(f"data_cache/{'HK'}", exist_ok=True)
-        os.makedirs("data_cache/ai_analysis", exist_ok=True)
+        # 不再创建 AI 分析缓存目录（缓存已禁用）
     
     def _save_historical_data_as_csv(self, symbol: str, data: pd.DataFrame, market: str, interval: str = '1d') -> None:
         """保存历史数据为CSV文件（总是保存，不依赖于缓存设置）"""
