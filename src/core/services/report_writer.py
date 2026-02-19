@@ -857,9 +857,7 @@ class ReportWriter:
         summary = ai_analysis.get('summary', 'N/A')
         model = ai_analysis.get('model_used', 'N/A')
         
-        # 截取前 500 字符
-        if len(summary) > 800:
-            summary = summary[:800] + '...'
+        # 不再截断，保留完整内容
         
         return f'''
         <div class="ai-analysis">

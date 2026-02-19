@@ -681,7 +681,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
         for result in all_results:
             combined_summary += f"\n--- {result['model_used']} 模型 ---\n"
             combined_summary += f"判断: {result['direction']} (置信度: {result['confidence']:.0%})\n"
-            combined_summary += result['summary'][:500] + "...\n" if len(result['summary']) > 500 else result['summary'] + "\n"
+            combined_summary += result['summary'] + "\n"
         
         return AIAnalysisResult(
             summary=combined_summary,
