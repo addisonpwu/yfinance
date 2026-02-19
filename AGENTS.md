@@ -7,7 +7,7 @@
 ### 核心特性
 - **多市场支持**：支持美股（US）和港股（HK）市场
 - **策略模块化**：动态加载策略，易于扩展
-- **智能缓存系统**：高效的数据缓存机制，提升重复运行效率
+- **智能缓存系统**：高效的数据缓存机制，支持 TTL
 - **AI 分析集成**：集成 iFlow API 进行技术分析
 - **多时间框架**：支持日线、小时线、分钟线数据
 - **多模型AI分析**：支持多种AI模型进行股票分析
@@ -15,8 +15,465 @@
 - **回测引擎**：完整的策略回测功能，支持蒙特卡洛验证
 - **仓位管理**：动态仓位计算，支持 Kelly 公式和风险平价
 - **市场环境识别**：自动识别趋势/震荡/高波动市场
+- **宏观指标整合**：VIX、美债收益率、美元指数等宏观分析
 - **速度模式**：支持快速/平衡/安全三种运行模式
 - **信号评分器**：多维度信号综合评分系统
+- **配置验证**：Pydantic 配置验证，环境变量安全管理
+- **复权数据处理**：自动处理除权除息，确保价格连续性
+
+---
+
+## 完整数据处理流程
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           系统启动验证                                        │
+│  1. 加载 config.json 配置文件                                                │
+│  2. Pydantic 配置验证（类型、范围、关系检查）                                  │
+│  3. 加载 .env 环境变量（API 密钥等敏感信息）                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           数据获取阶段                                        │
+│  1. 检查缓存版本 (version.txt)                                               │
+│  2. 增量更新：只下载缺失/过期的数据                                            │
+│  3. 获取股票列表 (港股: hkex.com.hk / 美股: Finviz)                          │
+│  4. 获取大盘数据 (^HSI / ^GSPC)                                              │
+│  5. 获取宏观指标 (VIX, TNX, FVX, DXY)                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         数据预处理阶段                                        │
+│  1. 复权处理 (auto_adjust=True)                                              │
+│  2. 成交量阈值过滤 (min_volume_threshold)                                     │
+│  3. 数据点数量检查 (min_data_points_threshold)                               │
+│  4. 预计算技术指标:                                                           │
+│     - 移动平均线 (MA_5, MA_10, MA_20, MA_50, MA_200)                         │
+│     - RSI (RSI_14)                                                          │
+│     - MACD (MACD, MACD_Signal, MACD_Hist)                                   │
+│     - 布林带 (BB_Upper, BB_Middle, BB_Lower, BBP)                           │
+│     - ATR (ATR_14)                                                          │
+│     - 成交量均线 (Volume_MA_20)                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          市场环境分析                                         │
+│  MarketRegimeStrategy (整合宏观指标):                                        │
+│  ├── 技术指标分析                                                            │
+│  │   ├── 趋势强度 (近似 ADX)                                                 │
+│  │   ├── 波动率水平 (年化波动率)                                              │
+│  │   ├── 趋势方向 (价格与均线位置)                                            │
+│  │   └── 市场健康得分                                                        │
+│  └── 宏观指标分析                                                            │
+│      ├── VIX 恐慌指数 (市场恐慌程度)                                          │
+│      ├── 10年期美债收益率 (利率环境)                                          │
+│      ├── 收益率曲线利差 (经济周期信号)                                         │
+│      └── 美元指数 (资金流向)                                                  │
+│                                                                              │
+│  输出: regime (trending/mean_reverting/volatile)                            │
+│       is_healthy, health_score, macro_risk_score                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          策略筛选阶段                                         │
+│  对每只股票依次执行以下策略 (并行处理):                                        │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │ 1. MomentumBreakoutStrategy (动量爆发策略)                            │   │
+│  │    条件: 价格突破 + 量能爆发 + 动量强度                               │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │ 2. VolatilitySqueezeStrategy (波动率压缩策略)                         │   │
+│  │    条件: 布林带挤压 + 突破确认 + 量能配合                             │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │ 3. AccumulationAccelerationStrategy (主力吸筹加速策略)                │   │
+│  │    条件: 吸筹期 + 量能趋势 + 加速信号 + RSI 动态上穿                   │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │ 4. SignalScorer (信号评分器)                                          │   │
+│  │    综合: 趋势跟踪 + 动量突破 + 量能确认 + 市场回调 + 行业强度          │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  任一策略通过 → 进入 AI 分析阶段                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           AI 分析阶段                                         │
+│  调用 iFlow API (或指定模型):                                                 │
+│  1. 构建分析提示词 (价格数据 + 技术指标 + 基本面)                             │
+│  2. AI 模型分析 (8维度技术分析):                                             │
+│     - 趋势分析                                                               │
+│     - 支撑与阻力                                                             │
+│     - 动能指标分析                                                           │
+│     - 成交量分析                                                             │
+│     - 形态识别                                                               │
+│     - 短期走势预测                                                           │
+│     - 风险评估                                                               │
+│     - 投资建议 (含价位建议)                                                  │
+│  3. 缓存 AI 分析结果 (按数据哈希 + 模型)                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          报告生成阶段                                         │
+│  1. 实时写入 TXT 文件 (符合条件的股票)                                        │
+│  2. 生成 HTML 报告:                                                          │
+│     - 统计卡片 (筛选数量、策略命中、耗时)                                     │
+│     - 股票卡片 (基本信息、评分、AI分析)                                       │
+│     - 策略标签 (各策略命中统计)                                              │
+│  3. 可选: 生成 PDF (需安装 weasyprint)                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 策略详细说明
+
+### 1. MomentumBreakoutStrategy (动量爆发策略)
+
+**策略类型**: 动量策略  
+**适用场景**: 趋势市场，捕捉强势突破行情
+
+#### 核心逻辑
+
+```
+价格突破 AND 量能爆发 AND 动量强度 → 通过
+```
+
+#### 检查条件
+
+| 条件 | 计算方式 | 默认阈值 |
+|------|----------|----------|
+| **价格突破** | 当前价 > 20日最高价 × 阈值 | 1.02 (突破2%) |
+| **量能爆发** | 当日成交量 > 20日均量 × 倍数 | 1.5倍 |
+| **动量强度** | 5日涨幅 > 3% 且 20日涨幅 > 5% | 5日3%, 20日5% |
+
+#### 代码示例
+
+```python
+from src.strategies.momentum_breakout_strategy import MomentumBreakoutStrategy
+from src.core.strategies.strategy import StrategyContext
+
+strategy = MomentumBreakoutStrategy()
+context = StrategyContext(hist=hist, info=info, is_market_healthy=True)
+result = strategy.execute(context)
+
+if result.passed:
+    print(f"通过! 置信度: {result.confidence}")
+    print(f"价格突破: {result.details['price_breakout_details']}")
+    print(f"量能爆发: {result.details['volume_burst_details']}")
+```
+
+#### 置信度计算
+
+| 满足条件 | 置信度 |
+|----------|--------|
+| 价格 + 量能 + 动量 | 0.85 |
+| 价格 + 量能 | 0.60 |
+| 价格 + 动量 | 0.50 |
+| 量能 + 动量 | 0.40 |
+| 仅价格 | 0.25 |
+
+---
+
+### 2. VolatilitySqueezeStrategy (波动率压缩策略)
+
+**策略类型**: 波动率策略  
+**适用场景**: 横盘整理后的突破行情
+
+#### 核心逻辑
+
+```
+布林带挤压 AND 突破确认 AND 量能配合 AND 市场健康 → 通过
+```
+
+#### 检查条件
+
+| 条件 | 计算方式 | 默认阈值 |
+|------|----------|----------|
+| **布林带挤压** | BB宽度 < 近100日10分位数 | 百分位10% |
+| **突破确认** | 价格 > MA20 且 当日涨幅 > 阈值 | 涨幅1.5% |
+| **量能配合** | 当日成交量 > 50日均量 × 倍数 | 1.2倍 |
+| **市场健康** | 大盘环境健康 | True |
+
+#### 布林带宽度计算
+
+```
+BB_Width = (BB_Upper - BB_Lower) / BB_Middle
+```
+
+#### 代码示例
+
+```python
+from src.strategies.volatility_squeeze_strategy import VolatilitySqueezeStrategy
+
+strategy = VolatilitySqueezeStrategy()
+result = strategy.execute(context)
+
+if result.passed:
+    print(f"布林带宽度百分位: {result.details['squeeze_details']['bb_width_percentile']}")
+    print(f"突破涨幅: {result.details['breakout_details']['daily_change_pct']}%")
+```
+
+#### 置信度计算
+
+| 满足条件 | 置信度 |
+|----------|--------|
+| 挤压 + 突破 + 量能 + 市场OK | 0.85 |
+| 挤压 + 突破 + 量能 | 0.70 |
+| 挤压 + 突破 | 0.50 |
+| 突破 + 量能 | 0.40 |
+
+---
+
+### 3. AccumulationAccelerationStrategy (主力吸筹加速策略)
+
+**策略类型**: 吸筹策略  
+**适用场景**: 主力资金建仓后的启动阶段
+
+#### 核心逻辑
+
+```
+吸筹期 AND 量能趋势上升 AND 加速信号 AND RSI动态上穿 → 通过
+```
+
+#### 检查条件
+
+| 条件 | 计算方式 | 默认阈值 |
+|------|----------|----------|
+| **吸筹期** | 近30日价格波动幅度 < 阈值 | 15% |
+| **量能趋势** | 近15日均量 > 前15日均量 | 上升 |
+| **加速信号** | 当前价 > 区间高点 × 1.02 且 量比 > 1.5 | 价2%, 量1.5倍 |
+| **RSI动态上穿** | 前日RSI在40-60区间，当日RSI > 60 | 40-60→60+ |
+
+#### 吸筹期识别
+
+```
+volatility = (High_max - Low_min) / Avg_Price
+is_accumulating = volatility < 0.15
+```
+
+#### 代码示例
+
+```python
+from src.strategies.accumulation_acceleration_strategy import AccumulationAccelerationStrategy
+
+strategy = AccumulationAccelerationStrategy()
+result = strategy.execute(context)
+
+if result.passed:
+    print(f"吸筹期波动率: {result.details['accumulation_period_details']['volatility_pct']}%")
+    print(f"RSI: {result.details['rsi_details']['rsi_current']}")
+```
+
+#### 置信度计算
+
+| 满足条件 | 置信度 |
+|----------|--------|
+| 吸筹 + 量能趋势 + 加速 + RSI | 0.85 |
+| 吸筹 + 加速 + RSI | 0.70 |
+| 吸筹 + 量能趋势 + 加速 | 0.60 |
+| 加速 + RSI | 0.50 |
+| 吸筹 + 加速 | 0.40 |
+
+---
+
+### 4. SignalScorer (信号评分器)
+
+**策略类型**: 综合评分  
+**适用场景**: 多维度信号综合评估
+
+#### 核心逻辑
+
+```
+加权综合得分 = Σ(维度得分 × 权重)
+通过条件: 综合得分 >= 阈值 (默认 0.7)
+```
+
+#### 五大维度
+
+| 维度 | 权重 | 评估内容 |
+|------|------|----------|
+| **趋势跟踪** | 25% | 价格与均线位置、均线排列、趋势持续性 |
+| **动量突破** | 20% | 价格突破、RSI、MACD金叉 |
+| **量能确认** | 15% | 成交量突破、量价配合、成交量趋势 |
+| **市场回调** | 20% | 大盘健康状态、相对表现、市场环境 |
+| **行业强度** | 20% | 行业信息、技术形态、布林带突破 |
+
+#### 各维度评分细则
+
+**趋势跟踪 (25%)**
+```
+- 价格在均线上方数量 (40%)
+- 均线多头排列程度 (30%)
+- 近20日涨幅持续性 (30%)
+```
+
+**动量突破 (20%)**
+```
+- 价格突破20日高点 (40%)
+- RSI 在 50-70 区间 (30%)
+- MACD 金叉 (30%)
+```
+
+**量能确认 (15%)**
+```
+- 成交量突破程度 (40%)
+- 量价配合情况 (30%)
+- 成交量上升趋势 (30%)
+```
+
+**市场回调 (20%)**
+```
+- 大盘健康状态 (30%)
+- 相对大盘表现 (50%)
+- 市场环境适配 (20%)
+```
+
+**行业强度 (20%)**
+```
+- 行业信息完整性 (30%)
+- 技术形态强度 (70%)
+```
+
+#### 代码示例
+
+```python
+from src.strategies.signal_scorer import SignalScorer, quick_score
+
+# 方式1: 完整使用
+scorer = SignalScorer()
+result = scorer.execute(context)
+print(f"综合得分: {result.details['final_score']}")
+print(f"各维度得分: {result.details['scores']}")
+
+# 方式2: 快速评分
+result = quick_score(hist, info, market_healthy=True)
+print(f"通过: {result['passed']}, 得分: {result['score']}")
+print(f"优势: {result['breakdown']['strengths']}")
+print(f"劣势: {result['breakdown']['weaknesses']}")
+```
+
+#### 输出示例
+
+```python
+{
+    "passed": True,
+    "score": 0.72,
+    "scores": {
+        "trend_following": 0.80,
+        "momentum_breakout": 0.65,
+        "volume_confirmation": 0.55,
+        "market_correction": 0.70,
+        "sector_strength": 0.75
+    },
+    "breakdown": {
+        "strengths": ["趋势: 80%", "形态: 75%"],
+        "weaknesses": ["量能: 55%"],
+        "recommendation": "温和看多 - 主要信号积极"
+    }
+}
+```
+
+---
+
+### 5. MarketRegimeStrategy (市场环境识别策略)
+
+**策略类型**: 市场分析  
+**适用场景**: 判断大盘环境，指导策略选择
+
+#### 核心逻辑
+
+```
+综合技术指标 + 宏观指标 → 市场环境判断
+```
+
+#### 输出分类
+
+| 市场类型 | 特征 | 适合策略 |
+|----------|------|----------|
+| **trending** | 趋势强度 > 0.3，波动率适中 | 动量策略、趋势跟踪 |
+| **mean_reverting** | 趋势强度弱，波动率低 | 均值回归、网格交易 |
+| **volatile** | 波动率 > 40% | 减仓观望、期权策略 |
+
+#### 技术指标分析
+
+| 指标 | 计算方式 | 作用 |
+|------|----------|------|
+| **趋势强度** | 价格位置 + 均线斜率 | 判断趋势方向 |
+| **ADX** | 平均趋向指数 | 判断趋势强度 |
+| **波动率** | 收益率标准差 × √252 | 判断波动程度 |
+| **夏普比率** | (收益-无风险利率) / 波动率 | 风险调整收益 |
+
+#### 宏观指标整合
+
+| 指标 | 代码 | 影响权重 |
+|------|------|----------|
+| **VIX 恐慌指数** | ^VIX | ±25分 |
+| **10年期美债收益率** | ^TNX | ±10分 |
+| **收益率曲线** | 10Y-5Y利差 | ±15分 |
+| **美元指数** | DX-Y.NYB | ±10分 |
+
+#### VIX 区间解读
+
+| VIX 值 | 状态 | 市场含义 | 操作建议 |
+|--------|------|----------|----------|
+| < 12 | 自满 | 市场过度乐观 | 谨慎，可能回调 |
+| 12-20 | 正常 | 波动正常 | 正常操作 |
+| 20-30 | 升高 | 市场担忧增加 | 关注买入机会 |
+| > 30 | 恐慌 | 市场恐慌 | 可能逆向买入 |
+
+#### 代码示例
+
+```python
+from src.strategies.market_regime_strategy import MarketRegimeStrategy, get_market_regime
+
+# 方式1: 完整分析
+strategy = MarketRegimeStrategy(use_macro=True)
+result = strategy.execute(context)
+
+# 方式2: 快速获取
+regime = get_market_regime(hist)
+print(f"市场类型: {regime['regime']}")
+print(f"健康得分: {regime['health_score']}")
+print(f"宏观风险: {regime.get('macro_risk_score', 'N/A')}")
+print(f"推荐策略: {regime.get('recommended_strategy', 'N/A')}")
+```
+
+#### 输出示例
+
+```python
+{
+    "regime": "trending",
+    "trend_strength": 0.45,
+    "trend_direction": "up",
+    "volatility_level": "medium",
+    "volatility_pct": 22.5,
+    "is_healthy": True,
+    "health_score": 0.72,
+    "confidence": 0.85,
+    "macro_risk_score": 35,
+    "macro_sentiment": "neutral",
+    "macro_indicators": {
+        "vix": {"current_value": 18.5, "trend": "down"},
+        "treasury_yield": {"current_value": 4.25, "trend": "up"},
+        "yield_curve": {"current_value": 0.45, "trend": "flat"},
+        "dxy": {"current_value": 103.5, "trend": "neutral"}
+    },
+    "recommended_strategy": "balanced"
+}
+```
+
+---
 
 ## 项目架构
 
@@ -24,6 +481,8 @@
 yfinace/
 ├── main.py                 # 主入口点
 ├── config.json             # 配置文件
+├── .env                    # 环境变量（敏感信息）
+├── .env.example            # 环境变量模板
 ├── pyproject.toml          # 项目配置
 ├── setup.py                # 安装配置
 ├── requirements.txt        # 依赖文件
@@ -38,7 +497,8 @@ yfinace/
 │   │   ├── engine.py       # 回测引擎核心
 │   │   └── metrics.py      # 回测指标计算
 │   ├── config/             # 配置管理
-│   │   └── settings.py     # 配置类定义
+│   │   ├── settings.py     # 配置类定义
+│   │   └── config_validator.py  # 配置验证与密钥管理
 │   ├── core/               # 核心模块
 │   │   ├── models/         # 数据模型
 │   │   │   └── entities.py
@@ -47,7 +507,7 @@ yfinace/
 │   │   │   ├── cache_version_manager.py
 │   │   │   ├── market_data_service.py
 │   │   │   ├── progress_tracker.py
-│   │   │   ├── report_writer.py   # 支持 HTML/PDF
+│   │   │   ├── report_writer.py
 │   │   │   └── stock_analyzer.py
 │   │   └── strategies/     # 策略核心
 │   │       ├── loader.py   # 策略加载器
@@ -57,30 +517,32 @@ yfinace/
 │   │   │   └── cache_service.py
 │   │   ├── external/       # 外部数据源
 │   │   │   ├── stock_repository.py
-│   │   │   └── macro_indicators.py  # 宏观指标服务 (新增)
+│   │   │   └── macro_indicators.py
 │   │   └── loaders/        # 数据加载器
-│   │       ├── finviz_loader.py   # Finviz 数据加载
-│   │       ├── hk_loader.py       # 港股列表加载
-│   │       ├── us_loader.py       # 美股列表加载
-│   │       └── yahoo_loader.py    # Yahoo 数据加载
+│   │       ├── finviz_loader.py
+│   │       ├── hk_loader.py
+│   │       ├── us_loader.py
+│   │       └── yahoo_loader.py
 │   ├── risk/               # 风险管理
-│   │   └── position_sizer.py  # 动态仓位管理
+│   │   └── position_sizer.py
 │   ├── strategies/         # 策略模块
-│   │   ├── accumulation_acceleration_strategy.py  # 主力吸筹加速策略
-│   │   ├── market_regime_strategy.py     # 市场环境识别策略
-│   │   ├── momentum_breakout_strategy.py # 动量突破策略
-│   │   ├── signal_scorer.py              # 信号评分器
-│   │   ├── strategy_config.py            # 策略配置管理
-│   │   └── volatility_squeeze_strategy.py # 波动率压缩策略
+│   │   ├── accumulation_acceleration_strategy.py
+│   │   ├── market_regime_strategy.py
+│   │   ├── momentum_breakout_strategy.py
+│   │   ├── signal_scorer.py
+│   │   ├── strategy_config.py
+│   │   └── volatility_squeeze_strategy.py
 │   └── utils/              # 工具模块
 │       ├── exceptions.py
 │       └── logger.py
 ├── data_cache/             # 数据缓存目录
-│   ├── ai_analysis/        # AI分析结果缓存
-│   ├── HK/                 # 港股数据缓存
-│   └── US/                 # 美股数据缓存
+│   ├── ai_analysis/
+│   ├── HK/
+│   └── US/
 └── logs/                   # 日志文件目录
 ```
+
+---
 
 ## 配置参数
 
@@ -88,19 +550,19 @@ yfinace/
 
 ```json
 {
-  "speed_mode": "balanced",     // 速度模式: fast/balanced/safe
+  "speed_mode": "balanced",
   "api": {
-    "base_delay": 0.4,          // API 调用基础延迟
-    "max_delay": 1.0,           // API 调用最大延迟
-    "min_delay": 0.4,           // API 调用最小延迟
-    "retry_attempts": 3,        // 重试次数
-    "max_workers": 2            // 最大并行工作线程数
+    "base_delay": 0.4,
+    "max_delay": 1.0,
+    "min_delay": 0.4,
+    "retry_attempts": 3,
+    "max_workers": 2
   },
   "data": {
-    "max_cache_days": 7,        // 缓存数据最大天数
+    "max_cache_days": 7,
     "float_dtype": "float32",
     "enable_cache": false,
-    "enable_finviz": true       // 启用 Finviz 数据
+    "enable_finviz": true
   },
   "analysis": {
     "enable_data_preprocessing": true,
@@ -115,16 +577,24 @@ yfinace/
     "bb_period": 20,
     "bb_std_dev": 2,
     "atr_period": 14,
-    "ma_periods": [5, 10, 20, 50, 200],
-    "cmo_period": 14,              // CMO 指标
-    "williams_r_period": 14,       // Williams %R
-    "stochastic_period": 14,       // 随机指标
-    "volume_z_score_period": 20    // 成交量 Z-Score
+    "ma_periods": [5, 10, 20, 50, 200]
   },
   "strategies": {
-    "momentum_breakout": { ... },
-    "accumulation_acceleration": { ... },
-    "volatility_squeeze": { ... },
+    "momentum_breakout": {
+      "price_breakout_threshold": 1.02,
+      "volume_burst_multiplier": 1.5,
+      "momentum_5d_threshold": 0.03,
+      "momentum_20d_threshold": 0.05
+    },
+    "volatility_squeeze": {
+      "bb_period": 20,
+      "squeeze_percentile": 0.10,
+      "breakout_change_threshold": 0.015
+    },
+    "accumulation_acceleration": {
+      "accumulation_volatility_threshold": 0.15,
+      "rsi_breakout_threshold": 60
+    },
     "signal_scorer": {
       "weights": {
         "trend_following": 0.25,
@@ -137,7 +607,9 @@ yfinace/
     },
     "market_regime": {
       "health_score_threshold": 0.6,
-      "trend_strength_threshold": 0.3
+      "trend_strength_threshold": 0.3,
+      "use_macro_indicators": true,
+      "macro_weight": 0.3
     }
   },
   "ai": {
@@ -156,326 +628,23 @@ yfinace/
 | `balanced` | 4 | 0.5s | 日常使用（推荐） |
 | `safe` | 2 | 1.0s | 避免 API 限流 |
 
-## 主要功能模块
-
-### 1. 策略系统
-
-策略系统采用动态加载机制，自动从 `strategies/` 目录加载所有继承自 `BaseStrategy` 的类。
-
-#### 现有策略
-
-| 策略名称 | 文件 | 说明 |
-|---------|------|------|
-| **MomentumBreakoutStrategy** | momentum_breakout_strategy.py | 动量突破策略，检测价格突破、量能爆发、动量强度 |
-| **VolatilitySqueezeStrategy** | volatility_squeeze_strategy.py | 波动率压缩策略，检测布林带压缩、突破确认、量能配合 |
-| **AccumulationAccelerationStrategy** | accumulation_acceleration_strategy.py | 主力吸筹加速策略，检测横盘幅度、量能趋势、突破信号 |
-| **SignalScorer** | signal_scorer.py | 多维度信号评分器，综合趋势/动量/量能/市场环境评分 |
-| **MarketRegimeStrategy** | market_regime_strategy.py | 市场环境识别，判断趋势/震荡/高波动市场 |
-
-#### 策略基类使用示例
-```python
-from src.core.strategies.strategy import BaseStrategy, StrategyContext
-from src.core.models.entities import StrategyResult
-
-class MyNewStrategy(BaseStrategy):
-    @property
-    def name(self) -> str:
-        return "我的新策略"
-
-    @property
-    def category(self) -> str:
-        return "趋势跟踪"
-
-    def execute(self, context: StrategyContext) -> StrategyResult:
-        hist = context.hist
-        info = context.info
-        is_market_healthy = context.is_market_healthy
-        
-        # 实现策略逻辑
-        passed = self._check_conditions(hist)
-        
-        return StrategyResult(
-            passed=passed,
-            confidence=0.8,
-            details={"reason": "条件满足"}
-        )
-```
-
-### 2. 信号评分器 (SignalScorer)
-
-多维度信号综合评分系统：
-
-| 维度 | 权重 | 说明 |
-|------|------|------|
-| 趋势跟踪 | 25% | 价格与均线位置、均线排列、趋势持续性 |
-| 动量突破 | 20% | 价格突破、RSI、MACD 金叉 |
-| 量能确认 | 15% | 成交量突破、量价配合、成交量趋势 |
-| 市场回调 | 20% | 大盘健康状态、相对表现、市场环境 |
-| 行业强度 | 20% | 行业信息、技术形态、布林带突破 |
-
-```python
-from src.strategies.signal_scorer import quick_score
-
-# 快速评分
-result = quick_score(hist, info, market_healthy=True)
-# {'passed': True, 'score': 0.75, 'scores': {...}, 'breakdown': {...}}
-```
-
-### 3. 市场环境识别 (MarketRegimeStrategy)
-
-自动识别市场类型，整合技术指标和宏观指标：
-
-**市场类型：**
-- **trending**: 趋势市场，适合动量策略
-- **mean_reverting**: 震荡市场，适合均值回归策略  
-- **volatile**: 高波动市场，需谨慎操作
-
-**宏观指标整合：**
-
-| 指标 | 作用 | 解读 |
-|------|------|------|
-| VIX 指数 | 恐慌程度 | >30 高风险，<15 过度自满 |
-| 10年期美债收益率 | 利率环境 | 上升压制成长股，下降利好股市 |
-| 收益率曲线 | 经济周期 | 倒挂预示衰退风险 |
-| 美元指数 | 资金流向 | 强美元压制新兴市场 |
-
-```python
-from src.strategies.market_regime_strategy import get_market_regime
-
-regime = get_market_regime(hist)
-# {
-#   'regime': 'trending', 
-#   'is_healthy': True, 
-#   'health_score': 0.72,
-#   'macro_risk_score': 45,      # 宏观风险评分
-#   'macro_sentiment': 'neutral', # 市场情绪
-#   'macro_indicators': {...},    # 各指标详情
-#   'recommended_strategy': 'balanced'
-# }
-
-# 快速获取宏观分析
-from src.data.external.macro_indicators import get_macro_analysis, is_high_risk_environment
-
-analysis = get_macro_analysis()
-# {'risk_score': 45, 'sentiment': 'neutral', 'recommended_strategy': 'balanced', ...}
-
-if is_high_risk_environment():
-    print("当前为高风险环境，建议采取防守策略")
-```
-
-### 4. 回测引擎
-
-完整的策略回测功能：
-
-```python
-from src.backtest.engine import BacktestEngine, BacktestConfig, backtest, print_result
-
-# 快速回测
-def my_strategy(data):
-    # 返回 1=买入, -1=卖出, 0=持有
-    if data['Close'].iloc[-1] > data['Close'].iloc[-20:].mean():
-        return 1
-    return 0
-
-result = backtest(data, my_strategy, initial_capital=100000)
-print_result(result)
-
-# 高级配置
-config = BacktestConfig(
-    initial_capital=100000,
-    commission=0.001,        # 0.1% 手续费
-    slippage=0.0005,         # 0.05% 滑点
-    stop_loss=0.08,          # 8% 止损
-    take_profit=0.15,        # 15% 止盈
-    position_sizing="volatility"
-)
-engine = BacktestEngine(config)
-result = engine.run(data, my_strategy)
-
-# 蒙特卡洛测试
-mc_result = engine.monte_carlo_test(result, n_runs=1000)
-```
-
-### 5. 仓位管理
-
-动态仓位计算，支持多种方法：
-
-```python
-from src.risk.position_sizer import PositionSizer, calc_position, kelly_sizer
-
-# 基于信心度计算仓位
-position = calc_position(
-    confidence=0.75,
-    price=100.0,
-    volatility=0.25,
-    account_balance=100000
-)
-# {'position_size': 15000, 'shares': 150, 'position_pct': 0.15}
-
-# Kelly 公式
-kelly_pct, analysis = kelly_sizer(returns_series)
-print(f"建议仓位: {kelly_pct:.1%}")
-print(analysis['risk_warning'])
-
-# 风险平价
-sizer = PositionSizer()
-weights = sizer.volatility_parity_position({
-    'AAPL': 0.25, 'MSFT': 0.20, 'GOOGL': 0.30
-})
-```
-
-### 6. HTML/PDF 报告生成
-
-现代化报告格式：
-
-```python
-from src.core.services.report_writer import ReportWriter
-
-# 创建报告写入器
-writer = ReportWriter(
-    filename="hk_stocks_2026-02-18",
-    market="HK",
-    output_format='both'  # 'txt', 'html', 'both'
-)
-
-writer.initialize()
-writer.write_stock_result(result)
-writer.write_summary(results, 'HK')
-
-# 输出文件:
-# - hk_stocks_2026-02-18.txt  (纯文本)
-# - hk_stocks_2026-02-18.html (HTML报告)
-# - hk_stocks_2026-02-18.pdf  (可选，需安装依赖)
-```
-
-### 7. 数据缓存系统
-
-- **按市场分离**：US 和 HK 市场数据分别存储
-- **按时间框架分离**：不同时间框架（1d/1h/1m）使用不同缓存文件
-- **版本控制**：`version.txt` 记录最后同步日期
-- **增量更新**：只下载缺失或过期的数据
-
-### 8. 多模型 AI 分析
-
-支持的 AI 模型：
-- `iflow-rome-30ba3b`
-- `qwen3-max`
-- `tstars2.0`
-- `deepseek-v3.2` (默认)
-- `qwen3-coder-plus`
-- `all` (运行所有模型并合并结果)
-
-## 使用方法
-
-### 基本命令
-```bash
-# 筛选美股
-python3 main.py --market US
-
-# 筛选港股
-python3 main.py --market HK
-
-# 快速模式（跳过缓存更新）
-python3 main.py --market HK --no-cache-update
-
-# 分析指定股票
-python3 main.py --market HK --symbol 0017.HK
-
-# 使用小时线数据
-python3 main.py --market HK --interval 1h
-
-# 跳过策略筛选，对所有股票进行AI分析
-python3 main.py --market HK --skip-strategies
-
-# 使用特定AI模型
-python3 main.py --market HK --model qwen3-max
-
-# 使用所有AI模型分析
-python3 main.py --market HK --model all
-
-# 使用快速模式运行
-python3 main.py --market HK --speed fast
-
-# 使用安全模式运行（避免API限流）
-python3 main.py --market HK --speed safe
-```
-
-### 参数说明
-| 参数 | 说明 |
-|------|------|
-| `--market` | 必需，市场代码 (US/HK) |
-| `--no-cache-update` | 跳过缓存更新 |
-| `--skip-strategies` | 跳过策略筛选 |
-| `--symbol` | 指定单一股票代码 |
-| `--interval` | 数据时段 (1d/1h/1m) |
-| `--model` | AI模型选择 |
-| `--speed` | 速度模式 (fast/balanced/safe) |
-
-## 安装与部署
-
-### 环境要求
-- Python 3.8+
-- 系统兼容性：Windows, macOS, Linux
-
-### 安装步骤
-```bash
-# 1. 创建虚拟环境
-python3 -m venv venv
-
-# 2. 激活虚拟环境
-source venv/bin/activate  # macOS/Linux
-
-# 3. 安装依赖
-pip install -r requirements.txt
-
-# 4. 安装项目
-pip install -e .
-```
-
-### 依赖项
-```
-yfinance
-pandas
-requests
-lxml
-openpyxl
-playwright
-tenacity
-
-# 可选：PDF 报告生成
-# weasyprint>=60.0
-# pdfkit>=1.0.0
-```
-
-### 启用 PDF 生成
-```bash
-# 方式一：weasyprint (推荐)
-pip install weasyprint
-
-# 方式二：pdfkit
-brew install wkhtmltopdf
-pip install pdfkit
-```
+---
 
 ## 配置与安全管理
 
 ### 环境变量配置
 
-敏感信息（如 API 密钥）通过 `.env` 文件管理，**切勿**将密钥写入 `config.json`。
-
-#### 设置步骤
+敏感信息通过 `.env` 文件管理：
 
 ```bash
-# 1. 复制示例文件
+# 复制模板
 cp .env.example .env
 
-# 2. 编辑 .env 文件，填写实际的 API 密钥
-# IFLOW_API_KEY=your_actual_api_key_here
-
-# 3. 确保 .env 已被 .gitignore 忽略（默认已配置）
+# 编辑填写 API 密钥
+IFLOW_API_KEY=your_actual_api_key_here
 ```
 
-#### .env 文件内容
+### .env 文件内容
 
 ```bash
 # AI API 配置（必需）
@@ -490,220 +659,739 @@ DEV_MODE=false
 
 # 代理配置（可选）
 # HTTP_PROXY=http://127.0.0.1:7890
-# HTTPS_PROXY=http://127.0.0.1:7890
 ```
 
 ### 配置验证
 
-系统使用 Pydantic 进行配置验证，启动时自动检查：
-
-1. **类型验证**：确保配置值类型正确
-2. **范围验证**：数值参数在合理范围内
-3. **键名规范化**：自动去除键名空格
-4. **关系验证**：检查参数间的逻辑关系
-
-#### 使用示例
-
 ```python
-from src.config.config_validator import (
-    validate_startup,
-    get_secrets_manager,
-    get_config_validator
-)
+from src.config.config_validator import validate_startup, get_secrets_manager
 
-# 启动时验证（推荐）
+# 启动验证
 if not validate_startup():
-    print("配置验证失败，请检查 config.json 和 .env")
     exit(1)
 
-# 获取敏感信息
+# 获取 API 密钥
 secrets = get_secrets_manager()
 api_key = secrets.get_iflow_api_key()
-
-# 获取验证后的配置
-validator = get_config_validator()
-config = validator.get_validated_config()
-print(config.api.base_delay)  # 类型安全访问
 ```
 
-#### 验证规则
+---
 
-| 配置项 | 验证规则 |
-|--------|----------|
-| `base_delay` | 0.1 ~ 10.0 秒 |
-| `max_workers` | 1 ~ 16 |
-| `speed_mode` | fast / balanced / safe |
-| `ma_periods` | 自动去重排序 |
-| `signal_scorer.weights` | 总和必须为 1.0 |
-| `macd_fast` | 必须小于 `macd_slow` |
+## 使用方法
 
-### 安全最佳实践
+### 基本命令
 
-1. **密钥管理**
-   - ✅ 使用 `.env` 文件存储密钥
-   - ✅ 将 `.env` 加入 `.gitignore`
-   - ❌ 切勿将密钥写入 `config.json`
-   - ❌ 切勿将密钥提交到版本控制
+```bash
+# 筛选港股
+python3 main.py --market HK
 
-2. **文件权限**
-   ```bash
-   # 设置 .env 文件权限（仅所有者可读写）
-   chmod 600 .env
-   ```
+# 筛选美股
+python3 main.py --market US
 
-3. **密钥轮换**
-   - 定期更换 API 密钥
-   - 不同环境使用不同密钥
+# 快速模式（跳过缓存更新）
+python3 main.py --market HK --no-cache-update
 
-4. **审计日志**
-   - 系统会记录密钥配置状态
-   - 不会记录实际密钥值
+# 分析指定股票
+python3 main.py --market HK --symbol 0017.HK
 
-## 开发指南
+# 使用小时线数据
+python3 main.py --market HK --interval 1h
 
-### 添加新策略
-1. 在 `src/strategies/` 目录创建新文件
-2. 继承 `BaseStrategy` 类
-3. 实现 `name`、`category` 属性和 `execute` 方法
-4. 系统自动检测并加载
+# 跳过策略筛选
+python3 main.py --market HK --skip-strategies
 
-### 策略配置管理
-使用 `strategy_config.py` 中的配置类管理策略参数：
+# 使用特定AI模型
+python3 main.py --market HK --model qwen3-max
 
-```python
-from src.strategies.strategy_config import strategy_config_manager
-
-# 获取策略配置
-config = strategy_config_manager.get_config('signal_scorer')
-print(config.weights)
-print(config.pass_threshold)
+# 速度模式
+python3 main.py --market HK --speed fast
 ```
 
-### 数据处理流程
-1. **数据获取**：从 Yahoo Finance / Finviz 获取数据
-2. **复权处理**：自动处理除权除息，确保价格连续性
-3. **缓存管理**：增量同步或快速加载
-4. **策略执行**：运行所有策略筛选
-5. **AI 分析**：对符合条件的股票进行 AI 分析
-6. **报告生成**：输出 TXT/HTML/PDF 报告
+### 参数说明
 
-### 复权数据处理
+| 参数 | 说明 |
+|------|------|
+| `--market` | 必需，市场代码 (US/HK) |
+| `--no-cache-update` | 跳过缓存更新 |
+| `--skip-strategies` | 跳过策略筛选 |
+| `--symbol` | 指定单一股票代码 |
+| `--interval` | 数据时段 (1d/1h/1m) |
+| `--model` | AI模型选择 |
+| `--speed` | 速度模式 (fast/balanced/safe) |
 
-系统默认使用复权价格（Adjusted Price）进行所有分析，这对于技术分析和回测至关重要。
+---
 
-#### 为什么需要复权？
+## 安装与部署
 
-| 事件 | 未复权影响 | 复权后效果 |
-|------|-----------|-----------|
-| **拆股** | 价格跳空（如 1拆2 价格减半） | 价格连续，消除虚假信号 |
-| **分红** | 除息日价格下跌 | 价格连续，反映真实收益 |
-| **送股** | 价格跳空 | 价格连续调整 |
+### 环境要求
+- Python 3.8+
+- Windows / macOS / Linux
 
-#### 系统实现
+### 安装步骤
 
-```python
-# yahoo_loader.py 中默认启用复权
-hist = ticker.history(period=period, interval=interval, auto_adjust=True)
+```bash
+# 1. 创建虚拟环境
+python3 -m venv venv
+
+# 2. 激活虚拟环境
+source venv/bin/activate  # macOS/Linux
+
+# 3. 安装依赖
+pip install -r requirements.txt
+
+# 4. 配置环境变量
+cp .env.example .env
+# 编辑 .env 填写 API 密钥
+
+# 5. 安装项目
+pip install -e .
 ```
 
-**auto_adjust=True 效果：**
-- Open, High, Low, Close 自动调整为复权价格
-- Volume 根据拆股比例反向调整
-- 所有技术指标基于复权数据计算
+### 依赖项
 
-#### 获取调整信息
-
-```python
-from src.data.loaders.yahoo_loader import YahooFinanceRepository
-
-repo = YahooFinanceRepository()
-
-# 获取除权除息信息
-adj_info = repo.get_adjustment_info('AAPL')
-# {
-#   'splits': {'2020-08-31': 4.0},  # 1拆4
-#   'dividends': {'2024-02-15': 0.24},
-#   'has_splits': True,
-#   'has_dividends': True
-# }
+```
+yfinance
+pandas
+requests
+lxml
+openpyxl
+playwright
+tenacity
+pydantic>=2.0       # 配置验证（可选）
+python-dotenv>=1.0  # 环境变量管理（可选）
 ```
 
-#### 验证数据复权状态
-
-```python
-# 技术指标计算时会自动验证
-from src.data.loaders.yahoo_loader import calculate_technical_indicators
-
-# 检查 attrs 标记
-hist.attrs.get('auto_adjusted')  # True/False/None
-
-# 计算指标时验证
-result = calculate_technical_indicators(hist, validate_adjustment=True)
-```
-
-#### 回测注意事项
-
-**正确做法：**
-- 使用复权价格计算收益率
-- 确保信号生成基于连续价格
-- 分红收益已体现在价格调整中
-
-**错误做法：**
-- 使用未复权价格会产生虚假突破信号
-- 忽略拆股会导致错误的历史高点判断
-
-### 性能优化
-- 预计算技术指标避免重复计算
-- AI 分析结果缓存
-- 配置缓存避免重复加载
-- 并行处理股票分析
-- 内存优化 (float32)
-- 速度模式预设，一键调整性能参数
-
-## 输出格式
-
-### 文件输出
-```
-hk_stocks_2026-02-18.txt   # 纯文本摘要
-hk_stocks_2026-02-18.html  # HTML 详细报告
-hk_stocks_2026-02-18.pdf   # PDF (需安装依赖)
-```
-
-### HTML 报告特性
-- 统计卡片：筛选数量、策略数、耗时
-- 策略标签：各策略命中统计
-- 股票卡片：名称、代码、行业、市值、PE
-- 评分显示：技术面/基本面/综合评分
-- AI 分析：完整分析结果展示
-- 打印友好：浏览器 Cmd+P 导出 PDF
+---
 
 ## 故障排除
 
 ### 常见问题
-1. **API 限制**：使用 `--speed safe` 或手动调整 `base_delay`
-2. **数据缺失**：删除缓存重新下载
-3. **AI分析失败**：检查 `IFLOW_API_KEY` 环境变量
-4. **内存不足**：使用 `--speed safe` 减少并行数
+
+| 问题 | 解决方案 |
+|------|----------|
+| API 限制 | 使用 `--speed safe` 或调整 `base_delay` |
+| 数据缺失 | 删除缓存重新下载 |
+| AI分析失败 | 检查 `.env` 中的 `IFLOW_API_KEY` |
+| 内存不足 | 使用 `--speed safe` 减少并行数 |
+| 配置验证失败 | 检查 `config.json` 格式和 `.env` 文件 |
 
 ### 调试方法
+
 - 使用 `--symbol` 分析特定股票
-- 查看 `logs/` 目录下的日志文件
-- 使用 `--skip-strategies` 测试 AI 分析流程
+- 查看 `logs/` 目录日志
+- 使用 `--skip-strategies` 测试 AI 分析
 - 使用 `--speed fast` 快速测试
 
-## 回测指标说明
+---
 
-### 核心指标
+## 回测引擎详细说明
+
+### 核心配置 (BacktestConfig)
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `initial_capital` | float | 100000 | 初始资金 |
+| `commission` | float | 0.001 | 手续费率 (0.1%) |
+| `slippage` | float | 0.0005 | 滑点 (0.05%) |
+| `risk_free_rate` | float | 0.02 | 无风险利率 |
+| `max_position` | float | 0.2 | 最大仓位 (20%) |
+| `stop_loss` | float | None | 止损比例 |
+| `take_profit` | float | None | 止盈比例 |
+| `position_sizing` | str | "equal" | 仓位管理方式 |
+
+### 交易记录 (Trade)
+
+```python
+@dataclass
+class Trade:
+    entry_date: datetime      # 入场时间
+    entry_price: float        # 入场价格
+    exit_date: datetime       # 出场时间
+    exit_price: float         # 出场价格
+    direction: str            # "long" | "short"
+    quantity: float           # 交易数量
+    pnl: float                # 盈亏金额
+    pnl_pct: float            # 盈亏比例
+    commission: float         # 手续费
+    reason: str               # 平仓原因
+```
+
+### 回测指标 (BacktestMetrics)
+
+#### 收益指标
+
+| 指标 | 计算方式 |
+|------|----------|
+| `total_return` | (期末净值 / 期初净值) - 1 |
+| `annualized_return` | (总收益 + 1)^(365/天数) - 1 |
+| `monthly_returns` | 月度收益率序列 |
+
+#### 风险指标
+
+| 指标 | 计算方式 |
+|------|----------|
+| `annualized_volatility` | 日波动率 × √252 |
+| `max_drawdown` | max((净值 - 累计最大净值) / 累计最大净值) |
+| `max_drawdown_duration` | 最大回撤持续天数 |
+
+#### 风险调整收益
+
+| 指标 | 公式 |
+|------|------|
+| `sharpe_ratio` | (年化收益 - 无风险利率) / 年化波动率 |
+| `sortino_ratio` | (年化收益 - 无风险利率) / 下行波动率 |
+| `calmar_ratio` | 年化收益 / |最大回撤| |
+
+#### 交易统计
+
 | 指标 | 说明 |
 |------|------|
-| `total_return` | 总收益率 |
-| `sharpe_ratio` | 夏普比率 |
-| `max_drawdown` | 最大回撤 |
-| `win_rate` | 胜率 |
-| `profit_factor` | 盈亏比 |
+| `win_rate` | 盈利交易占比 |
+| `profit_factor` | 总盈利 / 总亏损 |
+| `expectancy` | 胜率×平均盈利 - (1-胜率)×平均亏损 |
+
+### 使用示例
+
+```python
+from src.backtest.engine import BacktestEngine, BacktestConfig, backtest, print_result
+from src.backtest.metrics import calculate_metrics, print_metrics
+
+# 定义策略函数
+def my_strategy(data):
+    """返回: 1=买入, -1=卖出, 0=持有"""
+    if data['Close'].iloc[-1] > data['Close'].iloc[-20:].mean():
+        return 1
+    elif data['Close'].iloc[-1] < data['Close'].iloc[-20:].mean() * 0.95:
+        return -1
+    return 0
+
+# 方式1: 快速回测
+result = backtest(data, my_strategy, initial_capital=100000)
+print_result(result)
+
+# 方式2: 高级配置
+config = BacktestConfig(
+    initial_capital=100000,
+    commission=0.001,
+    slippage=0.0005,
+    stop_loss=0.08,
+    take_profit=0.15,
+    position_sizing="volatility"
+)
+engine = BacktestEngine(config)
+result = engine.run(data, my_strategy)
+
+# 查看交易详情
+for trade in result.trades[:5]:
+    print(f"{trade.direction}: {trade.entry_date} @ {trade.entry_price:.2f} -> {trade.exit_date} @ {trade.exit_price:.2f}, PnL: {trade.pnl:.2f}")
+
+# 计算指标
+metrics = calculate_metrics(result.equity_curve)
+print(f"夏普比率: {metrics['sharpe_ratio']:.3f}")
+print(f"最大回撤: {metrics['max_drawdown']:.2%}")
+```
 
 ### 蒙特卡洛测试
-通过打乱收益率序列评估策略稳健性，输出置信区间：
-- `prob_positive`: 正收益概率
-- `prob_sharpe_gt_1`: 夏普比率 > 1 的概率
-- `prob_max_dd_lt_10`: 最大回撤 < 10% 的概率
+
+```python
+# 评估策略稳健性
+mc_result = engine.monte_carlo_test(result, n_runs=1000)
+
+print(f"正收益概率: {mc_result['prob_positive']:.2%}")
+print(f"夏普>1概率: {mc_result['prob_sharpe_gt_1']:.2%}")
+print(f"回撤<10%概率: {mc_result['prob_max_dd_lt_10']:.2%}")
+print(f"收益95%置信区间: [{mc_result['total_return']['ci_low']:.2%}, {mc_result['total_return']['ci_high']:.2%}]")
+```
+
+### Walk-Forward 验证
+
+```python
+# 滑动窗口样本外测试
+wf_results = engine.walk_forward_validation(
+    data, 
+    my_strategy,
+    train_window=252,  # 1年训练
+    test_window=63,    # 3个月测试
+    step=21            # 每月滑动
+)
+
+for i, result in enumerate(wf_results):
+    print(f"窗口 {i+1}: 收益 {result.metrics['total_return']:.2%}")
+```
+
+---
+
+## 仓位管理详细说明
+
+### 核心配置 (PositionConfig)
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `max_position` | float | 0.15 | 单只股票最大仓位 (15%) |
+| `max_sector` | float | 0.30 | 单个行业最大仓位 (30%) |
+| `max_total` | float | 0.80 | 总仓位上限 (80%) |
+| `min_position` | float | 0.02 | 最小仓位 (2%) |
+| `kelly_fraction` | float | 0.5 | Kelly 分数 (减半) |
+| `risk_per_trade` | float | 0.02 | 每笔交易风险 (2%) |
+
+### 仓位计算方法
+
+#### 1. Kelly 公式
+
+```
+Kelly % = W - (1-W) / R
+
+其中:
+W = 胜率
+R = 平均盈利 / 平均亏损
+
+建议使用 Kelly/2 降低风险
+```
+
+```python
+from src.risk.position_sizer import kelly_sizer
+
+# 从历史收益率计算
+kelly_pct, analysis = kelly_sizer(returns_series)
+print(f"建议仓位: {kelly_pct:.1%}")
+print(f"胜率: {analysis['win_rate']:.2%}")
+print(f"盈亏比: {analysis['wl_ratio']:.2f}")
+print(f"风险提示: {analysis['risk_warning']}")
+```
+
+#### 2. 波动率调整仓位
+
+```python
+from src.risk.position_sizer import calc_position
+
+# 根据信心度和波动率计算
+result = calc_position(
+    confidence=0.75,      # 信号信心度
+    price=100.0,          # 当前价格
+    volatility=0.25,      # 年化波动率
+    account_balance=100000
+)
+
+print(f"仓位金额: {result['position_size']}")
+print(f"仓位比例: {result['position_pct']:.1%}")
+print(f"股数: {result['shares']}")
+```
+
+#### 3. 风险平价
+
+```python
+from src.risk.position_sizer import PositionSizer
+
+sizer = PositionSizer()
+
+# 各资产波动率
+volatilities = {
+    'AAPL': 0.25,
+    'MSFT': 0.22,
+    'GOOGL': 0.28
+}
+
+# 风险平价分配
+weights = sizer.volatility_parity_position(volatilities, total_target_risk=0.15)
+# {'AAPL': 0.32, 'MSFT': 0.36, 'GOOGL': 0.29}
+```
+
+#### 4. 信心加权仓位
+
+```python
+# 根据信号信心度分配
+confidences = {
+    'AAPL': 0.85,
+    'MSFT': 0.70,
+    'GOOGL': 0.60
+}
+
+weights = sizer.confidence_weighted_position(confidences)
+# 信心高的股票获得更大仓位
+```
+
+### 风险评估
+
+```python
+from src.risk.position_sizer import risk_summary
+
+positions = {
+    'AAPL': 15000,
+    'MSFT': 12000,
+    'GOOGL': 8000
+}
+
+summary = risk_summary(positions, account_balance=100000)
+print(f"总仓位: {summary['total_exposure_pct']:.1%}")
+print(f"持仓数量: {summary['num_positions']}")
+print(f"现金比例: {summary['cash_pct']:.1%}")
+print(f"风险等级: {summary['risk_level']}")
+```
+
+---
+
+## 技术指标计算公式
+
+### 移动平均线 (MA)
+
+```
+SMA(n) = Σ(Close_i) / n    i = 1 to n
+
+EMA(n) = Close × k + EMA_prev × (1-k)
+k = 2 / (n + 1)
+```
+
+### 相对强弱指数 (RSI)
+
+```
+RS = 平均涨幅 / 平均跌幅
+RSI = 100 - (100 / (1 + RS))
+
+默认周期: 14
+超买区: > 70
+超卖区: < 30
+```
+
+### MACD
+
+```
+DIF = EMA(12) - EMA(26)
+DEA = EMA(DIF, 9)
+MACD柱 = (DIF - DEA) × 2
+
+金叉: DIF上穿DEA (买入信号)
+死叉: DIF下穿DEA (卖出信号)
+```
+
+### 布林带 (Bollinger Bands)
+
+```
+中轨 = SMA(20)
+上轨 = 中轨 + 2 × Std(20)
+下轨 = 中轨 - 2 × Std(20)
+带宽 = (上轨 - 下轨) / 中轨
+
+挤压: 带宽 < 历史10分位数
+突破: 价格突破上轨
+```
+
+### ATR (平均真实波幅)
+
+```
+TR = max(High-Low, |High-PrevClose|, |Low-PrevClose|)
+ATR(14) = SMA(TR, 14)
+
+用途: 止损距离 = 入场价 - 2×ATR
+```
+
+### ADX (平均趋向指数)
+
+```
++DM = max(High - PrevHigh, 0)
+-DM = max(PrevLow - Low, 0)
+
++DI = 100 × SMA(+DM, 14) / SMA(TR, 14)
+-DI = 100 × SMA(-DM, 14) / SMA(TR, 14)
+
+DX = 100 × |+DI - -DI| / (+DI + -DI)
+ADX = SMA(DX, 14)
+
+趋势强度:
+ADX < 20: 无趋势
+ADX 20-40: 趋势形成
+ADX > 40: 强趋势
+```
+
+### CMO (钱德动量摆动指标)
+
+```
+CMO = 100 × (Su - Sd) / (Su + Sd)
+
+Su = 上涨幅度之和
+Sd = 下跌幅度之和
+
+超买: > 50
+超卖: < -50
+```
+
+---
+
+## HTML 报告格式说明
+
+### 报告结构
+
+```
+┌─────────────────────────────────────┐
+│           页面头部                   │
+│  标题、市场、日期、耗时              │
+├─────────────────────────────────────┤
+│           统计卡片                   │
+│  筛选数量 | 策略数 | 涨跌 | 耗时     │
+├─────────────────────────────────────┤
+│           策略标签                   │
+│  各策略命中统计                      │
+├─────────────────────────────────────┤
+│           股票卡片列表               │
+│  ┌─────────────────────────────┐    │
+│  │ 代码 | 名称 | 行业          │    │
+│  │ 市值 | PE | 涨跌幅          │    │
+│  │ 策略标签                    │    │
+│  │ 评分显示                    │    │
+│  │ AI 分析摘要                 │    │
+│  └─────────────────────────────┘    │
+└─────────────────────────────────────┘
+```
+
+### 样式特性
+
+- **响应式设计**: 适配不同屏幕宽度
+- **打印优化**: 浏览器 Cmd+P 导出 PDF
+- **深色主题**: 支持系统深色模式
+- **卡片阴影**: 现代化视觉效果
+
+### 自定义报告
+
+```python
+from src.core.services.report_writer import ReportWriter
+
+# 创建报告写入器
+writer = ReportWriter(
+    filename="custom_report",  # 自动处理扩展名
+    market="HK",
+    output_format='both'       # 'txt', 'html', 'both'
+)
+
+writer.initialize()
+
+# 写入单个结果
+writer.write_stock_result({
+    'symbol': '0001.HK',
+    'name': '长和',
+    'strategies': ['动量爆发策略', '信号评分器'],
+    'score': 0.75,
+    'ai_analysis': '...'
+})
+
+# 写入摘要
+writer.write_summary(results, 'HK')
+```
+
+---
+
+## API 限流处理策略
+
+### 延迟策略
+
+```python
+# config.json 中的 API 配置
+{
+  "api": {
+    "base_delay": 0.5,    # 基础延迟
+    "max_delay": 2.0,     # 最大延迟
+    "min_delay": 0.1,     # 最小延迟
+    "retry_attempts": 3   # 重试次数
+  }
+}
+```
+
+### 动态延迟调整
+
+```python
+# 根据响应自动调整延迟
+def adjust_delay(current_delay, response_status):
+    if response_status == 429:  # Too Many Requests
+        return min(current_delay * 2, max_delay)
+    elif response_status == 200:
+        return max(current_delay * 0.9, min_delay)
+    return current_delay
+```
+
+### 速度模式
+
+| 模式 | 并行数 | 延迟 | 每分钟请求 |
+|------|--------|------|-----------|
+| `fast` | 8 | 0.2s | ~480 |
+| `balanced` | 4 | 0.5s | ~240 |
+| `safe` | 2 | 1.0s | ~120 |
+
+### 错误处理
+
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10)
+)
+def fetch_with_retry(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
+```
+
+---
+
+## 日志系统说明
+
+### 日志级别
+
+| 级别 | 用途 |
+|------|------|
+| DEBUG | 详细调试信息 |
+| INFO | 正常运行信息 |
+| WARNING | 警告信息 |
+| ERROR | 错误信息 |
+
+### 日志文件位置
+
+```
+logs/
+├── analysis_YYYY-MM-DD.log    # 分析日志
+├── error_YYYY-MM-DD.log       # 错误日志
+└── performance.log            # 性能日志
+```
+
+### 日志格式
+
+```
+2026-02-19 10:30:15,123 - INFO - [动量爆发策略] 0001.HK 通过筛选
+2026-02-19 10:30:16,456 - WARNING - API 请求延迟增加
+2026-02-19 10:30:17,789 - ERROR - 获取 0002.HK 数据失败: Timeout
+```
+
+### 使用日志
+
+```python
+from src.utils.logger import get_analysis_logger
+
+logger = get_analysis_logger()
+
+logger.info("开始分析股票")
+logger.warning("数据质量较差")
+logger.error("处理失败", exc_info=True)
+```
+
+---
+
+## 常见使用场景示例
+
+### 场景1: 日常选股
+
+```bash
+# 筛选港股，使用平衡模式
+python3 main.py --market HK --speed balanced
+```
+
+### 场景2: 快速测试新策略
+
+```bash
+# 使用快速模式测试
+python3 main.py --market HK --speed fast --symbol 0001.HK
+```
+
+### 场景3: AI 分析特定股票
+
+```bash
+# 跳过策略，直接 AI 分析
+python3 main.py --market HK --skip-strategies --symbol 0001.HK
+```
+
+### 场景4: 多模型对比分析
+
+```bash
+# 使用所有 AI 模型分析
+python3 main.py --market HK --model all --symbol 0001.HK
+```
+
+### 场景5: 短线交易分析
+
+```bash
+# 使用小时线数据
+python3 main.py --market HK --interval 1h
+```
+
+### 场景6: 自定义回测
+
+```python
+from src.backtest.engine import BacktestEngine, BacktestConfig
+from src.strategies.momentum_breakout_strategy import MomentumBreakoutStrategy
+
+# 定义策略
+def momentum_backtest(data):
+    strategy = MomentumBreakoutStrategy()
+    # 简化返回信号
+    if data['Close'].iloc[-1] > data['High'].iloc[-20:].max() * 1.02:
+        return 1
+    return 0
+
+# 运行回测
+config = BacktestConfig(
+    initial_capital=100000,
+    stop_loss=0.08,
+    take_profit=0.15
+)
+engine = BacktestEngine(config)
+result = engine.run(data, momentum_backtest)
+
+# 输出结果
+print(f"总收益: {result.metrics['total_return']:.2%}")
+print(f"夏普比率: {result.metrics['sharpe_ratio']:.3f}")
+print(f"最大回撤: {result.metrics['max_drawdown']:.2%}")
+```
+
+### 场景7: 动态仓位计算
+
+```python
+from src.risk.position_sizer import PositionSizer, kelly_sizer
+from src.strategies.signal_scorer import quick_score
+
+# 计算信号得分
+score_result = quick_score(hist, info, market_healthy=True)
+
+# 根据得分计算仓位
+sizer = PositionSizer()
+position = sizer.calculate_position(
+    confidence=score_result['score'],
+    price=hist['Close'].iloc[-1],
+    volatility=hist['Close'].pct_change().std() * (252**0.5),
+    account_balance=500000
+)
+
+print(f"建议买入: {position['shares']} 股")
+print(f"仓位比例: {position['position_pct']:.1%}")
+```
+
+### 场景8: 宏观环境判断
+
+```python
+from src.data.external.macro_indicators import get_macro_analysis, is_high_risk_environment
+
+# 获取宏观分析
+analysis = get_macro_analysis()
+
+print(f"风险评分: {analysis['risk_score']}/100")
+print(f"市场情绪: {analysis['sentiment']}")
+print(f"推荐策略: {analysis['recommended_strategy']}")
+
+# 检查是否高风险
+if is_high_risk_environment():
+    print("⚠️ 当前为高风险环境，建议降低仓位")
+```
+
+---
+
+## 近期更新日志
+
+### 2026-02-19
+- ✨ 新增宏观指标服务 (`macro_indicators.py`)
+- ✨ 市场环境识别整合宏观指标
+- ✨ 配置验证模块支持 Pydantic 和降级模式
+- ✨ 环境变量安全管理 (`.env` 支持)
+- ✨ 缓存服务支持 TTL 参数
+- 🐛 修复文件名重复扩展名问题
+- 📝 更新 AGENTS.md 文档
+
+### 2026-02-18
+- ✨ 复权数据处理增强
+- ✨ 添加 `get_adjustment_info()` 方法
+- ✨ 技术指标计算时验证复权状态

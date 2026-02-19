@@ -467,6 +467,9 @@ class IFlowAIAnalyzer(AIAnalyzer):
         # 历史数据摘要
         hist_summary = self._get_hist_summary(hist)
         
+        # 格式化新闻
+        news_section = self._format_news(stock_data.get('news', []))
+        
         prompt = f"""你是一位专业的短期股票分析师。请基于前期分析给出综合投资建议。
 
 {self.FEW_SHOT_EXAMPLES}
@@ -486,6 +489,8 @@ class IFlowAIAnalyzer(AIAnalyzer):
 {self._format_multi_timeframe(multi_tf_data) if multi_tf_data else ''}
 
 {self._format_market_sentiment(market_sentiment) if market_sentiment else ''}
+
+{news_section}
 
 【前期分析结果】
 趋势判断: {trend_result}
@@ -916,6 +921,22 @@ class IFlowAIAnalyzer(AIAnalyzer):
         
         return "\n".join(lines)
     
+    def _format_news(self, news_list: List[Dict]) -> str:
+        """格式化新闻数据"""
+        if not news_list:
+            return ""
+        
+        lines = ["【近期新闻】"]
+        for i, item in enumerate(news_list[:5], 1):  # 最多显示5条
+            title = item.get('title', 'N/A')
+            published = item.get('published', '')
+            publisher = item.get('publisher', '')
+            lines.append(f"{i}. [{published}] {title}")
+            if publisher:
+                lines.append(f"   来源: {publisher}")
+        
+        return "\n".join(lines)
+    
     def _format_fundamentals(self, info: Dict) -> str:
         """格式化基本面信息"""
         def fmt(val, suffix="", decimals=2):
@@ -1018,6 +1039,16 @@ class IFlowAIAnalyzer(AIAnalyzer):
         }
         info_hash = OptimizedCache.compute_data_hash(key_info)
         
+        # 计算新闻哈希（只使用标题和时间）
+        news_hash = None
+        news = stock_data.get('news', [])
+        if news:
+            news_data = [
+                {'t': n.get('title', ''), 'p': n.get('published', '')}
+                for n in news[:5]
+            ]
+            news_hash = OptimizedCache.compute_data_hash(news_data)
+        
         return self.cache_service.generate_ai_cache_key(
             symbol=stock_data.get('symbol', ''),
             strategies=stock_data.get('strategies', []),
@@ -1025,7 +1056,8 @@ class IFlowAIAnalyzer(AIAnalyzer):
             interval=interval,
             model=model,
             hist_hash=hist_hash,
-            info_hash=info_hash
+            info_hash=info_hash,
+            news_hash=news_hash
         )
     
     def _build_analysis_prompt(self, stock_data: Dict, hist: pd.DataFrame) -> str:

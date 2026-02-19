@@ -118,7 +118,7 @@ class StockAnalyzer:
             # 获取股票数据
             hist = self.data_repo.get_historical_data(symbol, market, interval=interval)
             info = self.data_repo.get_financial_info(symbol)
-            news = self.data_repo.get_news(symbol)
+            news = self.data_repo.get_news(symbol, market)  # 传递 market 参数
             
             # 数据质量检查
             if hist.empty or len(hist) < 2 or info is None or (isinstance(info, dict) and len(info) == 0):
@@ -224,7 +224,8 @@ class StockAnalyzer:
                     'symbol': symbol,
                     'strategies': passed_strategies,
                     'info': info,
-                    'market': market
+                    'market': market,
+                    'news': news  # 添加新闻数据
                 }
                 ai_result = self.ai_service.analyze_stock(stock_data, hist, interval=interval, model=model)
                 if ai_result:

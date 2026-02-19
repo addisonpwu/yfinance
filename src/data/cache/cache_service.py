@@ -166,7 +166,8 @@ class OptimizedCache:
         interval: str,
         model: str,
         hist_hash: str = None,
-        info_hash: str = None
+        info_hash: str = None,
+        news_hash: str = None
     ) -> str:
         """
         生成 AI 分析结果的缓存键
@@ -181,6 +182,7 @@ class OptimizedCache:
             model: AI 模型名称
             hist_hash: 历史数据的哈希值
             info_hash: 基本面信息的哈希值
+            news_hash: 新闻数据的哈希值
         
         Returns:
             缓存键字符串
@@ -198,6 +200,8 @@ class OptimizedCache:
             cache_content['hist_hash'] = hist_hash
         if info_hash:
             cache_content['info_hash'] = info_hash
+        if news_hash:
+            cache_content['news_hash'] = news_hash
         
         cache_str = json.dumps(cache_content, sort_keys=True)
         return hashlib.md5(cache_str.encode()).hexdigest()

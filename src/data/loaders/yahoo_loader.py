@@ -3,15 +3,28 @@ import pandas as pd
 import json
 from typing import Dict, List, Optional
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import numpy as np
 from pathlib import Path
+import ssl
+import urllib.request
 from src.data.external.stock_repository import StockRepository
 from src.data.cache.cache_service import OptimizedCache
 from src.config.settings import config_manager
 from src.utils.exceptions import DataFetchException, CacheException
 from src.utils.logger import get_data_logger
+
+# 新闻获取 - feedparser
+try:
+    import feedparser
+    HAS_FEEDPARSER = True
+    
+    # macOS SSL 证书修复：创建不验证证书的 SSL 上下文
+    if hasattr(ssl, '_create_unverified_context'):
+        ssl._create_default_https_context = ssl._create_unverified_context
+except ImportError:
+    HAS_FEEDPARSER = False
 
 class YahooFinanceRepository(StockRepository):
     def __init__(self):
@@ -107,9 +120,110 @@ class YahooFinanceRepository(StockRepository):
             self.logger.error(f"获取 {symbol} 财务信息失败: {e}")
             raise DataFetchException(f"获取财务信息失败: {e}")
     
-    def get_news(self, symbol: str) -> List:
-        # 暂时返回空列表，可根据需要实现新闻获取逻辑
-        return []
+    def get_news(self, symbol: str, market: str = "HK", days_back: int = None, max_items: int = None) -> List[Dict]:
+        """
+        从 Yahoo Finance RSS 获取股票相关新闻
+        
+        Args:
+            symbol: 股票代码 (如 "0700" 或 "AAPL")
+            market: 市场代码 ("HK" 或 "US")
+            days_back: 回溯天数，默认从配置读取
+            max_items: 最大新闻数量，默认从配置读取
+            
+        Returns:
+            List[Dict]: 新闻列表，每条包含 title, link, published, summary
+        """
+        # 检查 feedparser 是否可用
+        if not HAS_FEEDPARSER:
+            self.logger.warning("feedparser 未安装，无法获取新闻。请运行: pip install feedparser")
+            return []
+        
+        # 从配置获取默认值
+        news_config = getattr(self.config, 'news', None)
+        if days_back is None:
+            days_back = getattr(news_config, 'days_back', 14) if news_config else 14
+        if max_items is None:
+            max_items = getattr(news_config, 'max_news_items', 10) if news_config else 10
+        
+        # 标准化 symbol
+        symbol = symbol.upper().replace(".HK", "")
+        
+        # 检查缓存
+        today = datetime.now().strftime("%Y-%m-%d")
+        cache_key = f"news_{symbol}_{market}_{today}"
+        cached_news = self.cache_service.get_json(cache_key, "news")
+        
+        if cached_news:
+            self.logger.info(f"从缓存获取 {symbol} 的新闻数据")
+            return cached_news
+        
+        # 构建 RSS URL
+        if market.upper() == "HK":
+            region = "HK"
+            lang = "zh-Hant"
+            rss_symbol = f"{symbol}.HK"
+        else:
+            region = "US"
+            lang = "en-US"
+            rss_symbol = symbol
+        
+        rss_url = (
+            f"https://feeds.finance.yahoo.com/rss/2.0/headline?"
+            f"s={rss_symbol}&region={region}&lang={lang}"
+        )
+        
+        try:
+            # 解析 RSS
+            feed = feedparser.parse(rss_url)
+            
+            if feed.bozo:
+                self.logger.warning(f"RSS 解析警告 ({symbol}): {feed.bozo_exception}")
+            
+            # 时间过滤
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+            news_list = []
+            
+            for entry in feed.entries[:max_items * 2]:  # 多获取一些，过滤后截取
+                try:
+                    # 解析发布时间
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        pub_time = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+                    else:
+                        continue
+                    
+                    # 过滤过期新闻
+                    if pub_time < cutoff:
+                        continue
+                    
+                    news_list.append({
+                        "title": entry.get("title", "").strip(),
+                        "link": entry.get("link", ""),
+                        "published": pub_time.strftime("%Y-%m-%d %H:%M"),
+                        "summary": entry.get("summary", "").strip()[:200],  # 截取摘要
+                        "publisher": entry.get("source", {}).get("title", "Yahoo Finance") if hasattr(entry, 'source') else "Yahoo Finance",
+                        "source": "yahoo_rss"
+                    })
+                    
+                    if len(news_list) >= max_items:
+                        break
+                        
+                except Exception as e:
+                    self.logger.debug(f"处理新闻条目失败: {e}")
+                    continue
+            
+            # 按时间降序排序
+            news_list.sort(key=lambda x: x["published"], reverse=True)
+            
+            # 缓存结果
+            if news_list:
+                self.cache_service.set_json(cache_key, news_list, "news")
+                self.logger.info(f"获取 {symbol} 新闻 {len(news_list)} 条")
+            
+            return news_list
+            
+        except Exception as e:
+            self.logger.error(f"获取 {symbol} 新闻失败: {e}")
+            return []
     
     def save_historical_data(self, symbol: str, data: pd.DataFrame, market: str, interval: str = '1d') -> None:
         try:

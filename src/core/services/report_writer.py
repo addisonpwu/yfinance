@@ -466,6 +466,65 @@ class ReportWriter:
             color: var(--danger);
         }}
         
+        /* News Section */
+        .news-section {{
+            background: #f0f9ff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 15px;
+            border-left: 4px solid #0ea5e9;
+        }}
+        
+        .news-section h4 {{
+            color: #0369a1;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        
+        .news-list {{
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }}
+        
+        .news-item {{
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0f2fe;
+        }}
+        
+        .news-title {{
+            color: #0c4a6e;
+            text-decoration: none;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            display: block;
+        }}
+        
+        .news-title:hover {{
+            color: var(--primary);
+            text-decoration: underline;
+        }}
+        
+        .news-meta {{
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: #64748b;
+        }}
+        
+        .news-date {{
+            color: #64748b;
+        }}
+        
+        .news-source {{
+            color: #0ea5e9;
+        }}
+        
         /* AI Analysis */
         .ai-analysis {{
             background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
@@ -641,6 +700,7 @@ class ReportWriter:
         symbol = result.get('symbol', '')
         strategies = result.get('strategies', [])
         ai_analysis = result.get('ai_analysis')
+        news = result.get('news', [])  # 获取新闻数据
         
         # 格式化数据
         market_cap = info.get('marketCap')
@@ -724,6 +784,8 @@ class ReportWriter:
                     </div>
                 </div>
                 
+                {self._build_news_section(news) if news else ''}
+                
                 {self._build_score_section(tech_score, fund_score, total_score) if ai_analysis else ''}
                 
                 {self._build_ai_section(ai_analysis) if ai_analysis else '<div class="ai-analysis"><p>AI 分析未完成</p></div>'}
@@ -755,6 +817,35 @@ class ReportWriter:
             <div class="score-item">
                 <div class="score {get_score_class(total_score)}">{total_score}/10</div>
                 <div class="label">综合</div>
+            </div>
+        </div>'''
+    
+    def _build_news_section(self, news: list) -> str:
+        """构建新闻显示区域"""
+        if not news:
+            return ''
+        
+        news_items = []
+        for item in news[:5]:  # 最多显示5条
+            title = item.get('title', 'N/A')
+            link = item.get('link', '#')
+            published = item.get('published', '')
+            publisher = item.get('publisher', '')
+            
+            news_items.append(f'''
+            <div class="news-item">
+                <a href="{link}" target="_blank" class="news-title">{title[:80]}{'...' if len(title) > 80 else ''}</a>
+                <div class="news-meta">
+                    <span class="news-date">{published}</span>
+                    {f'<span class="news-source">{publisher}</span>' if publisher else ''}
+                </div>
+            </div>''')
+        
+        return f'''
+        <div class="news-section">
+            <h4>📰 近期新闻</h4>
+            <div class="news-list">
+                {''.join(news_items)}
             </div>
         </div>'''
     

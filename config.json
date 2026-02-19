@@ -1,9 +1,9 @@
 {
   "speed_mode": "balanced",
   "api": {
-    "base_delay": 0.4,
+    "base_delay": 0.1,
     "max_delay": 1.0,
-    "min_delay": 0.4,
+    "min_delay": 0.1,
     "retry_attempts": 3,
     "max_workers": 2
   },
@@ -110,11 +110,13 @@
   },
   "news": {
     "timeout": 60000,
-    "max_news_items": 5
+    "max_news_items": 10,
+    "days_back": 14,
+    "cache_ttl_hours": 6
   },
   "ai": {
     "api_timeout": 30,
-    "model": "glm-5",
+    "model": "deepseek-v3.2",
     "max_data_points": 100
   }
 }
