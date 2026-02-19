@@ -1457,6 +1457,20 @@ if is_high_risk_environment():
 ## 近期更新日志
 
 ### 2026-02-19
+- ✨ 新增 NVIDIA API 分析器 (`nvidia_analyzer.py`)
+  - 支持 OpenAI SDK 调用 NVIDIA NIM API
+  - 支持多模型投票分析
+  - 支持预测追踪和缓存
+- ✨ 新增 `--provider` 命令行参数 (iflow/nvidia)
+- 🏗️ 创建配置常量中心 (`src/config/constants.py`)
+  - 统一管理所有默认值，单一来源原则
+  - 包含 API、技术指标、VIX 阈值、策略参数等
+- 🏗️ 重构配置管理
+  - `settings.py` 从 constants.py 导入默认值
+  - `strategy_config.py` 从 constants.py 导入策略参数
+  - 消除多处重复定义的默认值
+- 🐛 修复 `news.days_back` 和 `news.cache_ttl_hours` 配置未使用问题
+- 🎨 VIX 阈值 (15/20/30) 抽取为常量，替代硬编码
 - ✨ 新增新闻获取功能 (Yahoo Finance RSS)
 - ✨ 新闻数据整合到 AI 分析 prompt
 - ✨ HTML 报告新增"近期新闻"展示区域

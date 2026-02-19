@@ -5,6 +5,7 @@ import numpy as np
 from src.core.models.entities import AIAnalysisResult
 from src.data.cache.cache_service import OptimizedCache
 from src.config.settings import config_manager
+from src.config.constants import VIX_LOW, VIX_NORMAL, VIX_HIGH
 from src.utils.logger import get_ai_logger
 import os
 import json
@@ -845,15 +846,15 @@ class IFlowAIAnalyzer(AIAnalyzer):
             # 尝试获取 VIX 数据
             vix_value = self._fetch_vix()
             
-            # 解析市场状态
+            # 解析市场状态（使用常量阈值）
             if vix_value:
-                if vix_value < 15:
+                if vix_value < VIX_LOW:
                     market_state = "低波动/乐观"
                     risk_level = "低"
-                elif vix_value < 20:
+                elif vix_value < VIX_NORMAL:
                     market_state = "正常波动"
                     risk_level = "中"
-                elif vix_value < 30:
+                elif vix_value < VIX_HIGH:
                     market_state = "高波动/谨慎"
                     risk_level = "中高"
                 else:

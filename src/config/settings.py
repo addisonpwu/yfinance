@@ -1,8 +1,33 @@
+"""
+配置管理模块
+
+所有默认值从 constants.py 导入，确保单一来源原则
+"""
+
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 import json
 from pathlib import Path
 import os
+
+# 从常量模块导入所有默认值
+from src.config.constants import (
+    # API 配置
+    API_BASE_DELAY, API_MAX_DELAY, API_MIN_DELAY, API_RETRY_ATTEMPTS, API_MAX_WORKERS,
+    # 数据配置
+    DATA_MAX_CACHE_DAYS, DATA_FLOAT_DTYPE,
+    # 分析配置
+    ANALYSIS_MIN_VOLUME_THRESHOLD, ANALYSIS_MIN_DATA_POINTS,
+    # 技术指标
+    RSI_PERIOD, MACD_FAST, MACD_SLOW, MACD_SIGNAL, BB_PERIOD, BB_STD_DEV, ATR_PERIOD,
+    MA_PERIODS, CMO_PERIOD, WILLIAMS_R_PERIOD, STOCHASTIC_PERIOD, 
+    STOCHASTIC_SMOOTH_PERIOD, VOLUME_Z_SCORE_PERIOD,
+    # 新闻配置
+    NEWS_TIMEOUT, NEWS_MAX_ITEMS, NEWS_DAYS_BACK, NEWS_CACHE_TTL_HOURS,
+    # AI 配置
+    AI_API_TIMEOUT, AI_MAX_DATA_POINTS, DEFAULT_AI_PROVIDERS,
+)
+
 
 # 速度模式预设配置
 SPEED_MODE_PRESETS = {
@@ -16,12 +41,12 @@ SPEED_MODE_PRESETS = {
         "description": "快速模式：高并行、低延迟，适合测试"
     },
     "balanced": {
-        "base_delay": 0.5,
-        "max_delay": 3.0,
-        "min_delay": 0.2,
-        "max_workers": 4,
+        "base_delay": API_BASE_DELAY,
+        "max_delay": API_MAX_DELAY,
+        "min_delay": API_MIN_DELAY,
+        "max_workers": API_MAX_WORKERS,
         "enable_cache": True,
-        "ai_timeout": 30,
+        "ai_timeout": AI_API_TIMEOUT,
         "description": "平衡模式：速度与稳定性兼顾，推荐日常使用"
     },
     "safe": {
@@ -35,13 +60,15 @@ SPEED_MODE_PRESETS = {
     }
 }
 
+
 @dataclass
 class APIConfig:
-    base_delay: float = 0.5
-    max_delay: float = 3.0
-    min_delay: float = 0.2
-    retry_attempts: int = 3
-    max_workers: int = 4
+    base_delay: float = API_BASE_DELAY
+    max_delay: float = API_MAX_DELAY
+    min_delay: float = API_MIN_DELAY
+    retry_attempts: int = API_RETRY_ATTEMPTS
+    max_workers: int = API_MAX_WORKERS
+
 
 @dataclass
 class DataDownloadPeriodConfig:
@@ -49,45 +76,48 @@ class DataDownloadPeriodConfig:
     h1: str = "730d"    # 1小时线
     d1: str = "max"     # 1日线
 
+
 @dataclass
 class DataConfig:
-    max_cache_days: int = 7
-    float_dtype: str = "float32"
+    max_cache_days: int = DATA_MAX_CACHE_DAYS
+    float_dtype: str = DATA_FLOAT_DTYPE
     data_download_period: DataDownloadPeriodConfig = None
-    enable_cache: bool = True  # 是否启用缓存
-    enable_finviz: bool = True  # 是否启用 Finviz 数据获取
+    enable_cache: bool = True
+    enable_finviz: bool = True
 
     def __post_init__(self):
         if self.data_download_period is None:
             self.data_download_period = DataDownloadPeriodConfig()
 
+
 @dataclass
 class AnalysisConfig:
     enable_realtime_output: bool = True
     enable_data_preprocessing: bool = True
-    min_volume_threshold: int = 100000
-    min_data_points_threshold: int = 20
+    min_volume_threshold: int = ANALYSIS_MIN_VOLUME_THRESHOLD
+    min_data_points_threshold: int = ANALYSIS_MIN_DATA_POINTS
+
 
 @dataclass
 class TechnicalIndicatorsConfig:
-    rsi_period: int = 14
-    macd_fast: int = 12
-    macd_slow: int = 26
-    macd_signal: int = 9
-    bb_period: int = 20
-    bb_std_dev: float = 2
-    atr_period: int = 14
+    rsi_period: int = RSI_PERIOD
+    macd_fast: int = MACD_FAST
+    macd_slow: int = MACD_SLOW
+    macd_signal: int = MACD_SIGNAL
+    bb_period: int = BB_PERIOD
+    bb_std_dev: float = BB_STD_DEV
+    atr_period: int = ATR_PERIOD
     ma_periods: List[int] = None
-    # 新增指标配置
-    cmo_period: int = 14
-    williams_r_period: int = 14
-    stochastic_period: int = 14
-    stochastic_smooth_period: int = 3
-    volume_z_score_period: int = 20
+    cmo_period: int = CMO_PERIOD
+    williams_r_period: int = WILLIAMS_R_PERIOD
+    stochastic_period: int = STOCHASTIC_PERIOD
+    stochastic_smooth_period: int = STOCHASTIC_SMOOTH_PERIOD
+    volume_z_score_period: int = VOLUME_Z_SCORE_PERIOD
 
     def __post_init__(self):
         if self.ma_periods is None:
-            self.ma_periods = [5, 10, 20, 50, 200]
+            self.ma_periods = MA_PERIODS
+
 
 @dataclass
 class VCPSpecificConfig:
@@ -103,15 +133,17 @@ class VCPSpecificConfig:
         if self.volatility_windows is None:
             self.volatility_windows = [50, 20, 10]
 
+
 @dataclass
 class BollingerSqueezeSpecificConfig:
-    bb_period: int = 20
+    bb_period: int = BB_PERIOD
     squeeze_lookback: int = 100
     squeeze_percentile: float = 0.10
     prolonged_squeeze_period: int = 5
     long_trend_period: int = 200
     ma_slope_period: int = 5
     volume_period: int = 50
+
 
 @dataclass
 class StrategiesConfig:
@@ -124,22 +156,13 @@ class StrategiesConfig:
         if self.bollinger_squeeze is None:
             self.bollinger_squeeze = BollingerSqueezeSpecificConfig()
 
+
 @dataclass
 class NewsConfig:
-    timeout: int = 60000
-    max_news_items: int = 5
-
-# AI 提供商默认模型配置（统一配置源）
-DEFAULT_AI_PROVIDERS = {
-    "iflow": {
-        "default_model": "deepseek-v3.2",
-        "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
-    },
-    "nvidia": {
-        "default_model": "z-ai/glm5",
-        "available_models": ["z-ai/glm5", "deepseek-ai/deepseek-v3.2", "qwen/qwen3.5-397b-a17b", "moonshotai/kimi-k2.5"]
-    }
-}
+    timeout: int = NEWS_TIMEOUT
+    max_news_items: int = NEWS_MAX_ITEMS
+    days_back: int = NEWS_DAYS_BACK
+    cache_ttl_hours: int = NEWS_CACHE_TTL_HOURS
 
 
 @dataclass
@@ -174,14 +197,15 @@ class AIProvidersConfig:
 
 @dataclass
 class AIConfig:
-    api_timeout: int = 30
-    model: str = "deepseek-v3.2"
-    max_data_points: int = 100
+    api_timeout: int = AI_API_TIMEOUT
+    model: str = DEFAULT_AI_PROVIDERS["iflow"]["default_model"]
+    max_data_points: int = AI_MAX_DATA_POINTS
     providers: AIProvidersConfig = None
     
     def __post_init__(self):
         if self.providers is None:
             self.providers = AIProvidersConfig()
+
 
 @dataclass
 class AppConfig:
@@ -192,7 +216,7 @@ class AppConfig:
     strategies: StrategiesConfig = None
     news: NewsConfig = None
     ai: AIConfig = None
-    speed_mode: str = "balanced"  # 新增：速度模式
+    speed_mode: str = "balanced"
     
     def __post_init__(self):
         if self.technical_indicators is None:
@@ -205,12 +229,7 @@ class AppConfig:
             self.ai = AIConfig()
     
     def apply_speed_mode(self, speed_mode: str = None):
-        """
-        应用速度模式预设
-        
-        Args:
-            speed_mode: 速度模式 ('fast', 'balanced', 'safe')
-        """
+        """应用速度模式预设"""
         mode = speed_mode or self.speed_mode
         
         if mode not in SPEED_MODE_PRESETS:
@@ -219,22 +238,17 @@ class AppConfig:
         
         preset = SPEED_MODE_PRESETS[mode]
         
-        # 应用预设到 API 配置
         self.api.base_delay = preset["base_delay"]
         self.api.max_delay = preset["max_delay"]
         self.api.min_delay = preset["min_delay"]
         self.api.max_workers = preset["max_workers"]
-        
-        # 应用预设到数据配置
         self.data.enable_cache = preset["enable_cache"]
-        
-        # 应用预设到 AI 配置
         self.ai.api_timeout = preset["ai_timeout"]
-        
         self.speed_mode = mode
-        print(f"已应用速度模式: {mode} ({preset['description']})")
         
+        print(f"已应用速度模式: {mode} ({preset['description']})")
         return self
+
 
 class ConfigManager:
     _instance = None
@@ -249,18 +263,13 @@ class ConfigManager:
         if self._config is not None:
             return self._config
             
-        # 检查配置文件是否存在
         if not os.path.exists(config_path):
-            # 如果不存在，创建默认配置
             self._create_default_config(config_path)
         
         with open(config_path, 'r', encoding='utf-8') as f:
             raw_config = json.load(f)
         
-        # 获取速度模式
         speed_mode = raw_config.get('speed_mode', 'balanced')
-        
-        # 使用默认值填充缺失的配置项
         api_config = raw_config.get('api', {})
         data_config = raw_config.get('data', {})
         analysis_config = raw_config.get('analysis', {})
@@ -269,29 +278,25 @@ class ConfigManager:
         news_config = raw_config.get('news', {})
         ai_config = raw_config.get('ai', {})
         
-        # 处理嵌套配置
         data_download_period_config = data_config.get('data_download_period', {})
-        
-        # 处理策略特定配置
         vcp_config = strategies_config.get('vcp_pocket_pivot', {})
         bollinger_squeeze_config = strategies_config.get('bollinger_squeeze', {})
         
-        # 处理 AI 提供商配置
         providers_config = ai_config.get('providers', {})
         iflow_config = providers_config.get('iflow', {})
         nvidia_config = providers_config.get('nvidia', {})
         
         self._config = AppConfig(
             api=APIConfig(
-                base_delay=api_config.get('base_delay', 0.5),
-                max_delay=api_config.get('max_delay', 3.0),
-                min_delay=api_config.get('min_delay', 0.2),
-                retry_attempts=api_config.get('retry_attempts', 3),
-                max_workers=api_config.get('max_workers', 4)
+                base_delay=api_config.get('base_delay', API_BASE_DELAY),
+                max_delay=api_config.get('max_delay', API_MAX_DELAY),
+                min_delay=api_config.get('min_delay', API_MIN_DELAY),
+                retry_attempts=api_config.get('retry_attempts', API_RETRY_ATTEMPTS),
+                max_workers=api_config.get('max_workers', API_MAX_WORKERS)
             ),
             data=DataConfig(
-                max_cache_days=data_config.get('max_cache_days', 7),
-                float_dtype=data_config.get('float_dtype', 'float32'),
+                max_cache_days=data_config.get('max_cache_days', DATA_MAX_CACHE_DAYS),
+                float_dtype=data_config.get('float_dtype', DATA_FLOAT_DTYPE),
                 data_download_period=DataDownloadPeriodConfig(
                     m1=data_download_period_config.get('1m', '7d'),
                     h1=data_download_period_config.get('1h', '730d'),
@@ -303,23 +308,23 @@ class ConfigManager:
             analysis=AnalysisConfig(
                 enable_realtime_output=analysis_config.get('enable_realtime_output', True),
                 enable_data_preprocessing=analysis_config.get('enable_data_preprocessing', True),
-                min_volume_threshold=analysis_config.get('min_volume_threshold', 100000),
-                min_data_points_threshold=analysis_config.get('min_data_points_threshold', 20)
+                min_volume_threshold=analysis_config.get('min_volume_threshold', ANALYSIS_MIN_VOLUME_THRESHOLD),
+                min_data_points_threshold=analysis_config.get('min_data_points_threshold', ANALYSIS_MIN_DATA_POINTS)
             ),
             technical_indicators=TechnicalIndicatorsConfig(
-                rsi_period=tech_ind_config.get('rsi_period', 14),
-                macd_fast=tech_ind_config.get('macd_fast', 12),
-                macd_slow=tech_ind_config.get('macd_slow', 26),
-                macd_signal=tech_ind_config.get('macd_signal', 9),
-                bb_period=tech_ind_config.get('bb_period', 20),
-                bb_std_dev=tech_ind_config.get('bb_std_dev', 2),
-                atr_period=tech_ind_config.get('atr_period', 14),
-                ma_periods=tech_ind_config.get('ma_periods', [5, 10, 20, 50, 200]),
-                cmo_period=tech_ind_config.get('cmo_period', 14),
-                williams_r_period=tech_ind_config.get('williams_r_period', 14),
-                stochastic_period=tech_ind_config.get('stochastic_period', 14),
-                stochastic_smooth_period=tech_ind_config.get('stochastic_smooth_period', 3),
-                volume_z_score_period=tech_ind_config.get('volume_z_score_period', 20)
+                rsi_period=tech_ind_config.get('rsi_period', RSI_PERIOD),
+                macd_fast=tech_ind_config.get('macd_fast', MACD_FAST),
+                macd_slow=tech_ind_config.get('macd_slow', MACD_SLOW),
+                macd_signal=tech_ind_config.get('macd_signal', MACD_SIGNAL),
+                bb_period=tech_ind_config.get('bb_period', BB_PERIOD),
+                bb_std_dev=tech_ind_config.get('bb_std_dev', BB_STD_DEV),
+                atr_period=tech_ind_config.get('atr_period', ATR_PERIOD),
+                ma_periods=tech_ind_config.get('ma_periods', MA_PERIODS),
+                cmo_period=tech_ind_config.get('cmo_period', CMO_PERIOD),
+                williams_r_period=tech_ind_config.get('williams_r_period', WILLIAMS_R_PERIOD),
+                stochastic_period=tech_ind_config.get('stochastic_period', STOCHASTIC_PERIOD),
+                stochastic_smooth_period=tech_ind_config.get('stochastic_smooth_period', STOCHASTIC_SMOOTH_PERIOD),
+                volume_z_score_period=tech_ind_config.get('volume_z_score_period', VOLUME_Z_SCORE_PERIOD)
             ),
             strategies=StrategiesConfig(
                 vcp_pocket_pivot=VCPSpecificConfig(
@@ -330,7 +335,7 @@ class ConfigManager:
                     pp_max_bias_ratio=vcp_config.get('pp_max_bias_ratio', 0.08)
                 ),
                 bollinger_squeeze=BollingerSqueezeSpecificConfig(
-                    bb_period=bollinger_squeeze_config.get('bb_period', 20),
+                    bb_period=bollinger_squeeze_config.get('bb_period', BB_PERIOD),
                     squeeze_lookback=bollinger_squeeze_config.get('squeeze_lookback', 100),
                     squeeze_percentile=bollinger_squeeze_config.get('squeeze_percentile', 0.10),
                     prolonged_squeeze_period=bollinger_squeeze_config.get('prolonged_squeeze_period', 5),
@@ -340,13 +345,15 @@ class ConfigManager:
                 )
             ),
             news=NewsConfig(
-                timeout=news_config.get('timeout', 60000),
-                max_news_items=news_config.get('max_news_items', 5)
+                timeout=news_config.get('timeout', NEWS_TIMEOUT),
+                max_news_items=news_config.get('max_news_items', NEWS_MAX_ITEMS),
+                days_back=news_config.get('days_back', NEWS_DAYS_BACK),
+                cache_ttl_hours=news_config.get('cache_ttl_hours', NEWS_CACHE_TTL_HOURS)
             ),
             ai=AIConfig(
-                api_timeout=ai_config.get('api_timeout', 30),
-                model=ai_config.get('model', 'deepseek-v3.2'),
-                max_data_points=ai_config.get('max_data_points', 100),
+                api_timeout=ai_config.get('api_timeout', AI_API_TIMEOUT),
+                model=ai_config.get('model', DEFAULT_AI_PROVIDERS["iflow"]["default_model"]),
+                max_data_points=ai_config.get('max_data_points', AI_MAX_DATA_POINTS),
                 providers=AIProvidersConfig(
                     iflow=AIProviderConfig(
                         default_model=iflow_config.get('default_model', DEFAULT_AI_PROVIDERS["iflow"]["default_model"]),
@@ -361,7 +368,6 @@ class ConfigManager:
             speed_mode=speed_mode
         )
         
-        # 应用速度模式（会覆盖部分配置）
         if speed_mode in SPEED_MODE_PRESETS:
             self._config.apply_speed_mode(speed_mode)
         
@@ -372,43 +378,39 @@ class ConfigManager:
         default_config = {
             "speed_mode": "balanced",
             "api": {
-                "base_delay": 0.5,
-                "max_delay": 3.0,
-                "min_delay": 0.2,
-                "retry_attempts": 3,
-                "max_workers": 4
+                "base_delay": API_BASE_DELAY,
+                "max_delay": API_MAX_DELAY,
+                "min_delay": API_MIN_DELAY,
+                "retry_attempts": API_RETRY_ATTEMPTS,
+                "max_workers": API_MAX_WORKERS
             },
             "data": {
-                "max_cache_days": 7,
-                "float_dtype": "float32",
-                "data_download_period": {
-                    "1m": "7d",
-                    "1h": "730d",
-                    "1d": "max"
-                },
+                "max_cache_days": DATA_MAX_CACHE_DAYS,
+                "float_dtype": DATA_FLOAT_DTYPE,
+                "data_download_period": {"1m": "7d", "1h": "730d", "1d": "max"},
                 "enable_cache": True,
                 "enable_finviz": True
             },
             "analysis": {
                 "enable_realtime_output": True,
                 "enable_data_preprocessing": True,
-                "min_volume_threshold": 100000,
-                "min_data_points_threshold": 20
+                "min_volume_threshold": ANALYSIS_MIN_VOLUME_THRESHOLD,
+                "min_data_points_threshold": ANALYSIS_MIN_DATA_POINTS
             },
             "technical_indicators": {
-                "rsi_period": 14,
-                "macd_fast": 12,
-                "macd_slow": 26,
-                "macd_signal": 9,
-                "bb_period": 20,
-                "bb_std_dev": 2,
-                "atr_period": 14,
-                "ma_periods": [5, 10, 20, 50, 200],
-                "cmo_period": 14,
-                "williams_r_period": 14,
-                "stochastic_period": 14,
-                "stochastic_smooth_period": 3,
-                "volume_z_score_period": 20
+                "rsi_period": RSI_PERIOD,
+                "macd_fast": MACD_FAST,
+                "macd_slow": MACD_SLOW,
+                "macd_signal": MACD_SIGNAL,
+                "bb_period": BB_PERIOD,
+                "bb_std_dev": BB_STD_DEV,
+                "atr_period": ATR_PERIOD,
+                "ma_periods": MA_PERIODS,
+                "cmo_period": CMO_PERIOD,
+                "williams_r_period": WILLIAMS_R_PERIOD,
+                "stochastic_period": STOCHASTIC_PERIOD,
+                "stochastic_smooth_period": STOCHASTIC_SMOOTH_PERIOD,
+                "volume_z_score_period": VOLUME_Z_SCORE_PERIOD
             },
             "strategies": {
                 "momentum_breakout": {
@@ -470,7 +472,7 @@ class ConfigManager:
                     "pp_max_bias_ratio": 0.08
                 },
                 "bollinger_squeeze": {
-                    "bb_period": 20,
+                    "bb_period": BB_PERIOD,
                     "squeeze_lookback": 100,
                     "squeeze_percentile": 0.10,
                     "prolonged_squeeze_period": 5,
@@ -480,13 +482,15 @@ class ConfigManager:
                 }
             },
             "news": {
-                "timeout": 60000,
-                "max_news_items": 5
+                "timeout": NEWS_TIMEOUT,
+                "max_news_items": NEWS_MAX_ITEMS,
+                "days_back": NEWS_DAYS_BACK,
+                "cache_ttl_hours": NEWS_CACHE_TTL_HOURS
             },
             "ai": {
-                "api_timeout": 30,
-                "model": "deepseek-v3.2",
-                "max_data_points": 100,
+                "api_timeout": AI_API_TIMEOUT,
+                "model": DEFAULT_AI_PROVIDERS["iflow"]["default_model"],
+                "max_data_points": AI_MAX_DATA_POINTS,
                 "providers": DEFAULT_AI_PROVIDERS
             }
         }
@@ -500,17 +504,11 @@ class ConfigManager:
         return self._config
     
     def apply_speed_mode(self, speed_mode: str) -> AppConfig:
-        """
-        应用速度模式（运行时覆盖）
-        
-        Args:
-            speed_mode: 速度模式 ('fast', 'balanced', 'safe')
-        """
         if self._config is None:
             self.load_config()
-        
         self._config.apply_speed_mode(speed_mode)
         return self._config
+
 
 # 全局配置实例
 config_manager = ConfigManager()

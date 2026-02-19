@@ -2,28 +2,47 @@
 策略配置数据类
 
 定义各策略的可配置参数，支持从配置文件加载
+所有默认值从 constants.py 导入
 """
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 import json
 
+# 从常量模块导入策略默认值
+from src.config.constants import (
+    # 动量爆发策略
+    MOMENTUM_PRICE_BREAKOUT_THRESHOLD, MOMENTUM_VOLUME_BURST_MULTIPLIER,
+    MOMENTUM_5D_THRESHOLD, MOMENTUM_20D_THRESHOLD, MOMENTUM_MIN_DATA_POINTS,
+    # 吸筹加速策略
+    ACCUMULATION_PERIOD, ACCUMULATION_VOLATILITY_THRESHOLD,
+    ACCUMULATION_BREAKOUT_THRESHOLD, ACCUMULATION_VOLUME_RATIO_THRESHOLD,
+    ACCUMULATION_RSI_PREV_MIN, ACCUMULATION_RSI_PREV_MAX,
+    ACCUMULATION_RSI_CURRENT_THRESHOLD, ACCUMULATION_CONFIDENCE,
+    # 波动率压缩策略
+    VOLATILITY_BB_PERIOD, VOLATILITY_SQUEEZE_LOOKBACK, VOLATILITY_SQUEEZE_PERCENTILE,
+    VOLATILITY_BREAKOUT_THRESHOLD, VOLATILITY_VOLUME_MULTIPLIER,
+    VOLATILITY_VOLUME_PERIOD, VOLATILITY_CONFIDENCE,
+    # 信号评分器
+    SCORER_TREND_WEIGHT, SCORER_MOMENTUM_WEIGHT, SCORER_VOLUME_WEIGHT,
+    SCORER_MARKET_WEIGHT, SCORER_SECTOR_WEIGHT, SCORER_PASS_THRESHOLD,
+    SCORER_MIN_DATA_POINTS,
+    # 技术指标
+    RSI_PERIOD, BB_PERIOD, BB_STD_DEV,
+    # VIX 阈值
+    VIX_LOW, VIX_NORMAL, VIX_HIGH, VIX_PANIC,
+)
+
 
 @dataclass
 class MomentumBreakoutConfig:
     """动量爆发策略配置"""
-    # 价格突破阈值：当前价 > 20日最高价 × 该值
-    price_breakout_threshold: float = 1.01
-    # 量能爆发倍数：当日成交量 > 20日均量 × 该值
-    volume_burst_multiplier: float = 2.0
-    # 5日涨幅阈值
-    momentum_5d_threshold: float = 0.03
-    # 20日涨幅阈值
-    momentum_20d_threshold: float = 0.05
-    # 最小数据点数
-    min_data_points: int = 21
+    price_breakout_threshold: float = MOMENTUM_PRICE_BREAKOUT_THRESHOLD
+    volume_burst_multiplier: float = MOMENTUM_VOLUME_BURST_MULTIPLIER
+    momentum_5d_threshold: float = MOMENTUM_5D_THRESHOLD
+    momentum_20d_threshold: float = MOMENTUM_20D_THRESHOLD
+    min_data_points: int = MOMENTUM_MIN_DATA_POINTS
     
     def validate(self) -> bool:
-        """验证配置参数"""
         return (
             self.price_breakout_threshold > 1.0 and
             self.volume_burst_multiplier > 0 and
@@ -36,27 +55,17 @@ class MomentumBreakoutConfig:
 @dataclass
 class AccumulationAccelerationConfig:
     """主力吸筹加速策略配置"""
-    # 吸筹期波动幅度阈值：< 该值
-    accumulation_volatility_threshold: float = 0.15
-    # 吸筹期天数
-    accumulation_period: int = 30
-    # 加速信号价格突破倍数
-    acceleration_price_multiplier: float = 1.015
-    # 加速信号量比阈值
-    acceleration_volume_ratio: float = 2.5
-    # RSI 低位区间下限
-    rsi_low_range_min: float = 40.0
-    # RSI 低位区间上限
-    rsi_low_range_max: float = 60.0
-    # RSI 突破阈值
-    rsi_breakout_threshold: float = 65.0
-    # RSI 周期
-    rsi_period: int = 14
-    # 最小数据点数
-    min_data_points: int = 30
+    accumulation_volatility_threshold: float = ACCUMULATION_VOLATILITY_THRESHOLD
+    accumulation_period: int = ACCUMULATION_PERIOD
+    acceleration_price_multiplier: float = ACCUMULATION_BREAKOUT_THRESHOLD
+    acceleration_volume_ratio: float = ACCUMULATION_VOLUME_RATIO_THRESHOLD
+    rsi_low_range_min: float = ACCUMULATION_RSI_PREV_MIN
+    rsi_low_range_max: float = ACCUMULATION_RSI_PREV_MAX
+    rsi_breakout_threshold: float = ACCUMULATION_RSI_CURRENT_THRESHOLD
+    rsi_period: int = RSI_PERIOD
+    min_data_points: int = ACCUMULATION_PERIOD
     
     def validate(self) -> bool:
-        """验证配置参数"""
         return (
             0 < self.accumulation_volatility_threshold < 1 and
             self.acceleration_price_multiplier > 1 and
@@ -70,25 +79,16 @@ class AccumulationAccelerationConfig:
 @dataclass
 class VolatilitySqueezeConfig:
     """波动率压缩策略配置"""
-    # 布林带周期
-    bb_period: int = 20
-    # 布林带标准差倍数
-    bb_std_dev: float = 2.0
-    # 挤压检测回看周期
-    squeeze_lookback: int = 100
-    # 挤压百分位阈值
-    squeeze_percentile: float = 0.10
-    # 突破确认涨幅阈值
-    breakout_change_threshold: float = 0.02
-    # 量能配合倍数
-    volume_multiplier: float = 1.5
-    # 成交量平均周期
-    volume_avg_period: int = 50
-    # 最小数据点数
-    min_data_points: int = 100
+    bb_period: int = VOLATILITY_BB_PERIOD
+    bb_std_dev: float = BB_STD_DEV
+    squeeze_lookback: int = VOLATILITY_SQUEEZE_LOOKBACK
+    squeeze_percentile: float = VOLATILITY_SQUEEZE_PERCENTILE
+    breakout_change_threshold: float = VOLATILITY_BREAKOUT_THRESHOLD
+    volume_multiplier: float = VOLATILITY_VOLUME_MULTIPLIER
+    volume_avg_period: int = VOLATILITY_VOLUME_PERIOD
+    min_data_points: int = VOLATILITY_SQUEEZE_LOOKBACK
     
     def validate(self) -> bool:
-        """验证配置参数"""
         return (
             self.bb_period > 0 and
             self.bb_std_dev > 0 and
@@ -103,30 +103,25 @@ class VolatilitySqueezeConfig:
 @dataclass
 class SignalScorerConfig:
     """信号评分器配置"""
-    # 各信号权重
     weights: Dict[str, float] = field(default_factory=lambda: {
-        "trend_following": 0.25,
-        "momentum_breakout": 0.20,
-        "volume_confirmation": 0.15,
-        "market_correction": 0.20,
-        "sector_strength": 0.20
+        "trend_following": SCORER_TREND_WEIGHT,
+        "momentum_breakout": SCORER_MOMENTUM_WEIGHT,
+        "volume_confirmation": SCORER_VOLUME_WEIGHT,
+        "market_correction": SCORER_MARKET_WEIGHT,
+        "sector_strength": SCORER_SECTOR_WEIGHT
     })
-    # 通过阈值
-    pass_threshold: float = 0.7
-    # 最小数据点数
-    min_data_points: int = 50
+    pass_threshold: float = SCORER_PASS_THRESHOLD
+    min_data_points: int = SCORER_MIN_DATA_POINTS
     
     def validate(self) -> bool:
-        """验证配置参数"""
         total_weight = sum(self.weights.values())
         return (
-            abs(total_weight - 1.0) < 0.01 and  # 权重和接近1
+            abs(total_weight - 1.0) < 0.01 and
             0 < self.pass_threshold < 1 and
             self.min_data_points >= 20
         )
     
     def normalize_weights(self) -> None:
-        """归一化权重"""
         total = sum(self.weights.values())
         if total > 0:
             self.weights = {k: v / total for k, v in self.weights.items()}
@@ -134,52 +129,38 @@ class SignalScorerConfig:
 
 @dataclass
 class MarketRegimeConfig:
-    """
-    市场环境识别策略配置
-    
-    整合技术指标和宏观指标
-    """
-    # === 技术指标参数 ===
-    # 趋势强度阈值
+    """市场环境识别策略配置"""
+    # 技术指标参数
     trend_strength_threshold: float = 0.3
-    # 低波动率阈值
     low_volatility_threshold: float = 0.15
-    # 高波动率阈值
     high_volatility_threshold: float = 0.35
-    # 极高波动率阈值
     extreme_volatility_threshold: float = 0.4
-    # 健康得分阈值
     health_score_threshold: float = 0.6
-    # 无风险利率（年化）
     risk_free_rate: float = 0.02
-    # 最小数据点数
     min_data_points: int = 50
     
-    # === 宏观指标参数 ===
-    # 是否启用宏观指标分析
+    # 宏观指标参数
     use_macro_indicators: bool = True
-    # 宏观指标权重 (0-1，与技术指标权重互补)
     macro_weight: float = 0.3
     
-    # VIX 阈值
-    vix_low_threshold: float = 15.0      # VIX < 15: 低波动
-    vix_normal_threshold: float = 20.0   # VIX 15-20: 正常
-    vix_high_threshold: float = 30.0     # VIX 20-30: 高波动
-    vix_panic_threshold: float = 40.0    # VIX > 40: 恐慌
+    # VIX 阈值 (从常量导入)
+    vix_low_threshold: float = VIX_LOW
+    vix_normal_threshold: float = VIX_NORMAL
+    vix_high_threshold: float = VIX_HIGH
+    vix_panic_threshold: float = VIX_PANIC
     
     # 美债收益率阈值
-    tnx_low_threshold: float = 2.0       # < 2%: 宽松
-    tnx_high_threshold: float = 4.5      # > 4.5%: 紧缩
+    tnx_low_threshold: float = 2.0
+    tnx_high_threshold: float = 4.5
     
     # 收益率曲线倒挂阈值
-    curve_inversion_threshold: float = 0.0  # 10Y-2Y < 0 表示倒挂
+    curve_inversion_threshold: float = 0.0
     
     # 宏观风险评分阈值
-    macro_risk_low: float = 30.0         # 低风险
-    macro_risk_high: float = 70.0        # 高风险
+    macro_risk_low: float = 30.0
+    macro_risk_high: float = 70.0
     
     def validate(self) -> bool:
-        """验证配置参数"""
         return (
             0 < self.trend_strength_threshold < 1 and
             0 < self.low_volatility_threshold < self.high_volatility_threshold and
@@ -191,7 +172,6 @@ class MarketRegimeConfig:
         )
 
 
-# 策略配置管理器
 class StrategyConfigManager:
     """策略配置管理器，支持从配置文件加载"""
     
@@ -225,7 +205,6 @@ class StrategyConfigManager:
             return self._configs
             
         except FileNotFoundError:
-            # 使用默认配置
             self._configs = {
                 'momentum_breakout': MomentumBreakoutConfig(),
                 'accumulation_acceleration': AccumulationAccelerationConfig(),
@@ -239,57 +218,57 @@ class StrategyConfigManager:
         """解析动量策略配置"""
         cfg = strategies_config.get('momentum_breakout', {})
         return MomentumBreakoutConfig(
-            price_breakout_threshold=cfg.get('price_breakout_threshold', 1.01),
-            volume_burst_multiplier=cfg.get('volume_burst_multiplier', 2.0),
-            momentum_5d_threshold=cfg.get('momentum_5d_threshold', 0.03),
-            momentum_20d_threshold=cfg.get('momentum_20d_threshold', 0.05),
-            min_data_points=cfg.get('min_data_points', 21),
+            price_breakout_threshold=cfg.get('price_breakout_threshold', MOMENTUM_PRICE_BREAKOUT_THRESHOLD),
+            volume_burst_multiplier=cfg.get('volume_burst_multiplier', MOMENTUM_VOLUME_BURST_MULTIPLIER),
+            momentum_5d_threshold=cfg.get('momentum_5d_threshold', MOMENTUM_5D_THRESHOLD),
+            momentum_20d_threshold=cfg.get('momentum_20d_threshold', MOMENTUM_20D_THRESHOLD),
+            min_data_points=cfg.get('min_data_points', MOMENTUM_MIN_DATA_POINTS),
         )
     
     def _parse_accumulation_config(self, strategies_config: Dict) -> AccumulationAccelerationConfig:
         """解析吸筹策略配置"""
         cfg = strategies_config.get('accumulation_acceleration', {})
         return AccumulationAccelerationConfig(
-            accumulation_volatility_threshold=cfg.get('accumulation_volatility_threshold', 0.15),
-            accumulation_period=cfg.get('accumulation_period', 30),
-            acceleration_price_multiplier=cfg.get('acceleration_price_multiplier', 1.015),
-            acceleration_volume_ratio=cfg.get('acceleration_volume_ratio', 2.5),
-            rsi_low_range_min=cfg.get('rsi_low_range_min', 40.0),
-            rsi_low_range_max=cfg.get('rsi_low_range_max', 60.0),
-            rsi_breakout_threshold=cfg.get('rsi_breakout_threshold', 65.0),
-            rsi_period=cfg.get('rsi_period', 14),
-            min_data_points=cfg.get('min_data_points', 30),
+            accumulation_volatility_threshold=cfg.get('volatility_threshold', ACCUMULATION_VOLATILITY_THRESHOLD),
+            accumulation_period=cfg.get('accumulation_period', ACCUMULATION_PERIOD),
+            acceleration_price_multiplier=cfg.get('breakout_threshold', ACCUMULATION_BREAKOUT_THRESHOLD),
+            acceleration_volume_ratio=cfg.get('volume_ratio_threshold', ACCUMULATION_VOLUME_RATIO_THRESHOLD),
+            rsi_low_range_min=cfg.get('rsi_prev_min', ACCUMULATION_RSI_PREV_MIN),
+            rsi_low_range_max=cfg.get('rsi_prev_max', ACCUMULATION_RSI_PREV_MAX),
+            rsi_breakout_threshold=cfg.get('rsi_current_threshold', ACCUMULATION_RSI_CURRENT_THRESHOLD),
+            rsi_period=cfg.get('rsi_period', RSI_PERIOD),
+            min_data_points=cfg.get('min_data_points', ACCUMULATION_PERIOD),
         )
     
     def _parse_volatility_config(self, strategies_config: Dict) -> VolatilitySqueezeConfig:
         """解析波动率策略配置"""
         cfg = strategies_config.get('volatility_squeeze', {})
         return VolatilitySqueezeConfig(
-            bb_period=cfg.get('bb_period', 20),
-            bb_std_dev=cfg.get('bb_std_dev', 2.0),
-            squeeze_lookback=cfg.get('squeeze_lookback', 100),
-            squeeze_percentile=cfg.get('squeeze_percentile', 0.10),
-            breakout_change_threshold=cfg.get('breakout_change_threshold', 0.02),
-            volume_multiplier=cfg.get('volume_multiplier', 1.5),
-            volume_avg_period=cfg.get('volume_avg_period', 50),
-            min_data_points=cfg.get('min_data_points', 100),
+            bb_period=cfg.get('bb_period', VOLATILITY_BB_PERIOD),
+            bb_std_dev=cfg.get('bb_std_dev', BB_STD_DEV),
+            squeeze_lookback=cfg.get('squeeze_lookback', VOLATILITY_SQUEEZE_LOOKBACK),
+            squeeze_percentile=cfg.get('squeeze_percentile', VOLATILITY_SQUEEZE_PERCENTILE),
+            breakout_change_threshold=cfg.get('breakout_threshold', VOLATILITY_BREAKOUT_THRESHOLD),
+            volume_multiplier=cfg.get('volume_multiplier', VOLATILITY_VOLUME_MULTIPLIER),
+            volume_avg_period=cfg.get('volume_period', VOLATILITY_VOLUME_PERIOD),
+            min_data_points=cfg.get('min_data_points', VOLATILITY_SQUEEZE_LOOKBACK),
         )
     
     def _parse_signal_scorer_config(self, strategies_config: Dict) -> SignalScorerConfig:
         """解析信号评分器配置"""
         cfg = strategies_config.get('signal_scorer', {})
         default_weights = {
-            "trend_following": 0.25,
-            "momentum_breakout": 0.20,
-            "volume_confirmation": 0.15,
-            "market_correction": 0.20,
-            "sector_strength": 0.20
+            "trend_following": SCORER_TREND_WEIGHT,
+            "momentum_breakout": SCORER_MOMENTUM_WEIGHT,
+            "volume_confirmation": SCORER_VOLUME_WEIGHT,
+            "market_correction": SCORER_MARKET_WEIGHT,
+            "sector_strength": SCORER_SECTOR_WEIGHT
         }
         weights = cfg.get('weights', default_weights)
         return SignalScorerConfig(
             weights=weights,
-            pass_threshold=cfg.get('pass_threshold', 0.7),
-            min_data_points=cfg.get('min_data_points', 50),
+            pass_threshold=cfg.get('pass_threshold', SCORER_PASS_THRESHOLD),
+            min_data_points=cfg.get('min_data_points', SCORER_MIN_DATA_POINTS),
         )
     
     def _parse_market_regime_config(self, strategies_config: Dict) -> MarketRegimeConfig:
@@ -309,7 +288,6 @@ class StrategyConfigManager:
         """获取指定策略的配置"""
         if self._configs is None:
             self.load_from_file()
-        
         return self._configs.get(strategy_name)
 
 
