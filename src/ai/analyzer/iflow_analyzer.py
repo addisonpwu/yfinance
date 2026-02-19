@@ -249,15 +249,15 @@ class IFlowAIAnalyzer(AIAnalyzer):
         # 生成缓存键（使用数据哈希而非日期）
         cache_key = self._get_cache_key(stock_data, hist, interval, model)
         
-        # 尝试从缓存获取
-        cached_result = self.cache_service.get_json(cache_key, self.AI_CACHE_SUBDIR)
-        if cached_result:
-            self.logger.info(f"从缓存获取 {stock_data.get('symbol', 'Unknown')} 的AI分析结果")
-            return AIAnalysisResult(
-                summary=cached_result.get('summary', ''),
-                confidence=cached_result.get('confidence', 0.5),
-                model_used=cached_result.get('model_used', model)
-            )
+        # 缓存读取已禁用 - 每次都重新分析
+        # cached_result = self.cache_service.get_json(cache_key, self.AI_CACHE_SUBDIR)
+        # if cached_result:
+        #     self.logger.info(f"从缓存获取 {stock_data.get('symbol', 'Unknown')} 的AI分析结果")
+        #     return AIAnalysisResult(
+        #         summary=cached_result.get('summary', ''),
+        #         confidence=cached_result.get('confidence', 0.5),
+        #         model_used=cached_result.get('model_used', model)
+        #     )
         
         # 检查 API Key
         if not self.api_key:
@@ -272,15 +272,15 @@ class IFlowAIAnalyzer(AIAnalyzer):
                 # 新增：记录预测
                 self._record_prediction(stock_data, analysis_result, model)
                 
-                # 保存结果到缓存
-                cache_data = {
-                    'symbol': stock_data.get('symbol', ''),
-                    'summary': analysis_result.summary,
-                    'confidence': analysis_result.confidence,
-                    'model_used': analysis_result.model_used,
-                    'direction': analysis_result.detailed_analysis.get('direction', '中性') if analysis_result.detailed_analysis else '中性',
-                }
-                self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
+                # 缓存写入已禁用 - 每次都重新分析
+                # cache_data = {
+                #     'symbol': stock_data.get('symbol', ''),
+                #     'summary': analysis_result.summary,
+                #     'confidence': analysis_result.confidence,
+                #     'model_used': analysis_result.model_used,
+                #     'direction': analysis_result.detailed_analysis.get('direction', '中性') if analysis_result.detailed_analysis else '中性',
+                # }
+                # self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
             
             return analysis_result
                 
@@ -608,6 +608,9 @@ class IFlowAIAnalyzer(AIAnalyzer):
             'deepseek-v3.2',
             'qwen3-max',
             'tstars2.0',
+            'iflow-rome-30ba3b',
+            'tstars2.0',
+            'qwen3-coder-plus'
         ]
         
         all_results = []

@@ -22,7 +22,8 @@ def main():
     parser.add_argument('--skip-strategies', action='store_true', help="跳過策略篩選，所有股票都進行AI分析")
     parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
     parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
-    parser.add_argument('--model', type=str, default='deepseek-v3.2', choices=['iflow-rome-30ba3b', 'qwen3-max', 'tstars2.0', 'deepseek-v3.2', 'qwen3-coder-plus', 'all'], help="AI分析模型")
+    parser.add_argument('--model', type=str, default='deepseek-v3.2', help="AI分析模型 (iFlow: deepseek-v3.2, qwen3-max, all; NVIDIA: z-ai/glm5, all)")
+    parser.add_argument('--provider', type=str, default='iflow', choices=['iflow', 'nvidia'], help="AI 提供商 (iflow 或 nvidia)")
     parser.add_argument('--speed', type=str, default=None, choices=['fast', 'balanced', 'safe'], 
                         help=f"速度模式: fast(快速), balanced(平衡,默認), safe(安全)")
     parser.add_argument('--skip-validation', action='store_true', help="跳過啟動時的配置驗證")
@@ -38,9 +39,16 @@ def main():
             
             # 检查敏感信息配置状态
             secrets = get_secrets_manager()
-            if not secrets.is_configured('IFLOW_API_KEY'):
-                print("⚠️  IFLOW_API_KEY 未配置，AI 分析功能将不可用")
-                print("   请创建 .env 文件并设置 IFLOW_API_KEY")
+            
+            # 根据提供商检查对应的 API Key
+            if args.provider == 'nvidia':
+                if not secrets.is_configured('NVIDIA_API_KEY'):
+                    print("⚠️  NVIDIA_API_KEY 未配置，NVIDIA AI 分析功能将不可用")
+                    print("   请创建 .env 文件并设置 NVIDIA_API_KEY")
+            else:
+                if not secrets.is_configured('IFLOW_API_KEY'):
+                    print("⚠️  IFLOW_API_KEY 未配置，iFlow AI 分析功能将不可用")
+                    print("   请创建 .env 文件并设置 IFLOW_API_KEY")
         except ValueError as e:
             print(f"❌ 配置验证失败: {e}")
             print("   请检查 config.json 文件格式")
@@ -58,6 +66,7 @@ def main():
     if args.symbol:
         print(f"--- 分析指定股票: {args.symbol} ---")
     print(f"--- 數據時段類型: {args.interval} ---")
+    print(f"--- AI 提供商: {args.provider} ---")
     print(f"--- AI分析模型: {args.model} ---")
     
     # 显示当前速度配置
@@ -84,6 +93,7 @@ def main():
         symbol_filter=args.symbol,
         interval=args.interval,
         model=args.model,
+        provider=args.provider,
         output_filename=output_filename
     )
 

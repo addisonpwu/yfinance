@@ -130,10 +130,45 @@ class NewsConfig:
     max_news_items: int = 5
 
 @dataclass
+class AIProviderConfig:
+    """单个 AI 提供商配置"""
+    default_model: str = ""
+    available_models: List[str] = None
+    
+    def __post_init__(self):
+        if self.available_models is None:
+            self.available_models = []
+
+
+@dataclass
+class AIProvidersConfig:
+    """AI 提供商配置"""
+    iflow: AIProviderConfig = None
+    nvidia: AIProviderConfig = None
+    
+    def __post_init__(self):
+        if self.iflow is None:
+            self.iflow = AIProviderConfig(
+                default_model="deepseek-v3.2",
+                available_models=["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
+            )
+        if self.nvidia is None:
+            self.nvidia = AIProviderConfig(
+                default_model="z-ai/glm5",
+                available_models=["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"]
+            )
+
+
+@dataclass
 class AIConfig:
     api_timeout: int = 30
     model: str = "deepseek-v3.2"
     max_data_points: int = 100
+    providers: AIProvidersConfig = None
+    
+    def __post_init__(self):
+        if self.providers is None:
+            self.providers = AIProvidersConfig()
 
 @dataclass
 class AppConfig:
@@ -228,6 +263,11 @@ class ConfigManager:
         vcp_config = strategies_config.get('vcp_pocket_pivot', {})
         bollinger_squeeze_config = strategies_config.get('bollinger_squeeze', {})
         
+        # 处理 AI 提供商配置
+        providers_config = ai_config.get('providers', {})
+        iflow_config = providers_config.get('iflow', {})
+        nvidia_config = providers_config.get('nvidia', {})
+        
         self._config = AppConfig(
             api=APIConfig(
                 base_delay=api_config.get('base_delay', 0.5),
@@ -293,7 +333,17 @@ class ConfigManager:
             ai=AIConfig(
                 api_timeout=ai_config.get('api_timeout', 30),
                 model=ai_config.get('model', 'deepseek-v3.2'),
-                max_data_points=ai_config.get('max_data_points', 100)
+                max_data_points=ai_config.get('max_data_points', 100),
+                providers=AIProvidersConfig(
+                    iflow=AIProviderConfig(
+                        default_model=iflow_config.get('default_model', 'deepseek-v3.2'),
+                        available_models=iflow_config.get('available_models', ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"])
+                    ),
+                    nvidia=AIProviderConfig(
+                        default_model=nvidia_config.get('default_model', 'z-ai/glm5'),
+                        available_models=nvidia_config.get('available_models', ["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"])
+                    )
+                )
             ),
             speed_mode=speed_mode
         )
@@ -423,7 +473,17 @@ class ConfigManager:
             "ai": {
                 "api_timeout": 30,
                 "model": "deepseek-v3.2",
-                "max_data_points": 100
+                "max_data_points": 100,
+                "providers": {
+                    "iflow": {
+                        "default_model": "deepseek-v3.2",
+                        "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
+                    },
+                    "nvidia": {
+                        "default_model": "z-ai/glm5",
+                        "available_models": ["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"]
+                    }
+                }
             }
         }
         

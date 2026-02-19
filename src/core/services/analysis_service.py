@@ -23,6 +23,7 @@ def run_analysis(
     interval: str = '1d',
     max_workers: int = None,
     model: str = 'deepseek-v3.2',
+    provider: str = 'iflow',
     output_filename: str = None
 ) -> List[Dict]:
     """
@@ -36,6 +37,7 @@ def run_analysis(
         interval: 数据时段类型 ('1d' 日线, '1h' 小时线, '1m' 分钟线)
         max_workers: 最大并行工作线程数
         model: 要使用的AI模型
+        provider: AI 提供商 ('iflow' 或 'nvidia')
         output_filename: 实时报告文件名
 
     Returns:
@@ -50,7 +52,7 @@ def run_analysis(
     # 初始化服务
     market_service = MarketDataService()
     cache_manager = CacheVersionManager()
-    stock_analyzer = StockAnalyzer()
+    stock_analyzer = StockAnalyzer(provider=provider)
     
     # --- 缓存版本检查 ---
     is_sync_needed, status_msg = cache_manager.check_version(market, force_fast_mode, interval)

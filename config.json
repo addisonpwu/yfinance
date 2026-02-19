@@ -117,6 +117,16 @@
   "ai": {
     "api_timeout": 30,
     "model": "deepseek-v3.2",
-    "max_data_points": 100
+    "max_data_points": 100,
+    "providers": {
+      "iflow": {
+        "default_model": "deepseek-v3.2",
+        "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
+      },
+      "nvidia": {
+        "default_model": "z-ai/glm5",
+        "available_models": ["z-ai/glm5", "google/gemma-2-27b", "meta/llama-3.1-405b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1", "nvidia/nemotron-4-340b-instruct"]
+      }
+    }
   }
 }

@@ -43,12 +43,13 @@ class StockAnalyzer:
     _last_request_time = 0.0
     _consecutive_errors = 0
     
-    def __init__(self):
+    def __init__(self, provider: str = 'iflow'):
         self.data_repo = YahooFinanceRepository()
         self.strategy_engine = StrategyEngine(get_strategies())
-        self.ai_service = AIAnalysisService()
+        self.ai_service = AIAnalysisService(provider=provider)
         self.config = config_manager.get_config()
         self.logger = get_analysis_logger()
+        self.provider = provider
         
         # 从配置读取延迟参数
         self.base_delay = getattr(self.config.api, 'base_delay', 0.5)

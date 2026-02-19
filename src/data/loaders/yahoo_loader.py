@@ -148,14 +148,14 @@ class YahooFinanceRepository(StockRepository):
         # 标准化 symbol
         symbol = symbol.upper().replace(".HK", "")
         
-        # 检查缓存
-        today = datetime.now().strftime("%Y-%m-%d")
-        cache_key = f"news_{symbol}_{market}_{today}"
-        cached_news = self.cache_service.get_json(cache_key, "news")
-        
-        if cached_news:
-            self.logger.info(f"从缓存获取 {symbol} 的新闻数据")
-            return cached_news
+        # 缓存读取已禁用 - 每次都重新获取新闻
+        # today = datetime.now().strftime("%Y-%m-%d")
+        # cache_key = f"news_{symbol}_{market}_{today}"
+        # cached_news = self.cache_service.get_json(cache_key, "news")
+        # 
+        # if cached_news:
+        #     self.logger.info(f"从缓存获取 {symbol} 的新闻数据")
+        #     return cached_news
         
         # 构建 RSS URL
         if market.upper() == "HK":
@@ -214,10 +214,12 @@ class YahooFinanceRepository(StockRepository):
             # 按时间降序排序
             news_list.sort(key=lambda x: x["published"], reverse=True)
             
-            # 缓存结果
-            if news_list:
-                self.cache_service.set_json(cache_key, news_list, "news")
-                self.logger.info(f"获取 {symbol} 新闻 {len(news_list)} 条")
+            # 缓存写入已禁用 - 每次都重新获取新闻
+            # if news_list:
+            #     self.cache_service.set_json(cache_key, news_list, "news")
+            #     self.logger.info(f"获取 {symbol} 新闻 {len(news_list)} 条")
+            
+            self.logger.info(f"获取 {symbol} 新闻 {len(news_list)} 条")
             
             return news_list
             
