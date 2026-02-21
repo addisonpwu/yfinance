@@ -179,6 +179,7 @@ class AIProvidersConfig:
     """AI 提供商配置"""
     iflow: AIProviderConfig = None
     nvidia: AIProviderConfig = None
+    gemini: AIProviderConfig = None
     
     def __post_init__(self):
         if self.iflow is None:
@@ -190,6 +191,11 @@ class AIProvidersConfig:
             self.nvidia = AIProviderConfig(
                 default_model=DEFAULT_AI_PROVIDERS["nvidia"]["default_model"],
                 available_models=DEFAULT_AI_PROVIDERS["nvidia"]["available_models"]
+            )
+        if self.gemini is None:
+            self.gemini = AIProviderConfig(
+                default_model=DEFAULT_AI_PROVIDERS["gemini"]["default_model"],
+                available_models=DEFAULT_AI_PROVIDERS["gemini"]["available_models"]
             )
 
 
@@ -283,6 +289,7 @@ class ConfigManager:
         providers_config = ai_config.get('providers', {})
         iflow_config = providers_config.get('iflow', {})
         nvidia_config = providers_config.get('nvidia', {})
+        gemini_config = providers_config.get('gemini', {})
         
         self._config = AppConfig(
             api=APIConfig(
@@ -360,6 +367,10 @@ class ConfigManager:
                     nvidia=AIProviderConfig(
                         default_model=nvidia_config.get('default_model', DEFAULT_AI_PROVIDERS["nvidia"]["default_model"]),
                         available_models=nvidia_config.get('available_models', DEFAULT_AI_PROVIDERS["nvidia"]["available_models"])
+                    ),
+                    gemini=AIProviderConfig(
+                        default_model=gemini_config.get('default_model', DEFAULT_AI_PROVIDERS["gemini"]["default_model"]),
+                        available_models=gemini_config.get('available_models', DEFAULT_AI_PROVIDERS["gemini"]["available_models"])
                     )
                 )
             ),

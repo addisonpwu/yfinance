@@ -22,12 +22,17 @@ def main():
     parser.add_argument('--skip-strategies', action='store_true', help="跳過策略篩選，所有股票都進行AI分析")
     parser.add_argument('--symbol', type=str, help="指定分析單一股票代碼（例如：0017.HK）")
     parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
-    parser.add_argument('--model', type=str, default='deepseek-v3.2', help="AI分析模型 (iFlow: deepseek-v3.2, qwen3-max, all; NVIDIA: z-ai/glm5, all)")
-    parser.add_argument('--provider', type=str, default='iflow', choices=['iflow', 'nvidia'], help="AI 提供商 (iflow 或 nvidia)")
+    parser.add_argument('--model', type=str, default=None, help="AI分析模型 (iFlow: deepseek-v3.2; NVIDIA: z-ai/glm5; Gemini: gemini-2.5-flash; 或 'all')")
+    parser.add_argument('--provider', type=str, default='iflow', choices=['iflow', 'nvidia', 'gemini'], help="AI 提供商 (iflow, nvidia 或 gemini)")
     parser.add_argument('--speed', type=str, default=None, choices=['fast', 'balanced', 'safe'], 
                         help=f"速度模式: fast(快速), balanced(平衡,默認), safe(安全)")
     parser.add_argument('--skip-validation', action='store_true', help="跳過啟動時的配置驗證")
     args = parser.parse_args()
+    
+    # 根据提供商自动选择默认模型（必须在其他代码之前执行）
+    if args.model is None:
+        from src.config.constants import DEFAULT_AI_PROVIDERS
+        args.model = DEFAULT_AI_PROVIDERS.get(args.provider, {}).get('default_model', 'deepseek-v3.2')
     
     # 启动验证（检查配置和敏感信息）
     if HAS_VALIDATOR and not args.skip_validation:
@@ -45,6 +50,11 @@ def main():
                 if not secrets.is_configured('NVIDIA_API_KEY'):
                     print("⚠️  NVIDIA_API_KEY 未配置，NVIDIA AI 分析功能将不可用")
                     print("   请创建 .env 文件并设置 NVIDIA_API_KEY")
+            elif args.provider == 'gemini':
+                if not secrets.is_configured('GEMINI_API_KEY'):
+                    print("⚠️  GEMINI_API_KEY 未配置，Gemini AI 分析功能将不可用")
+                    print("   请创建 .env 文件并设置 GEMINI_API_KEY")
+                    print("   获取密钥: https://ai.google.dev/")
             else:
                 if not secrets.is_configured('IFLOW_API_KEY'):
                     print("⚠️  IFLOW_API_KEY 未配置，iFlow AI 分析功能将不可用")

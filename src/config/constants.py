@@ -76,6 +76,10 @@ DEFAULT_AI_PROVIDERS = {
     "nvidia": {
         "default_model": "z-ai/glm5",
         "available_models": ["z-ai/glm5", "deepseek-ai/deepseek-v3.2", "qwen/qwen3.5-397b-a17b", "moonshotai/kimi-k2.5"]
+    },
+    "gemini": {
+        "default_model": "gemini-2.5-flash",
+        "available_models": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-3-flash-preview", "gemini-3-pro-preview"]
     }
 }
 

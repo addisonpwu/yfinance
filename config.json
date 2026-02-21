@@ -1,5 +1,5 @@
 {
-  "speed_mode": "fast",
+  "speed_mode": "safe",
   "api": {
     "base_delay": 0.1,
     "max_delay": 1.0,
@@ -130,6 +130,12 @@
           "deepseek-ai/deepseek-v3.2",
           "qwen/qwen3.5-397b-a17b",
           "moonshotai/kimi-k2.5"
+        ]
+      },
+      "gemini": {
+        "default_model": "gemini-2.5-flash",
+        "available_models": [
+          "gemini-2.5-flash"
         ]
       }
     }

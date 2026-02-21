@@ -8,9 +8,9 @@
 - **多市场支持**：支持美股（US）和港股（HK）市场
 - **策略模块化**：动态加载策略，易于扩展
 - **智能缓存系统**：高效的数据缓存机制，支持 TTL
-- **AI 分析集成**：集成 iFlow API 进行技术分析
+- **AI 分析集成**：支持三大 AI 提供商（iFlow、NVIDIA NIM、Google Gemini）
 - **多时间框架**：支持日线、小时线、分钟线数据
-- **多模型AI分析**：支持多种AI模型进行股票分析
+- **多模型AI分析**：支持多种AI模型进行股票分析，支持多模型投票共识
 - **新闻整合**：自动获取 Yahoo Finance 新闻，整合到 AI 分析
 - **HTML/PDF 报告**：现代化报告格式，支持浏览器打印，包含新闻展示
 - **回测引擎**：完整的策略回测功能，支持蒙特卡洛验证
@@ -110,7 +110,12 @@
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           AI 分析阶段                                         │
-│  调用 iFlow API (或指定模型):                                                 │
+│  支持三大 AI 提供商 (通过 --provider 参数选择):                                │
+│  - iFlow: 心流 AI (默认)                                                     │
+│  - nvidia: NVIDIA NIM API                                                    │
+│  - gemini: Google Gemini API                                                 │
+│                                                                              │
+│  分析流程:                                                                    │
 │  1. 构建分析提示词 (价格数据 + 技术指标 + 基本面 + 新闻)                      │
 │  2. AI 模型分析 (8维度技术分析):                                             │
 │     - 趋势分析                                                               │
@@ -122,6 +127,7 @@
 │     - 风险评估                                                               │
 │     - 投资建议 (含价位建议)                                                  │
 │  3. 缓存 AI 分析结果 (按数据哈希 + 模型 + 新闻哈希)                           │
+│  4. 多模型投票共识 (可选，通过 --model all 启用)                              │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -491,8 +497,10 @@ yfinace/
 ├── src/                    # 源代码目录
 │   ├── ai/                 # AI分析模块
 │   │   └── analyzer/       # AI分析器
-│   │       ├── iflow_analyzer.py
-│   │       └── service.py
+│   │       ├── iflow_analyzer.py    # iFlow API 分析器
+│   │       ├── nvidia_analyzer.py   # NVIDIA NIM API 分析器
+│   │       ├── gemini_analyzer.py   # Google Gemini API 分析器
+│   │       └── service.py           # AI 服务统一接口
 │   ├── analysis/           # 分析模块
 │   │   └── news_analyzer.py
 │   ├── backtest/           # 回测引擎
@@ -689,7 +697,21 @@ news_us = repo.get_news('AAPL', 'US', days_back=7, max_items=5)
   "ai": {
     "api_timeout": 30,
     "model": "deepseek-v3.2",
-    "max_data_points": 100
+    "max_data_points": 100,
+    "providers": {
+      "iflow": {
+        "default_model": "deepseek-v3.2",
+        "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0"]
+      },
+      "nvidia": {
+        "default_model": "z-ai/glm5",
+        "available_models": ["z-ai/glm5", "deepseek-ai/deepseek-v3.2"]
+      },
+      "gemini": {
+        "default_model": "gemini-2.5-flash",
+        "available_models": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"]
+      }
+    }
   }
 }
 ```
@@ -701,6 +723,103 @@ news_us = repo.get_news('AAPL', 'US', days_back=7, max_items=5)
 | `fast` | 8 | 0.2s | 快速测试 |
 | `balanced` | 4 | 0.5s | 日常使用（推荐） |
 | `safe` | 2 | 1.0s | 避免 API 限流 |
+
+---
+
+## AI 提供商详细说明
+
+系统支持三大 AI 提供商，可通过 `--provider` 参数选择：
+
+### 提供商对比
+
+| 提供商 | SDK | 默认模型 | 特点 |
+|--------|-----|----------|------|
+| **iFlow** | 自研 API | deepseek-v3.2 | 心流 AI，支持多模型投票 |
+| **NVIDIA** | OpenAI SDK | z-ai/glm5 | NVIDIA NIM，支持 reasoning_content |
+| **Gemini** | Google GenAI | gemini-2.5-flash | Google 最新模型，100万 token 上下文 |
+
+### iFlow 提供商
+
+**支持模型**：
+- `deepseek-v3.2` - 默认，DeepSeek 最新版本
+- `qwen3-max` - 通义千问
+- `tstars2.0` - TStars 模型
+- `qwen3-coder-plus` - 代码增强版
+
+**使用示例**：
+```python
+from src.ai.analyzer.service import AIAnalysisService
+
+# 使用 iFlow
+service = AIAnalysisService(provider='iflow')
+result = service.analyze_stock(stock_data, hist, model='deepseek-v3.2')
+```
+
+### NVIDIA 提供商
+
+**支持模型**：
+- `z-ai/glm5` - 智谱 GLM-5
+- `deepseek-ai/deepseek-v3.2` - DeepSeek on NVIDIA
+- `qwen/qwen3.5-397b-a17b` - 通义千问
+- `moonshotai/kimi-k2.5` - Moonshot Kimi
+
+**特色功能**：
+- 支持 `reasoning_content`（思考过程）展示
+- 流式响应支持
+
+**使用示例**：
+```python
+# 使用 NVIDIA
+service = AIAnalysisService(provider='nvidia', enable_streaming=True)
+result = service.analyze_stock(stock_data, hist, model='z-ai/glm5')
+```
+
+### Gemini 提供商
+
+**支持模型**：
+| 模型 | 描述 | 上下文 | 适用场景 |
+|------|------|--------|----------|
+| `gemini-2.5-flash` | **推荐默认**，最佳性价比 | 100万 tokens | 日常分析 |
+| `gemini-2.5-pro` | 高级思考模型 | 100万 tokens | 复杂分析 |
+| `gemini-2.5-flash-lite` | 极速轻量 | 100万 tokens | 快速筛选 |
+| `gemini-2.0-flash` | 二代快速模型 | 100万 tokens | 通用场景 |
+| `gemini-3-flash-preview` | 最新预览版 | 100万 tokens | 实验功能 |
+| `gemini-3-pro-preview` | 最强模型预览版 | 100万 tokens | 复杂推理 |
+
+**使用示例**：
+```python
+# 使用 Gemini
+from src.ai.analyzer.gemini_analyzer import GeminiAIAnalyzer
+
+analyzer = GeminiAIAnalyzer(enable_cache=True, enable_streaming=True)
+result = analyzer.analyze(stock_data, hist, model='gemini-2.5-flash')
+
+# 多模型投票共识
+result = analyzer.analyze(stock_data, hist, model='all')
+```
+
+**API 密钥获取**：
+1. 访问 [Google AI Studio](https://ai.google.dev/)
+2. 点击 "Get API Key" 创建密钥
+3. 将密钥添加到 `.env` 文件：
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+### 多模型投票共识
+
+所有提供商都支持使用 `model='all'` 启用多模型投票：
+
+```bash
+# 使用所有可用模型进行分析
+python3 main.py --market HK --provider gemini --model all --symbol 0001.HK
+```
+
+共识机制会：
+1. 并行调用多个模型
+2. 统计看涨/看跌/中性票数
+3. 计算一致率和综合置信度
+4. 返回共识分析结果
 
 ---
 
@@ -724,6 +843,14 @@ IFLOW_API_KEY=your_actual_api_key_here
 # AI API 配置（必需）
 IFLOW_API_KEY=your_iflow_api_key_here
 IFLOW_API_BASE_URL=https://api.iflow.com/v1
+
+# NVIDIA NIM API 密钥（用于 NVIDIA AI 股票分析）
+# 获取地址: https://build.nvidia.com/
+NVIDIA_API_KEY=nvapi-your_key_here
+
+# Google Gemini API 密钥（用于 Gemini AI 股票分析）
+# 获取地址: https://ai.google.dev/
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # 日志级别
 LOG_LEVEL=INFO
@@ -781,16 +908,33 @@ python3 main.py --market HK --model qwen3-max
 python3 main.py --market HK --speed fast
 ```
 
+### AI 提供商选择
+
+```bash
+# 使用 iFlow AI (默认)
+python3 main.py --market HK --provider iflow
+
+# 使用 NVIDIA NIM API
+python3 main.py --market HK --provider nvidia --model z-ai/glm5
+
+# 使用 Google Gemini API
+python3 main.py --market HK --provider gemini --model gemini-2.5-flash
+
+# 多模型投票共识
+python3 main.py --market HK --provider gemini --model all
+```
+
 ### 参数说明
 
 | 参数 | 说明 |
 |------|------|
 | `--market` | 必需，市场代码 (US/HK) |
+| `--provider` | AI 提供商 (iflow/nvidia/gemini)，默认 iflow |
+| `--model` | AI 模型选择，或使用 `all` 启用多模型投票 |
 | `--no-cache-update` | 跳过缓存更新 |
 | `--skip-strategies` | 跳过策略筛选 |
 | `--symbol` | 指定单一股票代码 |
 | `--interval` | 数据时段 (1d/1h/1m) |
-| `--model` | AI模型选择 |
 | `--speed` | 速度模式 (fast/balanced/safe) |
 
 ---
@@ -833,6 +977,9 @@ playwright
 tenacity
 pydantic>=2.0       # 配置验证（可选）
 python-dotenv>=1.0  # 环境变量管理（可选）
+feedparser>=6.0.0   # 新闻获取
+openai>=1.0.0       # NVIDIA NIM API
+google-genai>=0.3.0 # Google Gemini API
 ```
 
 ---
@@ -845,9 +992,11 @@ python-dotenv>=1.0  # 环境变量管理（可选）
 |------|----------|
 | API 限制 | 使用 `--speed safe` 或调整 `base_delay` |
 | 数据缺失 | 删除缓存重新下载 |
-| AI分析失败 | 检查 `.env` 中的 `IFLOW_API_KEY` |
+| AI分析失败 | 检查 `.env` 中对应的 API 密钥（IFLOW_API_KEY / NVIDIA_API_KEY / GEMINI_API_KEY） |
 | 内存不足 | 使用 `--speed safe` 减少并行数 |
 | 配置验证失败 | 检查 `config.json` 格式和 `.env` 文件 |
+| Gemini SDK 未安装 | 运行 `pip install google-genai` |
+| NVIDIA SDK 未安装 | 运行 `pip install openai` |
 
 ### 调试方法
 
@@ -1377,14 +1526,24 @@ python3 main.py --market HK --skip-strategies --symbol 0001.HK
 python3 main.py --market HK --model all --symbol 0001.HK
 ```
 
-### 场景5: 短线交易分析
+### 场景5: 使用 Gemini API 分析
+
+```bash
+# 使用 Gemini 快速模型
+python3 main.py --market HK --provider gemini --symbol 0001.HK
+
+# 使用 Gemini Pro 高级模型
+python3 main.py --market HK --provider gemini --model gemini-2.5-pro
+```
+
+### 场景6: 短线交易分析
 
 ```bash
 # 使用小时线数据
 python3 main.py --market HK --interval 1h
 ```
 
-### 场景6: 自定义回测
+### 场景7: 自定义回测
 
 ```python
 from src.backtest.engine import BacktestEngine, BacktestConfig
@@ -1413,7 +1572,7 @@ print(f"夏普比率: {result.metrics['sharpe_ratio']:.3f}")
 print(f"最大回撤: {result.metrics['max_drawdown']:.2%}")
 ```
 
-### 场景7: 动态仓位计算
+### 场景8: 动态仓位计算
 
 ```python
 from src.risk.position_sizer import PositionSizer, kelly_sizer
@@ -1435,7 +1594,7 @@ print(f"建议买入: {position['shares']} 股")
 print(f"仓位比例: {position['position_pct']:.1%}")
 ```
 
-### 场景8: 宏观环境判断
+### 场景9: 宏观环境判断
 
 ```python
 from src.data.external.macro_indicators import get_macro_analysis, is_high_risk_environment
@@ -1455,6 +1614,24 @@ if is_high_risk_environment():
 ---
 
 ## 近期更新日志
+
+### 2026-02-21
+- ✨ 新增 Google Gemini API 分析器 (`gemini_analyzer.py`)
+  - 支持 Google GenAI SDK 调用 Gemini API
+  - 支持 6 种 Gemini 模型（gemini-2.5-flash、gemini-2.5-pro 等）
+  - 支持流式响应和多模型投票共识
+  - 支持预测追踪和缓存
+- ✨ AI 服务架构升级为三提供商支持
+  - iFlow (心流 AI) - 默认
+  - NVIDIA NIM API
+  - Google Gemini API
+- 🏗️ 更新配置系统支持 Gemini 提供商
+  - `config.json` 添加 `ai.providers.gemini` 配置
+  - `constants.py` 添加 Gemini 默认模型列表
+  - `settings.py` 的 `AIProvidersConfig` 支持 gemini 属性
+- ✨ 环境变量支持新增 `GEMINI_API_KEY`
+- 📦 依赖更新：添加 `google-genai>=0.3.0`
+- 📝 更新 AGENTS.md 文档
 
 ### 2026-02-19
 - ✨ 新增 NVIDIA API 分析器 (`nvidia_analyzer.py`)

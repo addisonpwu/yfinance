@@ -4,6 +4,7 @@ AI 分析服务
 提供统一的 AI 分析接口，支持多种 AI 提供商：
 - iflow: 心流 AI
 - nvidia: NVIDIA NIM API
+- gemini: Google Gemini API
 """
 
 from typing import Dict, List, Optional, Literal
@@ -14,9 +15,17 @@ from src.ai.analyzer.nvidia_analyzer import NvidiaAIAnalyzer
 from src.config.settings import config_manager
 from src.utils.logger import get_ai_logger
 
+# 尝试导入 Gemini 分析器
+try:
+    from src.ai.analyzer.gemini_analyzer import GeminiAIAnalyzer
+    HAS_GEMINI = True
+except ImportError:
+    HAS_GEMINI = False
+    GeminiAIAnalyzer = None
+
 
 # 支持的 AI 提供商类型
-ProviderType = Literal['iflow', 'nvidia']
+ProviderType = Literal['iflow', 'nvidia', 'gemini']
 
 
 class AIAnalysisService:
@@ -33,6 +42,10 @@ class AIAnalysisService:
         # 使用 NVIDIA
         service = AIAnalysisService(provider='nvidia')
         result = service.analyze_stock(stock_data, hist, model='z-ai/glm5')
+        
+        # 使用 Gemini
+        service = AIAnalysisService(provider='gemini')
+        result = service.analyze_stock(stock_data, hist, model='gemini-2.5-flash')
     """
     
     def __init__(self, provider: ProviderType = 'iflow', **kwargs):
@@ -40,10 +53,10 @@ class AIAnalysisService:
         初始化 AI 分析服务
         
         Args:
-            provider: AI 提供商 ('iflow' 或 'nvidia')
+            provider: AI 提供商 ('iflow', 'nvidia' 或 'gemini')
             **kwargs: 传递给分析器的额外参数
-                - enable_cache: 是否启用缓存 (NVIDIA)
-                - enable_streaming: 是否启用流式响应 (NVIDIA)
+                - enable_cache: 是否启用缓存 (NVIDIA/Gemini)
+                - enable_streaming: 是否启用流式响应 (NVIDIA/Gemini)
         """
         self.provider = provider
         self.logger = get_ai_logger()
@@ -56,6 +69,14 @@ class AIAnalysisService:
                 enable_streaming=kwargs.get('enable_streaming', False)
             )
             self.logger.info("使用 NVIDIA AI 分析器")
+        elif provider == 'gemini':
+            if not HAS_GEMINI:
+                raise ImportError("Gemini 分析器不可用，请安装 google-genai: pip install google-genai")
+            self.analyzer = GeminiAIAnalyzer(
+                enable_cache=kwargs.get('enable_cache', True),
+                enable_streaming=kwargs.get('enable_streaming', False)
+            )
+            self.logger.info("使用 Gemini AI 分析器")
         else:
             self.analyzer = IFlowAIAnalyzer()
             self.logger.info("使用 iFlow AI 分析器")
@@ -124,7 +145,10 @@ class AIAnalysisService:
     @staticmethod
     def get_available_providers() -> List[str]:
         """获取可用的 AI 提供商列表"""
-        return ['iflow', 'nvidia']
+        providers = ['iflow', 'nvidia']
+        if HAS_GEMINI:
+            providers.append('gemini')
+        return providers
     
     def get_available_models(self, provider: ProviderType = None) -> List[str]:
         """
@@ -144,6 +168,8 @@ class AIAnalysisService:
             return providers_config.nvidia.available_models
         elif target_provider == 'iflow' and providers_config.iflow:
             return providers_config.iflow.available_models
+        elif target_provider == 'gemini' and hasattr(providers_config, 'gemini') and providers_config.gemini:
+            return providers_config.gemini.available_models
         
         # 默认返回空列表
         return []

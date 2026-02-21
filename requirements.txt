@@ -13,6 +13,10 @@ feedparser>=6.0.0
 pydantic>=2.0
 python-dotenv>=1.0.0
 
+# AI 提供商 SDK
+openai>=1.0.0          # NVIDIA NIM API
+google-genai>=0.3.0    # Google Gemini API
+
 # 可选：PDF 报告生成
 # weasyprint>=60.0  # 需要 pip install weasyprint
 # pdfkit>=1.0.0     # 需要 wkhtmltopdf 安装

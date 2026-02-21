@@ -507,7 +507,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
 
 关键价位: {levels_result}
 
-【最近20天数据】
+【最近30天数据】
 {hist_summary}
 
 ════════════════════════════════════════════════════════════
@@ -535,7 +535,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
    - 最大风险点
    - 建议仓位（占总资金比例）
 
-请严格按照上述格式输出，控制在800字以内。
+请严格按照上述格式输出，控制在1000字以内。
 """
         return prompt
     
@@ -1298,7 +1298,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
    - 最大风险点
    - 建议仓位
 
-请严格按照上述格式输出，控制在800字以内。"""
+请严格按照上述格式输出，控制在1000字以内。"""
 
         return prompt
     
@@ -1396,12 +1396,12 @@ class IFlowAIAnalyzer(AIAnalyzer):
 """
     
     def _get_hist_summary(self, hist: pd.DataFrame) -> str:
-        """获取历史数据摘要（最近20天）"""
+        """获取历史数据摘要（最近30天）"""
         if hist is None or hist.empty:
             return "无历史数据"
         
         hist_lines = []
-        for idx, row in hist.tail(20).iterrows():
+        for idx, row in hist.tail(30).iterrows():
             date_str = idx.strftime('%Y-%m-%d')
             close = row.get('Close', 'N/A')
             volume = row.get('Volume', 'N/A')

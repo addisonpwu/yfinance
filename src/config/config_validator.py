@@ -384,6 +384,8 @@ class SecretsManager:
     SENSITIVE_KEYS = [
         'IFLOW_API_KEY',
         'IFLOW_API_BASE_URL',
+        'NVIDIA_API_KEY',
+        'GEMINI_API_KEY',
         'FINVIZ_API_KEY',
         'HTTP_PROXY',
         'HTTPS_PROXY',
