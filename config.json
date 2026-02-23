@@ -106,6 +106,16 @@
       "long_trend_period": 200,
       "ma_slope_period": 5,
       "volume_period": 50
+    },
+    "bottom_reversal": {
+      "rsi_oversold_threshold": 30.0,
+      "rsi_recovery_threshold": 3.0,
+      "support_distance_threshold": 0.05,
+      "volume_contraction_threshold": 0.6,
+      "volume_expansion_min": 1.0,
+      "volume_expansion_max": 2.5,
+      "min_data_points": 30,
+      "confidence": 0.75
     }
   },
   "news": {

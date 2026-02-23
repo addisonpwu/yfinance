@@ -9,12 +9,14 @@ class StrategyContext:
                  info: Dict, 
                  market_return: float = 0.0, 
                  is_market_healthy: bool = True,
-                 additional_data: Optional[Dict] = None):
+                 additional_data: Optional[Dict] = None,
+                 benchmark: Optional[pd.DataFrame] = None):
         self.hist = hist
         self.info = info
         self.market_return = market_return
         self.is_market_healthy = is_market_healthy
         self.additional_data = additional_data or {}
+        self.benchmark = benchmark  # 大盘数据（用于相对强度分析）
 
 class BaseStrategy(ABC):
     @property

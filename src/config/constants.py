@@ -113,7 +113,7 @@ MOMENTUM_20D_THRESHOLD = 0.05
 MOMENTUM_MIN_DATA_POINTS = 21
 MOMENTUM_CONFIDENCE = 0.8
 
-# 吸筹加速策略
+# 吸筹加速策略 v2.0 (增强版)
 ACCUMULATION_PERIOD = 30
 ACCUMULATION_VOLATILITY_THRESHOLD = 0.15
 ACCUMULATION_VOLUME_TREND_PERIOD = 30
@@ -123,6 +123,26 @@ ACCUMULATION_RSI_PREV_MIN = 40
 ACCUMULATION_RSI_PREV_MAX = 60
 ACCUMULATION_RSI_CURRENT_THRESHOLD = 65
 ACCUMULATION_CONFIDENCE = 0.8
+
+# 吸筹期增强参数
+ACCUMULATION_PRICE_STABILITY_WEIGHT = 0.30      # 价格稳定性权重
+ACCUMULATION_VOLUME_PATTERN_WEIGHT = 0.40       # 成交量分布权重
+ACCUMULATION_VWAP_WEIGHT = 0.30                 # VWAP 权重
+
+# 资金流确认参数
+ACCUMULATION_MFI_PERIOD = 14                    # MFI 周期
+ACCUMULATION_MFI_THRESHOLD = 50                 # MFI 阈值
+ACCUMULATION_AD_LOOKBACK = 20                   # A/D Line 回看期
+
+# RSI 斜率参数
+ACCUMULATION_RSI_SLOPE_WINDOW = 3               # RSI 斜率计算窗口
+ACCUMULATION_RSI_SLOPE_MIN = 1.0                # RSI 斜率最小阈值
+
+# 加速信号评分权重
+ACCUMULATION_BREAKOUT_WEIGHT = 0.25             # 价格突破权重
+ACCUMULATION_VOLUME_WEIGHT = 0.25               # 量比权重
+ACCUMULATION_MFI_WEIGHT = 0.25                  # MFI 权重
+ACCUMULATION_AD_WEIGHT = 0.25                   # A/D Line 权重
 
 # 波动率压缩策略
 VOLATILITY_BB_PERIOD = 20
@@ -148,3 +168,109 @@ RSI_OVERBOUGHT = 70
 RSI_LOW = 40
 RSI_HIGH = 60
 RSI_STRONG = 80
+
+# 底部反转策略 v2.0 (评分制)
+BOTTOM_RSI_OVERSOLD_THRESHOLD = 30.0  # RSI超卖阈值
+BOTTOM_RSI_RECOVERY_THRESHOLD = 3.0   # RSI回升幅度阈值
+BOTTOM_SUPPORT_DISTANCE_THRESHOLD = 0.05  # 价格距离支撑位阈值(5%)
+BOTTOM_VOLUME_CONTRACTION_THRESHOLD = 0.6  # 成交量萎缩阈值(60%)
+BOTTOM_VOLUME_EXPANSION_MIN = 1.0     # 成交量温和放大最小值
+BOTTOM_VOLUME_EXPANSION_MAX = 2.5     # 成交量温和放大最大值
+BOTTOM_MIN_DATA_POINTS = 30           # 最小数据点数
+BOTTOM_CONFIDENCE = 0.75              # 策略置信度
+BOTTOM_MIN_SCORE = 50.0               # 最低通过分数
+
+# ============================================
+# 新增策略参数 (v2.0 - 早期信号策略)
+# ============================================
+
+# 启动前兆策略 v2.0 (增强版)
+BREAKOUT_MA_CONVERGENCE_THRESHOLD = 0.03   # 均线粘合阈值(3%)
+BREAKOUT_MA_CONVERGENCE_PERIOD = 5          # 粘合持续天数
+BREAKOUT_PRICE_NEAR_HIGH_THRESHOLD = 0.95   # 接近期高点比例
+BREAKOUT_CONSOLIDATION_PERIOD = 20          # 整理期天数
+BREAKOUT_VOLUME_CONTRACTION_THRESHOLD = 0.6 # 成交量萎缩阈值
+BREAKOUT_VOLUME_EXPANSION_MIN = 1.2         # 放量最小比例
+BREAKOUT_VOLUME_EXPANSION_MAX = 2.5         # 放量最大比例
+BREAKOUT_RSI_NEUTRAL_LOW = 45               # RSI中性区间下限
+BREAKOUT_RSI_NEUTRAL_HIGH = 65              # RSI中性区间上限
+BREAKOUT_MACD_THRESHOLD = 0.02              # MACD接近零轴阈值
+BREAKOUT_BB_SQUEEZE_THRESHOLD = 0.15        # 布林带挤压阈值
+BREAKOUT_MIN_SCORE = 50.0                   # 最低通过分数
+BREAKOUT_STRONG_SIGNAL_SCORE = 70.0         # 强信号分数
+BREAKOUT_MIN_DATA_POINTS = 30               # 最小数据点数
+
+# TTM Squeeze 参数
+BREAKOUT_TTM_BB_PERIOD = 20                 # 布林带周期
+BREAKOUT_TTM_BB_STD_DEV = 2.0               # 布林带标准差倍数
+BREAKOUT_TTM_KC_MULTIPLIER = 1.5            # 肯特纳通道ATR倍数
+BREAKOUT_TTM_ATR_PERIOD = 14                # ATR 周期
+
+# 形态识别参数
+BREAKOUT_PATTERN_PERIOD = 20                # 形态识别周期
+BREAKOUT_CHANNEL_CONVERGENCE_THRESHOLD = 0.7  # 通道收敛阈值
+BREAKOUT_TRIANGLE_THRESHOLD = 0.3           # 三角形趋势强度阈值
+BREAKOUT_FLAG_THRESHOLD = 0.08              # 旗形前期涨跌幅阈值
+
+# 相对强度参数
+BREAKOUT_RS_STRONG_THRESHOLD = 1.10         # 强势RS阈值
+BREAKOUT_RS_WEAK_THRESHOLD = 0.95           # 弱势RS阈值
+BREAKOUT_RS_LOOKBACK = 20                   # RS回看期
+
+# 评分权重
+BREAKOUT_MA_WEIGHT = 0.20                   # 均线粘合权重
+BREAKOUT_PATTERN_WEIGHT = 0.25              # 蓄势形态权重
+BREAKOUT_VOLUME_WEIGHT = 0.15               # 成交量权重
+BREAKOUT_VOLATILITY_WEIGHT = 0.20           # 波动率压缩权重
+BREAKOUT_TECHNICAL_WEIGHT = 0.10            # 技术指标权重
+BREAKOUT_RS_WEIGHT = 0.10                   # 弱转强权重
+
+# 主力建仓策略 v2.0 (增强版)
+SMART_MONEY_ACCUMULATION_PERIOD = 30                # 分析周期
+SMART_MONEY_PRICE_STABILITY_THRESHOLD = 0.05        # 价格稳定性阈值
+SMART_MONEY_RELATIVE_STRENGTH_THRESHOLD = 0.0       # 相对强度阈值
+SMART_MONEY_VOLUME_PATTERN_THRESHOLD = 0.3          # 成交量模式阈值
+SMART_MONEY_INTERMITTENT_VOLUME_RATIO = 2.0         # 间歇性放量比例
+SMART_MONEY_TURNOVER_RATE_LOW = 0.02                # 低换手率阈值
+SMART_MONEY_TURNOVER_RATE_HIGH = 0.08               # 高换手率阈值
+SMART_MONEY_MIN_SCORE = 45.0                        # 最低通过分数
+SMART_MONEY_MIN_DATA_POINTS = 30                    # 最小数据点数
+
+# Beta 分析参数
+SMART_MONEY_BETA_LOW_THRESHOLD = 0.8                # 低Beta阈值
+SMART_MONEY_BETA_HIGH_THRESHOLD = 1.2               # 高Beta阈值
+SMART_MONEY_BETA_TREND_THRESHOLD = -0.1             # Beta下降趋势阈值
+
+# 建仓尾声参数
+SMART_MONEY_VOL_RATIO_THRESHOLD = 0.7               # 量缩比例阈值
+SMART_MONEY_PRICE_POSITION_THRESHOLD = 0.7          # 价格位置阈值
+SMART_MONEY_GROUND_VOLUME_RATIO = 0.4               # 地量比例阈值
+
+# CMF 参数
+SMART_MONEY_CMF_PERIOD = 20                         # CMF 周期
+SMART_MONEY_CMF_STRONG_THRESHOLD = 0.1              # CMF 强势阈值
+SMART_MONEY_CMF_WEAK_THRESHOLD = -0.1               # CMF 弱势阈值
+
+# 挖坑形态参数
+SMART_MONEY_PIT_DEPTH_THRESHOLD = 0.05              # 坑深度阈值
+SMART_MONEY_PIT_VOL_RATIO_MIN = 1.0                 # 挖坑后量比最小值
+SMART_MONEY_PIT_VOL_RATIO_MAX = 1.5                 # 挖坑后量比最大值
+
+# 评分权重
+SMART_MONEY_RESILIENCE_WEIGHT = 0.20                # 抗跌性权重
+SMART_MONEY_ENDING_WEIGHT = 0.25                    # 建仓尾声权重
+SMART_MONEY_VOLUME_WEIGHT = 0.15                    # 成交量权重
+SMART_MONEY_PATTERN_WEIGHT = 0.20                   # 挖坑形态权重
+SMART_MONEY_FLOW_WEIGHT = 0.20                      # 资金流向权重
+
+# 技术共振策略
+RESONANCE_MIN_COUNT = 3                 # 最少共振指标数
+RESONANCE_STRONG_COUNT = 5              # 强共振指标数
+RESONANCE_RSI_OVERSOLD = 30.0           # RSI 超卖阈值
+RESONANCE_RSI_RECOVERY = 35.0           # RSI 回升阈值
+RESONANCE_MACD_CROSS_THRESHOLD = 0.02   # MACD 接近金叉阈值
+RESONANCE_BB_LOWER_POSITION = 0.2       # 布林带下轨位置阈值
+RESONANCE_VOLUME_INCREASE_MIN = 1.2     # 成交量增加最小比例
+RESONANCE_KDJ_OVERSOLD = 20.0           # KDJ 超卖阈值
+RESONANCE_MIN_SCORE = 50.0              # 最低通过分数
+RESONANCE_MIN_DATA_POINTS = 30          # 最小数据点数
