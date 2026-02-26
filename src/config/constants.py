@@ -274,3 +274,67 @@ RESONANCE_VOLUME_INCREASE_MIN = 1.2     # 成交量增加最小比例
 RESONANCE_KDJ_OVERSOLD = 20.0           # KDJ 超卖阈值
 RESONANCE_MIN_SCORE = 50.0              # 最低通过分数
 RESONANCE_MIN_DATA_POINTS = 30          # 最小数据点数
+
+# ============================================
+# 启动捕捉策略 v1.0 (整合版)
+# 整合启动前兆策略 + 主力建仓策略的核心优势
+# ============================================
+
+# 基础参数
+LAUNCH_CAPTURE_PERIOD = 30                      # 分析周期
+LAUNCH_MIN_SCORE = 60.0                         # 最低通过分数(提高门槛)
+LAUNCH_STRONG_SIGNAL_SCORE = 75.0               # 强信号分数
+LAUNCH_MIN_DATA_POINTS = 30                     # 最小数据点数
+
+# 均线粘合参数
+LAUNCH_MA_CONVERGENCE_THRESHOLD = 0.03          # 均线粘合阈值(3%)
+LAUNCH_MA_SPREAD_EXTREME = 0.015                # 极度粘合(1.5%)
+LAUNCH_MA_SPREAD_STRONG = 0.025                 # 强粘合(2.5%)
+LAUNCH_MA_SPREAD_MODERATE = 0.04                # 粘合(4%)
+LAUNCH_MA_SPREAD_WEAK = 0.06                    # 收敛(6%)
+
+# 形态识别参数
+LAUNCH_PATTERN_PERIOD = 20                      # 形态识别周期
+LAUNCH_CHANNEL_CONVERGENCE = 0.7                # 通道收敛阈值
+LAUNCH_TRIANGLE_THRESHOLD = 0.3                 # 三角形识别阈值
+LAUNCH_PIT_DEPTH_MIN = 0.05                     # 挖坑深度最小值
+LAUNCH_PIT_DEPTH_MAX = 0.20                     # 挖坑深度最大值
+
+# 波动率压缩参数 (TTM Squeeze)
+LAUNCH_TTM_BB_PERIOD = 20                       # 布林带周期
+LAUNCH_TTM_BB_STD_DEV = 2.0                     # 布林带标准差
+LAUNCH_TTM_KC_MULTIPLIER = 1.5                  # 肯特纳通道ATR倍数
+LAUNCH_TTM_ATR_PERIOD = 14                      # ATR周期
+
+# 资金信号参数
+LAUNCH_CMF_PERIOD = 20                          # CMF周期
+LAUNCH_CMF_STRONG_THRESHOLD = 0.1               # CMF强势阈值
+LAUNCH_CMF_WEAK_THRESHOLD = -0.1                # CMF弱势阈值
+LAUNCH_VOL_RATIO_THRESHOLD = 0.7                # 量缩比例阈值
+LAUNCH_PRICE_POSITION_THRESHOLD = 0.7           # 价格位置阈值
+LAUNCH_GROUND_VOLUME_RATIO = 0.4                # 地量比例阈值
+
+# 抗跌特征参数 (Beta分析)
+LAUNCH_BETA_LOW_THRESHOLD = 0.8                 # 低Beta阈值
+LAUNCH_BETA_HIGH_THRESHOLD = 1.2                # 高Beta阈值
+LAUNCH_RS_LOOKBACK = 20                         # 相对强度回看期
+LAUNCH_RS_STRONG = 1.05                         # 相对强势阈值
+
+# 技术指标参数
+LAUNCH_RSI_NEUTRAL_LOW = 45                     # RSI中性区间下限
+LAUNCH_RSI_NEUTRAL_HIGH = 65                    # RSI中性区间上限
+LAUNCH_MACD_THRESHOLD = 0.02                    # MACD接近零轴阈值
+
+# 成交量参数
+LAUNCH_VOLUME_EXPANSION_MIN = 1.2               # 放量最小比例
+LAUNCH_VOLUME_EXPANSION_MAX = 2.5               # 放量最大比例
+LAUNCH_VOLUME_CONTRACTION = 0.6                 # 量缩阈值
+
+# 评分权重 (7大维度)
+LAUNCH_MA_WEIGHT = 0.15                         # 均线粘合权重
+LAUNCH_PATTERN_WEIGHT = 0.20                    # 形态识别权重
+LAUNCH_VOLATILITY_WEIGHT = 0.15                 # 波动率压缩权重
+LAUNCH_MONEY_FLOW_WEIGHT = 0.20                 # 资金信号权重
+LAUNCH_RESILIENCE_WEIGHT = 0.15                 # 抗跌特征权重
+LAUNCH_TECHNICAL_WEIGHT = 0.10                  # 技术指标权重
+LAUNCH_VOLUME_WEIGHT = 0.05                     # 成交量模式权重
