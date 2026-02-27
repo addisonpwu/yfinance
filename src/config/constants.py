@@ -287,7 +287,7 @@ LAUNCH_STRONG_SIGNAL_SCORE = 75.0               # 强信号分数
 LAUNCH_MIN_DATA_POINTS = 30                     # 最小数据点数
 
 # 均线粘合参数
-LAUNCH_MA_CONVERGENCE_THRESHOLD = 0.03          # 均线粘合阈值(3%)
+LAUNCH_MA_CONVERGENCE_THRESHOLD = 0.06          # 均线粘合阈值(6%) - 放宽以提高筛选通过率
 LAUNCH_MA_SPREAD_EXTREME = 0.015                # 极度粘合(1.5%)
 LAUNCH_MA_SPREAD_STRONG = 0.025                 # 强粘合(2.5%)
 LAUNCH_MA_SPREAD_MODERATE = 0.04                # 粘合(4%)
