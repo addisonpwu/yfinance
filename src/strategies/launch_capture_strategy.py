@@ -1018,12 +1018,14 @@ class LaunchCaptureStrategy(BaseStrategy):
 
     def _calculate_obv(self, hist: pd.DataFrame) -> pd.Series:
         """计算OBV指标"""
-        obv = [0]
+        # 使用 float 类型避免整数溢出
+        obv = [0.0]
         for i in range(1, len(hist)):
+            volume = float(hist['Volume'].iloc[i])
             if hist['Close'].iloc[i] > hist['Close'].iloc[i-1]:
-                obv.append(obv[-1] + hist['Volume'].iloc[i])
+                obv.append(obv[-1] + volume)
             elif hist['Close'].iloc[i] < hist['Close'].iloc[i-1]:
-                obv.append(obv[-1] - hist['Volume'].iloc[i])
+                obv.append(obv[-1] - volume)
             else:
                 obv.append(obv[-1])
         return pd.Series(obv, index=hist.index)

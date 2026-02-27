@@ -11,7 +11,7 @@ Google Gemini API 分析器
 官方文档: https://ai.google.dev/gemini-api/docs/quickstart
 """
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union
 import pandas as pd
 import numpy as np
 from src.core.models.entities import AIAnalysisResult
@@ -317,7 +317,7 @@ class GeminiAIAnalyzer(AIAnalyzer):
         model: str,
         return_model: bool = False,
         max_retries: int = 3
-    ) -> str | tuple:
+    ) -> Union[str, tuple]:
         """
         调用 Gemini API
         
