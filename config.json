@@ -15,7 +15,7 @@
       "1h": "730d",
       "1d": "max"
     },
-    "enable_cache": false,
+    "enable_cache": true,
     "enable_finviz": true
   },
   "analysis": {
@@ -32,7 +32,7 @@
     "bb_period": 20,
     "bb_std_dev": 2,
     "atr_period": 14,
-    "ma_periods": [5, 10, 20, 50, 200],
+    "ma_periods": [5, 10, 20, 50, 120, 200],
     "cmo_period": 14,
     "williams_r_period": 14,
     "stochastic_period": 14,
@@ -116,6 +116,15 @@
       "volume_expansion_max": 2.5,
       "min_data_points": 30,
       "confidence": 0.75
+    },
+    "obv_boll_divergence": {
+      "obv_lookback": 5,
+      "llv_period": 20,
+      "volume_ratio_min": 0.4,
+      "volume_ratio_max": 1.0,
+      "ma_long_period": 120,
+      "min_data_points": 125,
+      "confidence": 0.80
     }
   },
   "news": {

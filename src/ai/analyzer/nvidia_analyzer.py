@@ -664,7 +664,7 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         multi_tf_data: Optional[Dict],
         market_sentiment: Optional[Dict]
     ) -> str:
-        """构建综合分析提示词（第三步）"""
+        """构建综合分析提示词（第三步）- 增强版"""
         symbol = stock_data.get('symbol', 'N/A')
         info = stock_data.get('info', {})
         strategies = stock_data.get('strategies', [])
@@ -673,14 +673,15 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         tech_indicators = self._get_technical_indicators(hist)
         hist_summary = self._get_hist_summary(hist)
         news_section = self._format_news(stock_data.get('news', []))
+        market_env = self._format_market_sentiment(market_sentiment) if market_sentiment else ''
         
-        prompt = f"""你是一位专业的短期股票分析师。请基于前期分析给出综合投资建议。
+        prompt = f"""你是一位专业的短期股票分析师（擅长1-4周内的短线交易）。请基于前期分析给出综合投资建议。
 
 {self.FEW_SHOT_EXAMPLES}
 
 ════════════════════════════════════════════════════════════
 
-【股票信息】
+【股票基本信息】
 代码: {symbol}
 名称: {info.get('longName', 'N/A')}
 行业: {info.get('sector', 'N/A')} / {info.get('industry', 'N/A')}
@@ -692,7 +693,7 @@ class NvidiaAIAnalyzer(AIAnalyzer):
 
 {self._format_multi_timeframe(multi_tf_data) if multi_tf_data else ''}
 
-{self._format_market_sentiment(market_sentiment) if market_sentiment else ''}
+{market_env}
 
 {news_section}
 
@@ -706,30 +707,60 @@ class NvidiaAIAnalyzer(AIAnalyzer):
 
 ════════════════════════════════════════════════════════════
 
-【综合分析要求】
+【重要分析框架 - 请严格按照此框架分析】
 
-请综合以上所有信息，给出结构化分析：
+## 一、市场环境评估（权重30%）
+根据VIX和市场风险等级评估当前市场环境：
+- VIX < 15: 低波动市场，可适度激进
+- VIX 15-25: 正常波动市场，谨慎操作
+- VIX > 25: 高波动市场，降低仓位
 
-1. 综合评分（必填）
-   - 技术面评分: X/10
-   - 基本面评分: X/10
-   - 综合评分: X/10
+## 二、技术面分析（权重40%）
+必须分析以下关键信号：
+1. RSI信号：RSI>70超买可能回调，RSI<30超卖可能反弹，RSI在40-60最为健康
+2. MACD信号：金叉（ DIF上穿DEA）是买入信号，死叉是卖出信号
+3. 均线信号：价格站上均线看多，跌破均线看空；多头排列（MA5>MA10>MA20）看多
+4. 布林带信号：价格突破上轨可能回调，突破下轨可能反弹
+5. 量价配合：价涨量增健康，价涨量缩需警惕
 
-2. 短期走势判断（必填）
-   - 方向: 看涨 / 看跌 / 中性
-   - 置信度: 高(>70%) / 中(50-70%) / 低(<50%)
-   - 主要驱动因素
+## 三、新闻影响分析（权重20%）
+分析新闻对短期走势的影响：
+- 正面新闻：业绩增长、产品发布、获得订单等 → 看多
+- 负面新闻：业绩下滑、诉讼、减持等 → 看空
+- 中性新闻：无实质影响 → 维持原有趋势
 
-3. 投资建议（必填）
-   - 建议: 强烈买入 / 买入 / 持有 / 卖出 / 强烈卖出
-   - 理由（不超过200字）
-   - 如果是买入，必须给出具体的买入价、目标价、止损价
+## 四、风险评估（权重10%）
+必须给出：
+- 最大风险点
+- 建议止损价位（必须具体数值）
+- 建议仓位（轻仓/半仓/重仓）
+
+════════════════════════════════════════════════════════════
+
+【输出格式要求 - 必须严格遵守】
+
+1. 综合评分
+   技术面评分: X/10
+   基本面评分: X/10  
+   综合评分: X/10
+
+2. 短期走势判断
+   方向: [看涨/看跌/中性]
+   置信度: [高(>70%)/中(50-70%)/低(<50%)]
+   主要驱动因素: [不超过50字]
+
+3. 投资建议（必须全部填写）
+   建议: [强烈买入/买入/持有/卖出/强烈卖出]
+   理由: [不超过150字]
+   买入价位: [具体数值或"现价"]
+   目标价位: [具体数值]
+   止损价位: [具体数值]
 
 4. 风险提示
-   - 最大风险点
-   - 建议仓位（占总资金比例）
+   最大风险点: [具体描述]
+   建议仓位: [轻仓(<20%)/半仓(20-40%)/重仓(40-60%)]
 
-请严格按照上述格式输出，控制在800字以内。
+请严格按照上述格式输出，AI分析结果将用于实盘交易决策，请务必严谨客观。
 """
         return prompt
     
@@ -867,7 +898,8 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         try:
             correlation = np.corrcoef(x, y)[0, 1]
             strength = abs(correlation)
-        except:
+        except Exception as e:
+            self.logger.debug(f"计算趋势强度失败，使用默认值: {e}")
             strength = 0.5
         
         return {
@@ -925,8 +957,8 @@ class NvidiaAIAnalyzer(AIAnalyzer):
             hist = vix.history(period="1d")
             if not hist.empty:
                 return hist['Close'].iloc[-1]
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"获取VIX数据失败: {e}")
         return None
     
     def _format_multi_timeframe(self, data: Optional[Dict]) -> str:
@@ -964,18 +996,40 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         return "\n".join(lines)
     
     def _format_news(self, news_list: List[Dict]) -> str:
-        """格式化新闻数据"""
+        """格式化新闻数据 - 增强版，包含新闻时间排序和摘要"""
         if not news_list:
             return ""
         
-        lines = ["【近期新闻】"]
-        for i, item in enumerate(news_list[:5], 1):
+        # 按发布时间排序（最新的在前）
+        sorted_news = sorted(
+            news_list, 
+            key=lambda x: x.get('published', ''), 
+            reverse=True
+        )[:5]  # 最多显示5条
+        
+        lines = ["【近期新闻】（按时间倒序）"]
+        
+        for i, item in enumerate(sorted_news, 1):
             title = item.get('title', 'N/A')
             published = item.get('published', '')
             publisher = item.get('publisher', '')
+            summary = item.get('summary', '')
+            
             lines.append(f"{i}. [{published}] {title}")
             if publisher:
                 lines.append(f"   来源: {publisher}")
+            # 如果有摘要，添加简要内容
+            if summary and summary != title:
+                # 截取摘要前100字
+                summary_short = summary[:100] + "..." if len(summary) > 100 else summary
+                lines.append(f"   摘要: {summary_short}")
+        
+        # 添加分析指引
+        lines.append("")
+        lines.append("【新闻分析指引】")
+        lines.append("- 关注发布时间越近的新闻，影响力越大")
+        lines.append("- 业绩公告、产品发布、重大合同为利好")
+        lines.append("- 业绩亏损、诉讼、减持、监管处罚为利空")
         
         return "\n".join(lines)
     

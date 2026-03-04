@@ -20,9 +20,15 @@ try:
     import feedparser
     HAS_FEEDPARSER = True
     
-    # macOS SSL 证书修复：创建不验证证书的 SSL 上下文
-    if hasattr(ssl, '_create_unverified_context'):
-        ssl._create_default_https_context = ssl._create_unverified_context
+    # 安全修复：不再全局禁用 SSL 验证
+    # 使用 certifi 提供证书，或让系统处理
+    try:
+        import certifi
+        # 使用 certifi 提供的证书 bundle
+        ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        # 如果 certifi 不可用，使用系统默认证书
+        pass
 except ImportError:
     HAS_FEEDPARSER = False
 
@@ -526,6 +532,20 @@ def calculate_technical_indicators(hist: pd.DataFrame, config=None, validate_adj
         # 波动率指标 (20日收益率标准差年化)
         returns = result['Close'].pct_change(fill_method=None)
         result['Volatility_20D'] = returns.rolling(window=20, min_periods=1).std() * np.sqrt(252) * 100
+
+        # ===== OBV 底背离 + BOLL 超卖策略所需指标 =====
+
+        # 1. OBV (On-Balance Volume) 累积计算
+        # 注意：必须指定 index=result.index 以确保索引对齐
+        obv_direction = np.where(result['Close'] > result['Close'].shift(1), result['Volume'],
+                                 np.where(result['Close'] < result['Close'].shift(1), -result['Volume'], 0))
+        result['OBV'] = pd.Series(obv_direction, index=result.index).cumsum()
+
+        # 2. LLV_20 (20日最低价)
+        result['LLV_20'] = result['Low'].rolling(window=20, min_periods=1).min()
+
+        # 3. Volume_Ratio (量比: 当日成交量 / 前一日成交量)
+        result['Volume_Ratio'] = result['Volume'] / result['Volume'].shift(1)
 
     except Exception as e:
         print(f" - [技术指标计算] 计算技术指标时出错: {e}")

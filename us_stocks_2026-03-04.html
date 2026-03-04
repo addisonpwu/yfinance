@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票筛选报告 - US - 2026-03-04</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #93c5fd;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        
+        .header .meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+        
+        .header .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.95;
+            font-size: 0.9rem;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        
+        /* Strategy Tags */
+        .strategy-section {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .strategy-section h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .strategy-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .strategy-tag {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .strategy-tag:hover {
+            transform: scale(1.02);
+        }
+        
+        .strategy-tag .name {
+            font-weight: 600;
+        }
+        
+        .strategy-tag .count {
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        
+        /* Stock Cards */
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        
+        .stock-card {
+            background: var(--card);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        /* Stock Header */
+        .stock-header {
+            padding: 20px;
+            position: relative;
+        }
+        
+        .stock-header.bullish {
+            background: linear-gradient(135deg, var(--success-light) 0%, #ecfdf5 100%);
+            border-left: 4px solid var(--success);
+        }
+        
+        .stock-header.bearish {
+            background: linear-gradient(135deg, var(--danger-light) 0%, #fef2f2 100%);
+            border-left: 4px solid var(--danger);
+        }
+        
+        .stock-header.neutral {
+            background: linear-gradient(135deg, var(--warning-light) 0%, #fffbeb 100%);
+            border-left: 4px solid var(--warning);
+        }
+        
+        .stock-header .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .stock-header h3 {
+            font-size: 1.1rem;
+            color: var(--text);
+            max-width: 250px;
+        }
+        
+        .stock-header .symbol {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            background: var(--primary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        
+        .stock-strategies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .stock-strategies .badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        /* Score Gauge */
+        .score-gauge {
+            display: flex;
+            gap: 16px;
+            padding: 16px 20px;
+            background: #fafbfc;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .gauge-item {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .gauge-item .gauge-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        
+        .gauge-item .gauge-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .gauge-item .gauge-fill.high { background: linear-gradient(90deg, var(--success), #34d399); }
+        .gauge-item .gauge-fill.medium { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+        .gauge-item .gauge-fill.low { background: linear-gradient(90deg, var(--danger), #f87171); }
+        
+        .gauge-item .score-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        
+        .gauge-item .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .score-high { color: var(--success); }
+        .score-medium { color: var(--warning); }
+        .score-low { color: var(--danger); }
+        
+        .stock-body {
+            padding: 16px 20px;
+        }
+        
+        /* Data Grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #fafbfc;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        
+        .data-item .label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .data-item .value {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .data-item .value.positive {
+            color: var(--success);
+        }
+        
+        .data-item .value.negative {
+            color: var(--danger);
+        }
+        
+        /* Direction Indicator */
+        .direction-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .direction-indicator.bullish {
+            background: var(--success-light);
+            color: #065f46;
+        }
+        
+        .direction-indicator.bearish {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+        
+        .direction-indicator.neutral {
+            background: var(--warning-light);
+            color: #92400e;
+        }
+        
+        /* News Section */
+        .news-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+        
+        .news-section h4 {
+            color: #0369a1;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .news-item {
+            padding: 10px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
+        
+        .news-title {
+            color: #0c4a6e;
+            text-decoration: none;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            display: block;
+        }
+        
+        .news-title:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        
+        .news-meta {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        
+        /* AI Analysis */
+        .ai-section {
+            margin-top: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .ai-header {
+            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            padding: 12px 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ai-header h4 {
+            color: #92400e;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .ai-header .toggle {
+            transition: transform 0.3s;
+        }
+        
+        .ai-section.collapsed .toggle {
+            transform: rotate(-90deg);
+        }
+        
+        .ai-content {
+            padding: 14px;
+            background: #fffef5;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #78350f;
+            white-space: pre-wrap;
+            line-height: 1.7;
+        }
+        
+        .ai-section.collapsed .ai-content {
+            display: none;
+        }
+        
+        .ai-model {
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #a16207;
+            text-align: right;
+            padding-top: 8px;
+            border-top: 1px dashed #fde047;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            margin-top: 40px;
+        }
+        
+        .footer p {
+            margin-bottom: 4px;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body { background: white; }
+            .container { max-width: 100%; }
+            .stock-card { break-inside: avoid; }
+            .header { box-shadow: none; }
+            .ai-content { max-height: none; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stocks-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .header { padding: 24px; }
+            .header h1 { font-size: 1.4rem; }
+            .data-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script>
+        function toggleAI(id) {
+            const section = document.getElementById(id);
+            section.classList.toggle('collapsed');
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📈 股票筛选报告</h1>
+            <div class="meta">
+                <div class="meta-item"><span>🌏</span><span>市场: US</span></div>
+                <div class="meta-item"><span>📅</span><span>2026-03-04 00:21</span></div>
+                <div class="meta-item"><span>⏱️</span><span>耗时: 6875.6 秒</span></div>
+                <div class="meta-item"><span>✅</span><span>筛选: 3 只</span></div>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">📊</div>
+                <div class="value">3</div>
+                <div class="label">符合条件股票</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🎯</div>
+                <div class="value">1</div>
+                <div class="label">命中策略数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🏆</div>
+                <div class="value">3</div>
+                <div class="label">最高命中次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">⚡</div>
+                <div class="value">6876s</div>
+                <div class="label">分析耗时</div>
+            </div>
+        </div>
+        
+        <!-- Strategy Stats -->
+        <div class="strategy-section">
+            <h3>策略命中统计</h3>
+            <div class="strategy-tags">
+                <div class="strategy-tag" style="border-color: #3b82f6"><span class="name">OBV底背离+BOLL超卖策略</span><span class="count">3</span></div>
+            </div>
+        </div>
+        
+        <!-- Stock Cards -->
+        <div class="stocks-grid">
+            
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Rentokil Initial plc</h3>
+                    <span class="symbol">RTO</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">OBV底背离+BOLL超卖策略</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill high" style="width: 70.0%"></div></div>
+                    <div class="score-text score-high">7.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 55.0%"></div></div>
+                    <div class="score-text score-medium">5.5/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Industrials</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">147.83 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">135.7 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">46.37</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+23.7%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.rentokil-initial.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (61%)</div>
+                
+                
+        <div class="news-section">
+            <h4>📰 近期新闻 (1 条)</h4>
+            <div class="news-list">
+                
+            <div class="news-item">
+                <a href="https://finance.yahoo.com/news/6-8-billion-threat-homes-224200511.html?.tsrc=rss" target="_blank" class="news-title">The $6.8 Billion Threat to Homes: Inside Terminix’s Live Ter...</a>
+                <div class="news-meta">
+                    <span>2026-02-19 22:42</span>
+                </div>
+            </div>
+            </div>
+        </div>
+                
+                
+        <div class="ai-section collapsed" id="ai-0">
+            <div class="ai-header" onclick="toggleAI('ai-0')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 61%
+模型一致率: 83% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 5 票
+- 看跌: 1 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 7/10  
+基本面评分: 3/10  
+综合评分: 5.5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素:  
+- RSI 31+威廉指标-83，双超卖，历史反弹概率>65%  
+- 价格破下轨后首次收低于29.6，布林带极宽，均值回归动能强  
+- 2月26-27日放量止跌，OBV未再创新低，出现隐性底背离  
+- MACD负柱连续收窄，最快2-3个交易日金叉，提供右侧确认  
+
+3. 投资建议  
+建议: 买入  
+理由: 技术面超卖+量能底背离+布林带极值，具备“案例1”式快速反弹条件；基本面虽弱但Beta仅0.49，下行弹性有限，可博弈技术性反弹。  
+买入价: 29.2±0.2美元  
+目标价: 30.9美元（布林带中轨，7%空间）  
+止损价: 27.5美元（MA200与前期平台，-6%）  
+
+4. 风险提示  
+最大风险点: 宏观波动加剧（VIX 24）或公司盈利下修引发估值杀； Industrials 板块资金持续流出。  
+建议仓位: ≤10%总资金，单票亏损上限1%账户净值。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- **技术面评分**: 7/10  
+- **基本面评分**: 3/10  
+- **综合评分**: 5/10  
+
+**2. 短期走势判断**  
+- **方向**: 看涨（超卖反弹）  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  - RSI=31.3（超卖区域），存在技术性反弹需求。  
+  - 股价跌破布林带下轨（29.62），短期存在均值回归动力。  
+  - MACD负值收窄，潜在底背离信号。  
+  - 长期趋势仍向上（+3.3%），短期下跌或为回调。  
+
+**3. 投资建议**  
+- **建议**: 买入  
+- **理由**:  
+  技术面显示明确超卖（RSI<32、布林带破下轨），符合历史案例1（AAPL）的超卖反弹特征。尽管基本面偏弱（高估值、低ROE），但短期反弹概率较高。建议轻仓博弈反弹，严格止损。  
+- **买入价**: ≤29.5  
+- **目标价**: 31.26（MA50阻力）  
+- **止损价**: 26.70（前低下方）  
+
+**4. 风险提示**  
+- **最大风险点**: 基本面疲软（PE=46.37、ROE=0.07%）可能限制反弹空间；市场高波动（VIX=24.2）放大波动风险。  
+- **建议仓位**: 3%-5%（低仓位博弈反弹，避免重仓暴露）。  
+
+**结论**: 短期技术超卖提供反弹机会，但需警惕基本面拖累，建议轻仓参与，快进快出。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+   - 技术面评分: 6/10  
+   - 基本面评分: 3/10  
+   - 综合评分: 4.5/10  
+
+2. 短期走势判断  
+   - 方向: 看涨（超卖反弹）  
+   - 置信度: 中（约60%）  
+   - 主要驱动因素：股价跌破布林带下轨（29.21 < 29.62），RSI=31.3与威廉指标=-82.97显示深度超卖；OBV底背离信号成立，暗示抛压减弱。但MACD仍为负且未金叉，短期动能尚未反转，需量能配合确认。
+
+3. 投资建议  
+   - 建议: 买入（谨慎）  
+   - 理由：技术面呈现典型“超卖反弹型”特征（类比AAPL案例），符合OBV底背离+BOLL超卖策略。但基本面疲弱（ROE仅0.07%、利润率极低、高市盈率），限制上行空间，仅适合短线博弈反弹。  
+   - 买入价：≤29.30；目标价：31.26（MA50阻力）；止损价：27.50（前低支撑下方）
+
+4. 风险提示  
+   - 最大风险点：基本面严重背离估值（PE 46.4x、PB 14x），若市场风险偏好下降或行业利空发酵，可能持续阴跌而非反弹。近期新闻提及“$6.8B害虫防治威胁”，或引发对主业竞争格局担忧。  
+   - 建议仓位：不超过总资金的3%（中高风险+弱势基本面）
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：Rentokil Initial plc（RTO）
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 6/10  
+  - **优势**：RSI（31）显示超卖，布林带收窄至29.21（下轨29.62），OBV底背离暗示潜在买盘积累。  
+  - **劣势**：MACD负向延续，短期均线（MA20=31.41）压制价格，长期趋势虽为上升但短期动能不足。  
+- **基本面评分**: 4/10  
+  - **风险点**：市盈率（46.37）、市净率（13.98）显著高于行业均值，ROE（0.07%）与利润率（0.05%）极低，反映公司盈利能力薄弱。  
+- **综合评分**: 5/10  
+  - **核心矛盾**：技术面超卖信号与基本面疲软形成对冲，需警惕市场情绪波动。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 中性偏看涨  
+- **置信度**: 中（55%）  
+- **主要驱动因素**:  
+  1. **技术超卖修复**：RSI接近30临界值，布林带下轨提供支撑，OBV底背离暗示短期抛压衰竭。  
+  2. **量价背离风险**：近期反弹伴随成交量萎缩（如2月24日跌幅-2.3%对应成交量+52%），需确认量能配合。  
+  3. **市场情绪压制**：VIX指数24.2反映高波动性，Rentokil基本面不佳或放大负面反应。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 短期谨慎买入（仓位≤10%）  
+- **理由**:  
+  - **技术信号**：价格接近布林带下轨（29.21 vs 下轨29.62），RSI超卖且MACD负差距收窄，存在技术性反弹空间。  
+  - **风险控制**：若跌破27.70（60日最低价），需止损离场。  
+- **具体操作**:  
+  - **买入价**: ≤28.50（斐波那契38.2%支撑位）  
+  - **目标价**: 30.50（阻力区中值，潜在5.5%涨幅）  
+  - **止损价**: 27.00（安全边际）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **基本面恶化**：公司盈利能力持续低迷，若财报不及预期可能引发抛售。  
+  2. **市场情绪冲击**：高Beta（0.49）叠加高波动市场，短期波动率可能放大。  
+- **建议仓位**: ≤5%（总资金）  
+
+---
+
+### 总结  
+Rentokil短期存在技术性反弹机会，但基本面疲软与市场情绪压制构成主要风险。建议以极低仓位参与，严格止损，优先关注量能配合与财报信号。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**
+
+- 技术面评分: 6/10  
+- 基本面评分: 4/10  
+- 综合评分: 5/10  
+
+**短期走势判断：**
+
+- 方向: 看跌  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI超卖但MACD仍为负值，价格在布林带下轨附近挣扎，短期趋势仍偏弱，但存在技术性反弹可能。
+
+**投资建议：**
+
+- 建议: 持有  
+- 理由: 当前处于技术性超卖区域，但基本面指标偏弱，市盈率较高，行业增长乏力。短期或有反弹，但缺乏持续上涨动力。  
+- 买入价: 29.21（当前价）  
+- 目标价: 30.50  
+- 止损价: 27.70  
+
+**风险提示：**
+
+- 最大风险点: 基本面恶化、行业竞争加剧、估值过高  
+- 建议仓位: 不超过总资金的15%
+
+--- qwen3-coder-plus 模型 ---
+判断: 看跌 (置信度: 90%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 4/10**
+- **基本面评分: 3/10** 
+- **综合评分: 3.5/10**
+
+### 2. 短期走势判断
+- **方向: 看跌**
+- **置信度: 高(>70%)**
+- **主要驱动因素**: RSI超卖但趋势未反转，MACD持续负值，价格跌破布林带下轨，短期均线呈下降趋势
+
+### 3. 投资建议
+- **建议: 卖出**
+- **理由**: 虽然RSI显示超卖(31.29)，但多重技术指标确认下降趋势：MACD负值且呈下降趋势，价格跌破布林带下轨至29.21，短期5日和20日均线下行7.7%和7.3%。基本面方面PE 46.37偏高，ROE仅0.07%，基本面支撑不足。当前市场高波动环境下，该股风险大于机会。
+- **卖出参考价**: 29.21美元（当前价）
+
+### 4. 风险提示
+- **最大风险点**: 基本面估值偏高（PE 46.37，PB 13.98），短期技术面持续恶化，可能面临进一步下跌至支撑位27.70下方
+- **建议仓位**: 0%（如持有建议减仓至清仓）
+
+**特别提醒**: 尽管存在超卖反弹可能，但当前趋势向下且基本面支撑不足，建议等待技术面企稳信号后再考虑介入。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Sibanye Stillwater Limited</h3>
+                    <span class="symbol">SBSW</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">OBV底背离+BOLL超卖策略</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 40.0%"></div></div>
+                    <div class="score-text score-low">4.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Basic Materi</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">106.81 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">744.6 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+405.7%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.sibanyestillwater.com" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (61%)</div>
+                
+                
+        <div class="news-section">
+            <h4>📰 近期新闻 (6 条)</h4>
+            <div class="news-list">
+                
+            <div class="news-item">
+                <a href="https://finance.yahoo.com/news/best-momentum-stock-buy-march-150000783.html?.tsrc=rss" target="_blank" class="news-title">Best Momentum Stock to Buy for March 3rd</a>
+                <div class="news-meta">
+                    <span>2026-03-03 15:00</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://finance.yahoo.com/news/sibanye-stillwater-jse-ssw-story-191628097.html?.tsrc=rss" target="_blank" class="news-title">How Sibanye Stillwater (JSE:SSW)’s Story Is Shifting With Ne...</a>
+                <div class="news-meta">
+                    <span>2026-03-02 19:16</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://finance.yahoo.com/news/sibanye-stillwater-sbsw-announces-financial-093728166.html?.tsrc=rss" target="_blank" class="news-title">Sibanye Stillwater (SBSW) Announces Financial Results for th...</a>
+                <div class="news-meta">
+                    <span>2026-02-28 09:37</span>
+                </div>
+            </div>
+            </div>
+        </div>
+                
+                
+        <div class="ai-section collapsed" id="ai-1">
+            <div class="ai-header" onclick="toggleAI('ai-1')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 61%
+模型一致率: 83% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 5 票
+- 看跌: 1 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 6/10  
+基本面评分: 4/10  
+综合评分: 5/10  
+
+2. 短期走势判断  
+方向: 看涨  
+置信度: 中（55%）  
+主要驱动因素:  
+- 价格已跌破布林带下轨+威廉指标-79，短线超卖；  
+- 1月底放量急挫后成交量连续萎缩，出现“价跌量缩”的底背离雏形；  
+- 长期仍处上升通道（60日+19.5%），14.8-15.0区域为前期平台与200日线汇合支撑；  
+- MACD负柱开始走平，RSI 40附近具备反弹空间；  
+- 高波动市（VIX 24）易引发技术性反抽。  
+
+3. 投资建议  
+建议: 买入（短线博弈反弹）  
+理由: 超卖+支撑+底背离信号共振，盈亏比优于3:1，适合快进快出。  
+买入价: 14.7-15.0（分批）  
+目标价: 16.4（MA20/前高）  
+止损价: 13.9（跌破下轨且放量）  
+
+4. 风险提示  
+最大风险点: 贵金属价格突然下挫或大盘恐慌跌破支撑，仓位被套。  
+建议仓位: ≤5%总资金，反弹至16元上方逐步减仓。
+
+--- deepseek-v3.2 模型 ---
+判断: 看跌 (置信度: 70%)
+**1. 综合评分**
+- 技术面评分: 4/10
+- 基本面评分: 5/10
+- 综合评分: 4.5/10
+
+**2. 短期走势判断**
+- 方向: 看跌
+- 置信度: 中(50-70%)
+- 主要驱动因素:
+  - 技术面：股价跌破布林带下轨，位于所有关键移动平均线下方，MACD为负值，短期和中期均呈下跌趋势
+  - 基本面：市净率高达17.03，估值偏高，营收增长疲软(0.32%)
+  - 市场环境：VIX指数24.2显示高波动市场，增加下行风险
+
+**3. 投资建议**
+- 建议: 卖出
+- 理由：技术面显示明确的下跌趋势，股价已跌破关键支撑位。基本面支撑不足，高市净率与疲软营收增长形成估值压力。虽然RSI接近超卖区域，但在当前市场高波动环境下，反弹信号不足。建议规避风险，等待更明确的底部信号。
+
+**4. 风险提示**
+- 最大风险点：贵金属价格突然上涨可能带动矿业股反弹，但当前技术面破位风险大于反弹机会
+- 建议仓位：0%（不建议持仓，如必须持有，仓位不超过总资金的3%）
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 90%)
+1. 综合评分（必填）  
+   - 技术面评分: 3/10  
+   - 基本面评分: 4/10  
+   - 综合评分: 3.5/10  
+
+2. 短期走势判断（必填）  
+   - 方向: 看跌  
+   - 置信度: 高(>70%)  
+   - 主要驱动因素：股价已跌破布林带下轨（14.765 < 14.854），短期与中期均线空头排列，MACD为负且低于信号线，RSI（40.9）与威廉指标（-79.3）虽未超卖但处于弱势区；近期放量下跌（3月3日成交量744万，高于20日均量），显示抛压增强。尽管符合“OBV底背离+BOLL超卖策略”标签，但当前无明确OBV背离证据，且价格尚未企稳。
+
+3. 投资建议（必填）  
+   - 建议: 强烈卖出  
+   - 理由：技术面呈现强空头趋势，价格破位下行，量能配合下跌，缺乏有效反弹信号。前期分析已设目标价11.50，当前价14.77仍有下行空间，风险大于机会。  
+   - （不适用买入条件）
+
+4. 风险提示  
+   - 最大风险点：若贵金属价格（如铂、钯）因宏观避险情绪突然飙升，可能引发空头回补反弹，但当前市场情绪谨慎（VIX=24.2），且公司基本面疲软（营收增长仅0.32%，市净率高达17.03，估值偏高）。  
+   - 建议仓位：若持有，建议清仓；若做空，仓位不超过总资金的2%。
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 6/10  
+  - 技术面呈现弱趋势但存在潜在反弹信号。布林带收窄且价格接近下轨（14.77），RSI中性偏弱（40.89），MACD负值趋缓，OBV底背离与成交量萎缩显示短期超卖。趋势强度弱，但关键支撑位（11.99）和布林带下轨（14.85）提供安全边际。
+- **基本面评分**: 4/10  
+  - 市净率（17.03）显著高于行业均值，反映高估值风险；营收增长仅0.32%，ROE和利润率数据缺失，市场波动（Beta=0.89）显示抗风险能力一般。近期财报发布后股价未显著反应基本面改善。
+- **综合评分**: 5/10  
+  - 技术面与基本面均无明确支撑，需依赖短期超卖反弹逻辑，但高估值和趋势弱势限制上行空间。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**:  
+  1. **技术超卖**：RSI（40.89）接近超卖区，布林带收窄后价格接近下轨，存在反弹需求。  
+  2. **量价背离**：近期反弹时成交量萎缩（30%），显示抛压减弱。  
+  3. **关键支撑测试**：若价格突破14.77阻力位，可能触发技术性买盘。  
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  技术面显示超卖状态与布林带收窄，短期存在反弹动能。关键支撑位11.99若守住，可能形成双底形态。基本面虽弱，但贵金属价格若反弹（受避险需求驱动），或带动股价回升。  
+- **具体参数**:  
+  - **买入价**: ≤14.50（接近布林带下轨）  
+  - **目标价**: 16.50（布林带中轨，+13.7%）  
+  - **止损价**: 13.50（跌破支撑位风险）  
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**:  
+  1. **趋势弱势**：短期、中期均线持续下行，反弹可能夭折。  
+  2. **高估值风险**：市净率过高，若基本面未改善，反弹易被高估。  
+  3. **市场情绪波动**：VIX指数24.2显示高波动性，可能放大股价震荡。  
+- **建议仓位**: ≤10%（占总资金）  
+
+---
+
+### 总结  
+SBSW短期存在超卖反弹机会，但需警惕趋势弱势和高估值风险。建议在14.50以下轻仓试多，目标16.50，止损13.50。若突破16.49中期均线阻力，可上调仓位至15%。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**
+
+- 技术面评分: 6/10  
+- 基本面评分: 5/10  
+- 综合评分: 5.5/10  
+
+**短期走势判断：**
+
+- 方向: 看跌  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI(40.89)仍处弱势，MACD柱状线为负，价格接近布林带下轨，短期和中期趋势均向下，但长期趋势偏强提供一定支撑。
+
+**投资建议：**
+
+- 建议: 持有  
+- 理由：当前处于技术性超卖区域，但整体趋势仍偏弱，建议观望等待明确反转信号。若出现RSI金叉或价格突破16.50阻力位可考虑轻仓介入。  
+- 买入价: 15.50（如介入）  
+- 目标价: 16.50  
+- 止损价: 14.50  
+
+**风险提示：**
+
+- 最大风险点: 价格可能进一步下探至14.00支撑位，跌破后存在继续下跌风险  
+- 建议仓位: 不超过总资金的15%
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 6/10**
+  - RSI 40.89处于超卖区域，威廉指标-79.34显示极度超卖
+  - 价格跌破布林带下轨，符合"超卖反弹"特征
+  - 但MACD仍为负值，趋势偏弱
+- **基本面评分: 3/10** 
+  - 市净率17.03过高，估值风险较大
+  - 市盈率N/A显示盈利状况不佳
+  - 营收增长仅0.32%，基本面疲弱
+- **综合评分: 4.5/10**
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(55%)**
+- **主要驱动因素:** 技术面超卖反弹需求强烈，RSI接近30超卖线，存在修复性反弹空间；近期成交量萎缩显示抛压减弱
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 该股符合"超卖反弹型"特征：RSI超卖(40.89)、威廉指标极度超卖(-79.34)、价格跌破布林带下轨后存在修复需求。虽然基本面偏弱，但技术面超卖程度较深，短期反弹概率较高。近期从17.71快速下跌至14.77，跌幅约17%，存在技术性修复空间。
+- **买入价:** 14.80
+- **目标价:** 16.20 (较当前价上涨9.5%)
+- **止损价:** 14.20 (跌破前期支撑位)
+
+### 4. 风险提示
+- **最大风险点:** 基本面估值过高(市净率17.03)，若行业景气度下滑或公司业绩恶化，可能引发深度调整；贵金属价格波动风险较大
+- **建议仓位:** 3-5%（轻仓参与，严格止损）
+
+**总结:** 基于技术面超卖反弹逻辑，短期存在修复性机会，但需严格控制仓位和止损，关注基本面风险。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-header bullish">
+                <div class="title-row">
+                    <h3>Toyota Motor Corporation</h3>
+                    <span class="symbol">TM</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">OBV底背离+BOLL超卖策略</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 55.0%"></div></div>
+                    <div class="score-text score-medium">5.5/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Consumer Cyc</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">3006.02 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">37.5 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">12.59</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+34.9%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://global.toyota/en" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bullish">📈 看涨 (70%)</div>
+                
+                
+        <div class="news-section">
+            <h4>📰 近期新闻 (10 条)</h4>
+            <div class="news-list">
+                
+            <div class="news-item">
+                <a href="https://www.wardsauto.com/news/mazda-ceo-tom-donnelly-redesigned-cx5-sales-popular-consumers-dealers/813314/?.tsrc=rss" target="_blank" class="news-title">Mazda North America CEO looks to boost US sales with new CX-...</a>
+                <div class="news-meta">
+                    <span>2026-03-03 11:45</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://finance.yahoo.com/news/lithia-driveway-diversifies-portfolio-two-103000116.html?.tsrc=rss" target="_blank" class="news-title">Lithia & Driveway Diversifies Portfolio with Two Strategic A...</a>
+                <div class="news-meta">
+                    <span>2026-03-03 10:30</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://www.just-auto.com/news/toyota-increases-offer-for-all-shares-in-toyota-industries/?.tsrc=rss" target="_blank" class="news-title">Toyota increases offer for all shares in Toyota Industries</a>
+                <div class="news-meta">
+                    <span>2026-03-03 10:14</span>
+                </div>
+            </div>
+            </div>
+        </div>
+                
+                
+        <div class="ai-section collapsed" id="ai-2">
+            <div class="ai-header" onclick="toggleAI('ai-2')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多模型共识分析】
+
+共识方向: 看涨
+共识置信度: 70%
+模型一致率: 100% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 6 票
+- 看跌: 0 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+技术面评分: 6/10  
+基本面评分: 5/10  
+综合评分: 5.5/10  
+
+2. 短期走势判断  
+方向: 中性偏反弹  
+置信度: 中(55%)  
+主要驱动因素: ① 价格已跌破布林带下轨且RSI≈41，进入短线超卖区；② 近两日成交放大至37-46万股，高于20日均量，出现“跌时放量”恐慌盘；③ 60日上升趋势仍存，MA50(229.4)与前期平台重合，提供第一支撑；④ 新闻面丰田提高回购价，对冲部分下行压力。
+
+3. 投资建议  
+建议: 持有(已持仓)／轻仓低吸(空仓)  
+理由: 超卖+放量+回购利好，具备2-5日技术反弹窗口，但MACD死叉未收口、VIX高企，追高胜率有限。等待230下方缩量或30分钟级别MACD金叉再低吸，盈亏比更优。  
+买入价: 228±1美元，目标价: 240(MA20/BOLL中轨)，止损价: 224(跌破MA50且30分钟收盘确认)。
+
+4. 风险提示  
+最大风险点: 大盘高波动放大个股跌幅，若美股继续回调，TM可能回踩220甚至200日均线。  
+建议仓位: ≤10%总资金，单亏≤1%净值。
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**1. 综合评分**  
+- 技术面评分: 4/10  
+- 基本面评分: 6/10  
+- 综合评分: 5/10  
+
+**2. 短期走势判断**  
+- 方向: 看跌  
+- 置信度: 中（60%）  
+- 主要驱动因素：  
+  - 股价跌破布林带下轨（230.64 < 232.26），RSI（40.9）接近超卖但未反转，MACD为负值（-1.47），短期均线（MA20=240.76）形成阻力。  
+  - 近期成交量萎缩（均量30万 vs 最新37万）且价格破位，反映买盘乏力。  
+  - 市场高波动（VIX=24.2）及行业新闻（收购谈判不确定性）加剧短期压力。  
+
+**3. 投资建议**  
+- 建议: **持有**（现有仓位）/ **观望**（新资金）  
+- 理由：  
+  技术面呈现“超卖未反转”特征，虽存在反弹可能（如RSI接近40、价格接近MA50支撑），但MACD未金叉、量能不足且跌破关键支撑（布林带下轨），短期下行风险仍存。基本面稳健（低估值、正增长），但ROE与利润率极低（均<0.1%），限制上涨动力。建议等待MACD转强或放量突破MA20后再介入。  
+- 若买入（仅限激进投资者）：  
+  - 买入价：226.00（前低附近）  
+  - 目标价：240.76（MA20阻力）  
+  - 止损价：218.00（1月底部下方）  
+
+**4. 风险提示**  
+- 最大风险点：基本面疲软（ROE/利润率接近零）无法支撑估值修复，若跌破218支撑位可能加速下跌。  
+- 建议仓位：≤5%（现有持仓者可持有，新资金暂不追加）。  
+
+---  
+**总结**：短期技术面偏空，但超卖状态可能引发反弹。建议观望至明确反转信号（如MACD金叉或放量阳线）。
+
+--- qwen3-max 模型 ---
+判断: 看涨 (置信度: 70%)
+1. 综合评分  
+   - 技术面评分: 6.5/10  
+   - 基本面评分: 4.0/10  
+   - 综合评分: 5.2/10  
+
+2. 短期走势判断  
+   - 方向: 看跌  
+   - 置信度: 中（50-70%）  
+   - 主要驱动因素：当前价格跌破布林带下轨（230.64 < 232.26）且低于MA20（240.76），MACD柱状线为负（2.93 < 4.40信号线），显示短期动能偏弱；但OBV底背离与BOLL超卖策略提示潜在反弹可能，叠加中期趋势仍向上（60日+16.3%），形成多空拉锯。近期放量大跌（3月3日成交量374,522，高于20日均量）加剧短期下行压力。
+
+3. 投资建议  
+   - 建议: 持有（若已持仓）/ 观望（若未持仓）  
+   - 理由：技术面呈现超卖特征（RSI=40.9，威廉指标=-78），但尚未出现明确反转信号（如MACD金叉或放量阳线）；基本面疲软（ROE仅0.10%，利润率极低），虽有并购利好新闻，但短期难抵技术弱势。  
+   - 若激进投资者拟博弈反弹，可轻仓在≤229.50买入，目标价240.76（MA20阻力），止损价225.00。
+
+4. 风险提示  
+   - 最大风险点：基本面持续低迷（低ROE、低利润率）叠加市场高波动（VIX=24.2），若跌破MA50（229.36）支撑，可能加速下探至215–195区域。  
+   - 建议仓位：不超过总资金的5%（仅限短线交易者），稳健投资者建议等待MACD金叉或放量回升确认后再介入。
+
+--- tstars2.0 模型 ---
+判断: 看涨 (置信度: 70%)
+### 综合分析报告：Toyota Motor Corporation (TM)
+
+---
+
+#### **1. 综合评分**
+- **技术面评分**: 6/10  
+  - **优势**：布林带下轨支撑（230.64）、OBV底背离、MACD仍为正（2.93）。  
+  - **劣势**：短期均线空头排列（MA20>MA50>MA200）、RSI中性偏弱（40.9）、成交量萎缩。  
+- **基本面评分**: 7/10  
+  - **优势**：市盈率12.59（行业合理）、市净率12.08（长期估值稳定）。  
+  - **劣势**：ROE仅0.1%、营收增长停滞（0.09%），反映盈利疲软。  
+- **综合评分**: 6.5/10  
+  - 技术面与基本面分化，技术面短期支撑明确但动能不足，基本面抗风险但增长乏力。
+
+---
+
+#### **2. 短期走势判断**
+- **方向**: 中性偏看涨  
+- **置信度**: 中（60%）  
+- **主要驱动因素**：  
+  1. **技术面**：布林带收窄后可能反弹，OBV底背离暗示资金逐步介入。  
+  2. **事件驱动**：丰田增持Toyota Industries（$380亿收购）可能提振市场信心。  
+  3. **风险**：成交量持续萎缩（20日均量300万，当前374万未显著突破），需确认量能配合。
+
+---
+
+#### **3. 投资建议**
+- **建议**: 买入  
+- **理由**:  
+  - **买入逻辑**：当前价230.64接近布林带下轨（232.26）及MA50（229.36），技术面超卖；丰田增持事件可能扭转市场情绪。  
+  - **目标价**: 248.90（60日高点阻力位），若突破则看至MA200（200.88）。  
+  - **止损价**: 225.00（跌破则确认趋势延续风险）。  
+- **具体操作**：  
+  - **买入价**: 228.00-230.00（区间吸筹）。  
+  - **目标价**: 248.90（短期阻力）。  
+  - **止损价**: 225.00（预留7%安全边际）。
+
+---
+
+#### **4. 风险提示**
+- **最大风险点**：  
+  1. **量能不足**：若成交量未随价格反弹放大，反弹或昙花一现。  
+  2. **事件不及预期**：丰田收购进展缓慢或遭遇阻力，可能压制股价。  
+  3. **宏观风险**：高波动市场（VIX 24.2）下，汽车板块易受系统性冲击。  
+- **建议仓位**: 5-8%（占总资金），严格止损。  
+
+---
+
+### 总结  
+短期技术面超卖叠加事件驱动提供反弹机会，但需警惕量能不足与宏观风险。建议在228.00-230.00区间分批建仓，目标248.90，止损225.00。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分：**  
+- 技术面评分: 6/10  
+- 基本面评分: 5/10  
+- 综合评分: 5.5/10  
+
+**短期走势判断：**  
+- 方向: 看跌  
+- 置信度: 中(50-70%)  
+- 主要驱动因素: RSI 40.90 显示超卖但MACD柱状线仍小于信号线，短期5日下跌5.2%，虽中期和长期趋势向上，但短期技术指标仍显弱势。  
+
+**投资建议：**  
+- 建议: 持有  
+- 理由: 当前处于布林带下轨附近，OBV底背离信号存在，但整体趋势仍偏弱。建议等待更明确的反转信号再考虑买入。  
+- 买入价: 230.64（当前价）  
+- 目标价: 240.76（MA20阻力位）  
+- 止损价: 225.64（20日低点支撑）  
+
+**风险提示：**  
+- 最大风险点: 短期技术指标仍偏弱，若跌破225.64可能进一步下探至195.00  
+- 建议仓位: 10-15%（占总资金比例）
+
+--- qwen3-coder-plus 模型 ---
+判断: 看涨 (置信度: 70%)
+## 综合投资建议
+
+### 1. 综合评分
+- **技术面评分: 6/10**
+  - RSI 40.9显示超卖状态，具备反弹基础
+  - MACD死叉但接近零轴，下跌动能减弱
+  - 价格跌破MA20但触及MA50支撑，技术面偏弱但有支撑
+
+- **基本面评分: 7/10**
+  - 市盈率12.59，估值相对合理
+  - 市净率12.08偏高，但汽车行业特性使然
+  - Beta=0.20，波动性较低，相对稳健
+
+- **综合评分: 6.5/10**
+
+### 2. 短期走势判断
+- **方向: 看涨**
+- **置信度: 中(50-70%)**
+- **主要驱动因素:** 
+  - RSI超卖反弹需求强烈（当前40.9，接近30超卖线）
+  - 价格触及MA50关键支撑位229.36附近
+  - 成交量放大显示资金关注，符合"OBV底背离+BOLL超卖策略"
+
+### 3. 投资建议
+- **建议: 买入**
+- **理由:** 
+  技术面显示超卖反弹信号，RSI接近30超卖区域，价格触及MA50支撑。基本面稳健，估值合理。近期2月28日从242.38跌至230.64，跌幅近5%，存在技术性修复需求。布林带下轨支撑有效，符合超卖反弹策略买入条件。
+
+- **具体操作:**
+  - 买入价: 231-233区间
+  - 目标价: 240.76（MA20阻力位）
+  - 止损价: 225.00
+
+### 4. 风险提示
+- **最大风险点:** 
+  - 汽车行业周期性下行风险
+  - 市场整体高波动环境下，个股可能继续跟随大盘调整
+  - MACD仍处死叉状态，下跌趋势未完全扭转
+
+- **建议仓位:** 15-20%（轻仓参与，严格止损）
+
+**总结:** 基于超卖反弹策略，短期存在技术性修复机会，但需密切关注MA20阻力突破情况，严格执行止损策略。
+</div>
+            <div class="ai-model">模型: multi_model_consensus</div>
+        </div>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>报告生成时间: 2026-03-04 02:16:03</p>
+            <p style="font-size: 0.8rem; margin-top: 8px;">⚠️ 本报告仅供参考，不构成投资建议</p>
+        </div>
+    </div>
+</body>
+</html>

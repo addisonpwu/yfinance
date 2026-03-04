@@ -38,7 +38,7 @@ MACD_SIGNAL = 9
 BB_PERIOD = 20
 BB_STD_DEV = 2.0
 ATR_PERIOD = 14
-MA_PERIODS = [5, 10, 20, 50, 200]
+MA_PERIODS = [5, 10, 20, 50, 120, 200]
 CMO_PERIOD = 14
 WILLIAMS_R_PERIOD = 14
 STOCHASTIC_PERIOD = 14
@@ -338,3 +338,14 @@ LAUNCH_MONEY_FLOW_WEIGHT = 0.20                 # 资金信号权重
 LAUNCH_RESILIENCE_WEIGHT = 0.15                 # 抗跌特征权重
 LAUNCH_TECHNICAL_WEIGHT = 0.10                  # 技术指标权重
 LAUNCH_VOLUME_WEIGHT = 0.05                     # 成交量模式权重
+
+# ============================================
+# OBV 底背离 + BOLL 超卖策略参数
+# ============================================
+OBV_BOLL_LLV_PERIOD = 20                        # LLV 周期（最低价回看）
+OBV_BOLL_OBV_LOOKBACK = 5                       # OBV 对比回看天数
+OBV_BOLL_VOLUME_RATIO_MIN = 0.4                 # 量比下限
+OBV_BOLL_VOLUME_RATIO_MAX = 1.0                 # 量比上限
+OBV_BOLL_MA_LONG_PERIOD = 120                   # 长期均线周期
+OBV_BOLL_MIN_DATA_POINTS = 125                  # 最小数据点数(120+5)
+OBV_BOLL_CONFIDENCE = 0.80                      # 策略置信度

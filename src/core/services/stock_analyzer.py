@@ -43,13 +43,27 @@ class StockAnalyzer:
     _last_request_time = 0.0
     _consecutive_errors = 0
     
-    def __init__(self, provider: str = 'iflow'):
+    def __init__(self, provider: str = 'iflow', providers: list = None):
         self.data_repo = YahooFinanceRepository()
         self.strategy_engine = StrategyEngine(get_strategies())
-        self.ai_service = AIAnalysisService(provider=provider)
+        
+        # 支持多提供商：providers 参数优先，否则使用 provider 参数
+        if providers:
+            self.providers = providers if isinstance(providers, list) else [providers]
+        else:
+            self.providers = [provider]
+        
+        # 初始化所有提供商的服务
+        self.ai_services = {}
+        for p in self.providers:
+            self.ai_services[p] = AIAnalysisService(provider=p)
+        
+        # 主服务（用于兼容）
+        self.ai_service = self.ai_services.get(self.providers[0])
+        
         self.config = config_manager.get_config()
         self.logger = get_analysis_logger()
-        self.provider = provider
+        self.provider = self.providers[0] if self.providers else provider
         
         # 从配置读取延迟参数
         self.base_delay = getattr(self.config.api, 'base_delay', 0.5)
@@ -95,7 +109,8 @@ class StockAnalyzer:
         is_market_healthy: bool,
         skip_strategies: bool = False,
         interval: str = '1d',
-        model: str = 'deepseek-v3.2'
+        model: str = 'deepseek-v3.2',
+        providers: list = None
     ) -> StockAnalysisResult:
         """
         分析单只股票
@@ -108,10 +123,13 @@ class StockAnalyzer:
             skip_strategies: 是否跳过策略筛选
             interval: 数据时段类型
             model: AI 模型
+            providers: AI 提供商列表（优先）或 None
         
         Returns:
             StockAnalysisResult 分析结果
         """
+        # 确定要使用的提供商列表
+        providers_to_use = providers if providers else self.providers
         # 应用速率限制
         self._apply_rate_limit()
         
@@ -221,7 +239,7 @@ class StockAnalyzer:
             # 策略筛选通过后才获取新闻
             news = self.data_repo.get_news(symbol, market)
             
-            # AI 分析
+            # AI 分析（支持多提供商）
             ai_analysis = None
             try:
                 stock_data = {
@@ -231,12 +249,46 @@ class StockAnalyzer:
                     'market': market,
                     'news': news  # 添加新闻数据
                 }
-                ai_result = self.ai_service.analyze_stock(stock_data, hist, interval=interval, model=model)
-                if ai_result:
-                    ai_analysis = {
-                        'summary': ai_result.summary,
-                        'model_used': ai_result.model_used
-                    }
+                
+                # 如果有多个提供商，进行多提供商分析
+                if len(providers_to_use) > 1:
+                    ai_results = []
+                    for p in providers_to_use:
+                        try:
+                            ai_service = self.ai_services.get(p)
+                            if ai_service:
+                                result = ai_service.analyze_stock(stock_data, hist, interval=interval, model=model)
+                                if result:
+                                    ai_results.append({
+                                        'provider': p,
+                                        'summary': result.summary,
+                                        'model_used': result.model_used,
+                                        'confidence': result.confidence
+                                    })
+                        except Exception as e:
+                            self.logger.warning(f"提供商 {p} 分析失败: {e}")
+                    
+                    if ai_results:
+                        # 合并多提供商结果
+                        combined_summary = f"【多提供商分析】\n\n"
+                        for r in ai_results:
+                            combined_summary += f"--- {r['provider'].upper()} 分析 ---\n"
+                            combined_summary += f"模型: {r['model_used']}\n"
+                            combined_summary += f"置信度: {r['confidence']:.0%}\n"
+                            combined_summary += f"{r['summary']}\n\n"
+                        
+                        ai_analysis = {
+                            'summary': combined_summary,
+                            'model_used': f"multi_provider({', '.join([r['provider'] for r in ai_results])})"
+                        }
+                else:
+                    # 单提供商分析
+                    ai_result = self.ai_service.analyze_stock(stock_data, hist, interval=interval, model=model)
+                    if ai_result:
+                        ai_analysis = {
+                            'summary': ai_result.summary,
+                            'model_used': ai_result.model_used
+                        }
             except Exception as ai_e:
                 self.logger.error(f"AI 分析出错: {ai_e}")
             

@@ -1,18 +1,22 @@
 
 import requests
-import urllib3
 import re
+
+# 安全修复：使用 certifi 提供证书，避免禁用 SSL 验证
+try:
+    import certifi
+    _SSL_VERIFY_PATH = certifi.where()
+except ImportError:
+    _SSL_VERIFY_PATH = True  # 回退到系统默认证书
+
 
 def get_us_tickers():
     """從財報狗網站自動獲取所有美股代碼列表"""
     print("正在從財報狗(statementdog.com)獲取可用的美股代碼列表...")
     try:
-        # 停用 SSL 警告訊息
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        
         url = 'https://statementdog.com/us-stock-list'
         headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=headers, verify=_SSL_VERIFY_PATH)
         response.raise_for_status() # 如果請求失敗則拋出錯誤
 
         # 使用精準的正規表示式，只匹配 <span class="us-stock-company-ticker">XXXX</span> 結構中的代碼

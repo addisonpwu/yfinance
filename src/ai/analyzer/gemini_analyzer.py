@@ -451,6 +451,9 @@ class GeminiAIAnalyzer(AIAnalyzer):
         price_summary = self._get_price_summary(hist)
         fundamentals = self._format_fundamentals(stock_data)
         
+        # 格式化新闻数据
+        news_section = self._format_news(stock_data.get('news', []))
+        
         prompt = f"""你是一位资深股票分析师，请综合分析以下股票的投资价值。
 
 {self.FEW_SHOT_EXAMPLES}
@@ -473,67 +476,69 @@ class GeminiAIAnalyzer(AIAnalyzer):
 {indicators}
 
 ====================================
+{news_section}
+====================================
+
+====================================
 前置分析结果
 ====================================
 趋势分析: {trend_result}
 关键价位: {levels_result}
 
-====================================
-分析要求
-====================================
-请提供详细的8维度技术分析：
-
-【1. 趋势分析】
-- 短期趋势（5日）
-- 中期趋势（20日）
-- 长期趋势（60日）
-- 趋势强度评估
-
-【2. 支撑与阻力】
-- 主要支撑位
-- 主要阻力位
-- 突破/跌破概率
-
-【3. 动能指标分析】
-- RSI 状态及信号
-- MACD 状态及信号
-- 量价配合情况
-
-【4. 成交量分析】
-- 近期成交量变化
-- 量价关系
-- 资金流向判断
-
-【5. 形态识别】
-- K线形态特征
-- 图表形态判断
-- 潜在突破/反转信号
-
-【6. 短期走势预测】
-- 未来1-2周预期走势
-- 关键观察点位
-- 时间窗口判断
-
-【7. 风险评估】
-- 主要风险因素
-- 止损位建议
-- 仓位建议
-
-【8. 投资建议】
-- 操作建议（买入/持有/卖出/观望）
-- 建议买入价位
-- 目标价位
-- 置信度（0-100%）
+{news_section}
 
 ====================================
-输出格式要求
-====================================
-1. 使用清晰的结构化格式
-2. 每个维度给出明确结论
-3. 最后给出综合评分和明确建议
-4. 置信度必须为具体的百分比数字
+【重要分析框架】
 
-请开始分析："""
+## 一、市场环境评估（权重30%）
+根据VIX和市场风险等级评估当前市场环境：
+- VIX < 15: 低波动市场，可适度激进
+- VIX 15-25: 正常波动市场，谨慎操作  
+- VIX > 25: 高波动市场，降低仓位
+
+## 二、技术面分析（权重40%）
+必须分析以下关键信号：
+1. RSI信号：RSI>70超买可能回调，RSI<30超卖可能反弹，RSI在40-60最为健康
+2. MACD信号：金叉是买入信号，死叉是卖出信号
+3. 均线信号：价格站上均线看多；多头排列看多
+4. 布林带信号：价格突破上轨可能回调，突破下轨可能反弹
+5. 量价配合：价涨量增健康，价涨量缩需警惕
+
+## 三、新闻影响分析（权重20%）
+- 正面新闻：业绩增长、产品发布、获得订单等 → 看多
+- 负面新闻：业绩下滑、诉讼、减持等 → 看空
+
+## 四、风险评估（权重10%）
+- 最大风险点
+- 建议止损价位（必须具体数值）
+- 建议仓位（轻仓/半仓/重仓）
+
+====================================
+【输出格式要求】
+
+1. 综合评分
+   技术面评分: X/10
+   基本面评分: X/10  
+   综合评分: X/10
+
+2. 短期走势判断
+   方向: [看涨/看跌/中性]
+   置信度: [高(>70%)/中(50-70%)/低(<50%)]
+   主要驱动因素: [不超过50字]
+
+3. 投资建议
+   建议: [强烈买入/买入/持有/卖出/强烈卖出]
+   理由: [不超过150字]
+   买入价位: [具体数值或"现价"]
+   目标价位: [具体数值]
+   止损价位: [具体数值]
+
+4. 风险提示
+   最大风险点: [具体描述]
+   建议仓位: [轻仓(<20%)/半仓(20-40%)/重仓(40-60%)]
+
+请严格按照上述格式输出。AI分析结果将用于实盘交易决策，请务必严谨客观。
+"""
         
         return prompt
     
@@ -545,6 +550,9 @@ class GeminiAIAnalyzer(AIAnalyzer):
         indicators = self._get_technical_indicators(hist)
         price_summary = self._get_price_summary(hist)
         fundamentals = self._format_fundamentals(stock_data)
+        
+        # 格式化新闻数据
+        news_section = self._format_news(stock_data.get('news', []))
         
         prompt = f"""你是一位资深股票分析师，请全面分析以下股票。
 
@@ -567,15 +575,62 @@ class GeminiAIAnalyzer(AIAnalyzer):
 ====================================
 {indicators}
 
-请提供：
-1. 趋势分析
-2. 支撑阻力位
-3. 动能指标解读
-4. 成交量分析
-5. 操作建议（买入/持有/卖出/观望）
-6. 置信度（0-100%）
+====================================
+{news_section}
+====================================
 
-直接给出分析结论："""
+====================================
+【重要分析框架】
+
+## 一、市场环境评估（权重30%）
+根据VIX和市场风险等级评估当前市场环境：
+- VIX < 15: 低波动市场，可适度激进
+- VIX 15-25: 正常波动市场，谨慎操作  
+- VIX > 25: 高波动市场，降低仓位
+
+## 二、技术面分析（权重40%）
+必须分析以下关键信号：
+1. RSI信号：RSI>70超买可能回调，RSI<30超卖可能反弹，RSI在40-60最为健康
+2. MACD信号：金叉是买入信号，死叉是卖出信号
+3. 均线信号：价格站上均线看多；多头排列看多
+4. 布林带信号：价格突破上轨可能回调，突破下轨可能反弹
+5. 量价配合：价涨量增健康，价涨量缩需警惕
+
+## 三、新闻影响分析（权重20%）
+- 正面新闻：业绩增长、产品发布、获得订单等 → 看多
+- 负面新闻：业绩下滑、诉讼、减持等 → 看空
+
+## 四、风险评估（权重10%）
+- 最大风险点
+- 建议止损价位（必须具体数值）
+- 建议仓位（轻仓/半仓/重仓）
+
+====================================
+【输出格式要求】
+
+1. 综合评分
+   技术面评分: X/10
+   基本面评分: X/10  
+   综合评分: X/10
+
+2. 短期走势判断
+   方向: [看涨/看跌/中性]
+   置信度: [高(>70%)/中(50-70%)/低(<50%)]
+   主要驱动因素: [不超过50字]
+
+3. 投资建议
+   建议: [强烈买入/买入/持有/卖出/强烈卖出]
+   理由: [不超过150字]
+   买入价位: [具体数值或"现价"]
+   目标价位: [具体数值]
+   止损价位: [具体数值]
+
+4. 风险提示
+   最大风险点: [具体描述]
+   建议仓位: [轻仓(<20%)/半仓(20-40%)/重仓(40-60%)]
+
+请严格按照上述格式输出。AI分析结果将用于实盘交易决策，请务必严谨客观。
+"""
         
         return prompt
     
@@ -672,7 +727,8 @@ class GeminiAIAnalyzer(AIAnalyzer):
                 'bb_upper': latest.get('BB_Upper', None),
                 'bb_lower': latest.get('BB_Lower', None),
             }
-        except Exception:
+        except Exception as e:
+            self.logger.debug(f"计算支撑阻力位失败: {e}")
             return {}
     
     def _format_fundamentals(self, stock_data: Dict) -> str:
@@ -697,6 +753,44 @@ class GeminiAIAnalyzer(AIAnalyzer):
             lines.append(f"Beta: {info['beta']:.2f}")
         
         return "\n".join(lines) if lines else "无基本面数据"
+    
+    def _format_news(self, news_list: List[Dict]) -> str:
+        """格式化新闻数据 - 增强版，包含新闻时间排序和摘要"""
+        if not news_list:
+            return "暂无新闻"
+        
+        # 按发布时间排序（最新的在前）
+        sorted_news = sorted(
+            news_list, 
+            key=lambda x: x.get('published', ''), 
+            reverse=True
+        )[:5]  # 最多显示5条
+        
+        lines = ["【近期新闻】（按时间倒序）"]
+        
+        for i, item in enumerate(sorted_news, 1):
+            title = item.get('title', 'N/A')
+            published = item.get('published', '')
+            publisher = item.get('publisher', '')
+            summary = item.get('summary', '')
+            
+            lines.append(f"{i}. [{published}] {title}")
+            if publisher:
+                lines.append(f"   来源: {publisher}")
+            # 如果有摘要，添加简要内容
+            if summary and summary != title:
+                # 截取摘要前100字
+                summary_short = summary[:100] + "..." if len(summary) > 100 else summary
+                lines.append(f"   摘要: {summary_short}")
+        
+        # 添加分析指引
+        lines.append("")
+        lines.append("【新闻分析指引】")
+        lines.append("- 关注发布时间越近的新闻，影响力越大")
+        lines.append("- 业绩公告、产品发布、重大合同为利好")
+        lines.append("- 业绩亏损、诉讼、减持、监管处罚为利空")
+        
+        return "\n".join(lines)
     
     def _extract_direction_and_confidence(self, analysis: str) -> tuple:
         """从分析结果中提取方向和置信度"""

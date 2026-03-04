@@ -2,17 +2,24 @@
 import pandas as pd
 import requests
 import io
-import urllib3
+import ssl
+
+# 安全修复：使用 certifi 提供证书，避免禁用 SSL 验证
+try:
+    import certifi
+    _SSL_VERIFY_PATH = certifi.where()
+except ImportError:
+    _SSL_VERIFY_PATH = True  # 回退到系统默认证书
+
 
 def get_hk_tickers():
     """
     從香港交易所網站下載最新的證券列表Excel，並篩選出以港幣交易的股本證券。
     """
-    print("\n正在從香港交易所(hkex.com.hk)下載證券列表...")
+    print("\n正在從香港交易所下載證券列表...")
     try:
         url = "https://www.hkex.com.hk/chi/services/trading/securities/securitieslists/ListOfSecurities_c.xlsx"
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        response = requests.get(url, verify=False)
+        response = requests.get(url, verify=_SSL_VERIFY_PATH)
         response.raise_for_status()
         excel_file = io.BytesIO(response.content)
         df = pd.read_excel(excel_file, sheet_name="ListOfSecurities", header=2)

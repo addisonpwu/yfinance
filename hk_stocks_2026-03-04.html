@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票筛选报告 - HK - 2026-03-04</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #93c5fd;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        
+        .header .meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+        
+        .header .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.95;
+            font-size: 0.9rem;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        
+        /* Strategy Tags */
+        .strategy-section {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .strategy-section h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .strategy-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .strategy-tag {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .strategy-tag:hover {
+            transform: scale(1.02);
+        }
+        
+        .strategy-tag .name {
+            font-weight: 600;
+        }
+        
+        .strategy-tag .count {
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        
+        /* Stock Cards */
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        
+        .stock-card {
+            background: var(--card);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        /* Stock Header */
+        .stock-header {
+            padding: 20px;
+            position: relative;
+        }
+        
+        .stock-header.bullish {
+            background: linear-gradient(135deg, var(--success-light) 0%, #ecfdf5 100%);
+            border-left: 4px solid var(--success);
+        }
+        
+        .stock-header.bearish {
+            background: linear-gradient(135deg, var(--danger-light) 0%, #fef2f2 100%);
+            border-left: 4px solid var(--danger);
+        }
+        
+        .stock-header.neutral {
+            background: linear-gradient(135deg, var(--warning-light) 0%, #fffbeb 100%);
+            border-left: 4px solid var(--warning);
+        }
+        
+        .stock-header .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .stock-header h3 {
+            font-size: 1.1rem;
+            color: var(--text);
+            max-width: 250px;
+        }
+        
+        .stock-header .symbol {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            background: var(--primary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        
+        .stock-strategies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .stock-strategies .badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        /* Score Gauge */
+        .score-gauge {
+            display: flex;
+            gap: 16px;
+            padding: 16px 20px;
+            background: #fafbfc;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .gauge-item {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .gauge-item .gauge-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        
+        .gauge-item .gauge-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .gauge-item .gauge-fill.high { background: linear-gradient(90deg, var(--success), #34d399); }
+        .gauge-item .gauge-fill.medium { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+        .gauge-item .gauge-fill.low { background: linear-gradient(90deg, var(--danger), #f87171); }
+        
+        .gauge-item .score-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        
+        .gauge-item .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .score-high { color: var(--success); }
+        .score-medium { color: var(--warning); }
+        .score-low { color: var(--danger); }
+        
+        .stock-body {
+            padding: 16px 20px;
+        }
+        
+        /* Data Grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #fafbfc;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        
+        .data-item .label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .data-item .value {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .data-item .value.positive {
+            color: var(--success);
+        }
+        
+        .data-item .value.negative {
+            color: var(--danger);
+        }
+        
+        /* Direction Indicator */
+        .direction-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .direction-indicator.bullish {
+            background: var(--success-light);
+            color: #065f46;
+        }
+        
+        .direction-indicator.bearish {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+        
+        .direction-indicator.neutral {
+            background: var(--warning-light);
+            color: #92400e;
+        }
+        
+        /* News Section */
+        .news-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+        
+        .news-section h4 {
+            color: #0369a1;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .news-item {
+            padding: 10px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
+        
+        .news-title {
+            color: #0c4a6e;
+            text-decoration: none;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            display: block;
+        }
+        
+        .news-title:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        
+        .news-meta {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        
+        /* AI Analysis */
+        .ai-section {
+            margin-top: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .ai-header {
+            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            padding: 12px 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ai-header h4 {
+            color: #92400e;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .ai-header .toggle {
+            transition: transform 0.3s;
+        }
+        
+        .ai-section.collapsed .toggle {
+            transform: rotate(-90deg);
+        }
+        
+        .ai-content {
+            padding: 14px;
+            background: #fffef5;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #78350f;
+            white-space: pre-wrap;
+            line-height: 1.7;
+        }
+        
+        .ai-section.collapsed .ai-content {
+            display: none;
+        }
+        
+        .ai-model {
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #a16207;
+            text-align: right;
+            padding-top: 8px;
+            border-top: 1px dashed #fde047;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            margin-top: 40px;
+        }
+        
+        .footer p {
+            margin-bottom: 4px;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body { background: white; }
+            .container { max-width: 100%; }
+            .stock-card { break-inside: avoid; }
+            .header { box-shadow: none; }
+            .ai-content { max-height: none; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stocks-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .header { padding: 24px; }
+            .header h1 { font-size: 1.4rem; }
+            .data-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script>
+        function toggleAI(id) {
+            const section = document.getElementById(id);
+            section.classList.toggle('collapsed');
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📈 股票筛选报告</h1>
+            <div class="meta">
+                <div class="meta-item"><span>🌏</span><span>市场: HK</span></div>
+                <div class="meta-item"><span>📅</span><span>2026-03-04 00:12</span></div>
+                <div class="meta-item"><span>⏱️</span><span>耗时: 2.8 秒</span></div>
+                <div class="meta-item"><span>✅</span><span>筛选: 1 只</span></div>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">📊</div>
+                <div class="value">1</div>
+                <div class="label">符合条件股票</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🎯</div>
+                <div class="value">1</div>
+                <div class="label">命中策略数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🏆</div>
+                <div class="value">1</div>
+                <div class="label">最高命中次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">⚡</div>
+                <div class="value">3s</div>
+                <div class="label">分析耗时</div>
+            </div>
+        </div>
+        
+        <!-- Strategy Stats -->
+        <div class="strategy-section">
+            <h3>策略命中统计</h3>
+            <div class="strategy-tags">
+                <div class="strategy-tag" style="border-color: #3b82f6"><span class="name">跳过策略</span><span class="count">1</span></div>
+            </div>
+        </div>
+        
+        <!-- Stock Cards -->
+        <div class="stocks-grid">
+            
+        <div class="stock-card">
+            <div class="stock-header neutral">
+                <div class="title-row">
+                    <h3>CK Hutchison Holdings Limited</h3>
+                    <span class="symbol">0001</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">跳过策略</span>
+                </div>
+            </div>
+            
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Industrials</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">2399.52 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">927.8 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">31.01</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+62.1%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.ckh.com.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                
+                
+                
+        <div class="news-section">
+            <h4>📰 近期新闻 (10 条)</h4>
+            <div class="news-list">
+                
+            <div class="news-item">
+                <a href="https://hk.finance.yahoo.com/news/%E6%B8%AF%E8%82%A1adr%E9%A0%90%E8%A8%88%E6%81%86%E6%8C%87%E4%BB%8A%E6%97%A9%E9%AB%98%E9%96%8B147%E9%BB%9E-%E5%A0%B126-208%E9%BB%9E-003002560.html?.tsrc=rss" target="_blank" class="news-title">港股ADR預計恆指今早高開147點 報26,208點</a>
+                <div class="news-meta">
+                    <span>2026-03-03 00:30</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://hk.finance.yahoo.com/news/%E9%95%B7%E6%B1%9F%E9%9B%86%E5%9C%98%E7%A9%A9%E5%AE%9A%E5%9B%9E%E5%A0%B1%E8%A1%8C%E5%85%88%E5%8D%83%E5%84%84-%E5%94%AE%E9%9B%BB-%E5%A4%A7%E5%88%81%E6%84%8F%E7%BE%A9%E6%B7%B1%E9%81%A0-041603564.html?.tsrc=rss" target="_blank" class="news-title">長江穩定回報項目行先 專注投資受規管行業</a>
+                <div class="news-meta">
+                    <span>2026-03-02 04:16</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://hk.finance.yahoo.com/news/%E9%95%B7%E5%92%8C%E5%B7%B4%E6%8B%BF%E9%A6%AC%E6%B8%AF%E5%8F%A3%E5%85%AC%E5%8F%B8-%E5%B7%B4%E6%8B%BF%E9%A6%AC%E6%94%BF%E5%BA%9C%E6%B6%89%E6%93%85%E9%97%96%E7%A7%81%E4%BA%BA%E5%84%B2%E5%AD%98%E8%A8%AD%E6%96%BD%E5%BC%B7%E5%8F%96%E8%B2%A1%E7%94%A2-%E7%A0%B4%E5%A3%9E%E6%AD%A3%E7%95%B6%E6%B3%95%E5%BE%8B%E7%A8%8B%E5%BA%8F-012547924.html?.tsrc=rss" target="_blank" class="news-title">長和巴拿馬港口公司：巴拿馬政府涉擅闖私人儲存設施強取財產 破壞正當法律程序</a>
+                <div class="news-meta">
+                    <span>2026-03-02 01:25</span>
+                </div>
+            </div>
+            </div>
+        </div>
+                
+                
+            </div>
+        </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>报告生成时间: 2026-03-04 00:12:12</p>
+            <p style="font-size: 0.8rem; margin-top: 8px;">⚠️ 本报告仅供参考，不构成投资建议</p>
+        </div>
+    </div>
+</body>
+</html>

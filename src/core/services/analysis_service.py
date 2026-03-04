@@ -23,7 +23,7 @@ def run_analysis(
     interval: str = '1d',
     max_workers: int = None,
     model: str = 'deepseek-v3.2',
-    provider: str = 'iflow',
+    providers: List[str] = None,
     output_filename: str = None
 ) -> List[Dict]:
     """
@@ -37,22 +37,29 @@ def run_analysis(
         interval: 数据时段类型 ('1d' 日线, '1h' 小时线, '1m' 分钟线)
         max_workers: 最大并行工作线程数
         model: 要使用的AI模型
-        provider: AI 提供商 ('iflow' 或 'nvidia')
+        providers: AI 提供商列表 (如 ['iflow', 'nvidia', 'gemini'])
         output_filename: 实时报告文件名
 
     Returns:
         符合条件的股票列表
     """
+    # 处理 providers 参数（支持多提供商）
+    if providers is None:
+        providers = ['iflow']
+    elif isinstance(providers, str):
+        providers = [p.strip() for p in providers.split(',')]
+    
     # 加载配置
     config = config_manager.get_config()
     
     if max_workers is None:
         max_workers = config.api.max_workers
     
-    # 初始化服务
+    # 初始化服务（使用首个提供商作为默认）
     market_service = MarketDataService()
     cache_manager = CacheVersionManager()
-    stock_analyzer = StockAnalyzer(provider=provider)
+    primary_provider = providers[0] if providers else 'iflow'
+    stock_analyzer = StockAnalyzer(provider=primary_provider)
     
     # --- 缓存版本检查 ---
     is_sync_needed, status_msg = cache_manager.check_version(market, force_fast_mode, interval)
@@ -100,7 +107,8 @@ def run_analysis(
             is_market_healthy=is_market_healthy,
             skip_strategies=skip_strategies,
             interval=interval,
-            model=model
+            model=model,
+            providers=providers
         )
         
         # 如果成功且有结果，写入报告

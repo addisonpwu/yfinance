@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 import json
 import re
+import logging
 
 
 class ReportWriter:
@@ -63,6 +64,7 @@ class ReportWriter:
         self._initialized = False
         self._results: List[Dict[str, Any]] = []
         self._start_time = datetime.now()
+        self.logger = logging.getLogger(__name__)
     
     def _generate_basename(self, market: str) -> str:
         """生成默认文件名（不含扩展名）"""
@@ -325,8 +327,8 @@ class ReportWriter:
             return
         except ImportError:
             pass
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"pdfkit PDF生成失败: {e}")
     
     def _build_html(self, results: List[Dict[str, Any]], market: str) -> str:
         """构建完整的 HTML 报告 - 增强可视化"""

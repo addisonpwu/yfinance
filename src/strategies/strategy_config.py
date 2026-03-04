@@ -24,6 +24,10 @@ from src.config.constants import (
     LAUNCH_VOLUME_EXPANSION_MIN, LAUNCH_VOLUME_EXPANSION_MAX, LAUNCH_VOLUME_CONTRACTION,
     LAUNCH_MA_WEIGHT, LAUNCH_PATTERN_WEIGHT, LAUNCH_VOLATILITY_WEIGHT, LAUNCH_MONEY_FLOW_WEIGHT,
     LAUNCH_RESILIENCE_WEIGHT, LAUNCH_TECHNICAL_WEIGHT, LAUNCH_VOLUME_WEIGHT,
+    # OBV 底背离 + BOLL 超卖策略参数
+    OBV_BOLL_LLV_PERIOD, OBV_BOLL_OBV_LOOKBACK, OBV_BOLL_VOLUME_RATIO_MIN,
+    OBV_BOLL_VOLUME_RATIO_MAX, OBV_BOLL_MA_LONG_PERIOD, OBV_BOLL_MIN_DATA_POINTS,
+    OBV_BOLL_CONFIDENCE,
 )
 
 
@@ -110,6 +114,29 @@ class LaunchCaptureConfig:
         )
 
 
+@dataclass
+class OBVBollConfig:
+    """OBV 底背离 + BOLL 超卖策略配置"""
+    llv_period: int = OBV_BOLL_LLV_PERIOD
+    obv_lookback: int = OBV_BOLL_OBV_LOOKBACK
+    volume_ratio_min: float = OBV_BOLL_VOLUME_RATIO_MIN
+    volume_ratio_max: float = OBV_BOLL_VOLUME_RATIO_MAX
+    ma_long_period: int = OBV_BOLL_MA_LONG_PERIOD
+    min_data_points: int = OBV_BOLL_MIN_DATA_POINTS
+    confidence: float = OBV_BOLL_CONFIDENCE
+
+    def validate(self) -> bool:
+        """验证配置有效性"""
+        return (
+            self.llv_period > 0 and
+            self.obv_lookback > 0 and
+            0 < self.volume_ratio_min < self.volume_ratio_max and
+            self.ma_long_period > 0 and
+            self.min_data_points >= self.ma_long_period + self.obv_lookback and
+            0 < self.confidence <= 1.0
+        )
+
+
 class StrategyConfigManager:
     """策略配置管理器，支持从配置文件加载"""
 
@@ -134,6 +161,7 @@ class StrategyConfigManager:
 
             self._configs = {
                 'launch_capture': self._parse_launch_capture_config(strategies_config),
+                'obv_boll_divergence': self._parse_obv_boll_config(strategies_config),
             }
 
             return self._configs
@@ -156,6 +184,19 @@ class StrategyConfigManager:
             pattern_period=cfg.get('pattern_period', LAUNCH_PATTERN_PERIOD),
             cmf_period=cfg.get('cmf_period', LAUNCH_CMF_PERIOD),
             beta_low_threshold=cfg.get('beta_low_threshold', LAUNCH_BETA_LOW_THRESHOLD),
+        )
+
+    def _parse_obv_boll_config(self, strategies_config: Dict) -> OBVBollConfig:
+        """解析 OBV 底背离 + BOLL 超卖策略配置"""
+        cfg = strategies_config.get('obv_boll_divergence', {})
+        return OBVBollConfig(
+            llv_period=cfg.get('llv_period', OBV_BOLL_LLV_PERIOD),
+            obv_lookback=cfg.get('obv_lookback', OBV_BOLL_OBV_LOOKBACK),
+            volume_ratio_min=cfg.get('volume_ratio_min', OBV_BOLL_VOLUME_RATIO_MIN),
+            volume_ratio_max=cfg.get('volume_ratio_max', OBV_BOLL_VOLUME_RATIO_MAX),
+            ma_long_period=cfg.get('ma_long_period', OBV_BOLL_MA_LONG_PERIOD),
+            min_data_points=cfg.get('min_data_points', OBV_BOLL_MIN_DATA_POINTS),
+            confidence=cfg.get('confidence', OBV_BOLL_CONFIDENCE),
         )
 
     def get_config(self, strategy_name: str):
