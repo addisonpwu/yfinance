@@ -29,6 +29,11 @@ class BaseStrategy(ABC):
     def category(self) -> str:
         pass
     
+    @property
+    def enabled(self) -> bool:
+        """策略是否启用，默认为 True"""
+        return True
+    
     @abstractmethod
     def execute(self, context: StrategyContext) -> StrategyResult:
         pass

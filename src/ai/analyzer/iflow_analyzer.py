@@ -261,38 +261,18 @@ class IFlowAIAnalyzer(AIAnalyzer):
         # 生成缓存键（使用数据哈希而非日期）
         cache_key = self._get_cache_key(stock_data, hist, interval, model)
         
-        # 缓存读取已禁用 - 每次都重新分析
-        # cached_result = self.cache_service.get_json(cache_key, self.AI_CACHE_SUBDIR)
-        # if cached_result:
-        #     self.logger.info(f"从缓存获取 {stock_data.get('symbol', 'Unknown')} 的AI分析结果")
-        #     return AIAnalysisResult(
-        #         summary=cached_result.get('summary', ''),
-        #         confidence=cached_result.get('confidence', 0.5),
-        #         model_used=cached_result.get('model_used', model)
-        #     )
-        
         # 检查 API Key
         if not self.api_key:
-            self.logger.warning(f"未找到 IFLOW_API_KEY 环境变量，跳过 AI 分析（缓存中无结果）")
+            self.logger.warning(f"未找到 IFLOW_API_KEY 环境变量，跳过 AI 分析")
             return None
         
         try:
-            # 新增：分步分析流程
+            # 分步分析流程
             analysis_result = self._step_by_step_analysis(stock_data, hist, model, use_multi_timeframe)
             
             if analysis_result:
-                # 新增：记录预测
+                # 记录预测
                 self._record_prediction(stock_data, analysis_result, model)
-                
-                # 缓存写入已禁用 - 每次都重新分析
-                # cache_data = {
-                #     'symbol': stock_data.get('symbol', ''),
-                #     'summary': analysis_result.summary,
-                #     'confidence': analysis_result.confidence,
-                #     'model_used': analysis_result.model_used,
-                #     'direction': analysis_result.detailed_analysis.get('direction', '中性') if analysis_result.detailed_analysis else '中性',
-                # }
-                # self.cache_service.set_json(cache_key, cache_data, self.AI_CACHE_SUBDIR)
             
             return analysis_result
                 

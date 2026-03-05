@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票筛选报告 - HK - 2026-03-05</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #93c5fd;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        
+        .header .meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+        
+        .header .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.95;
+            font-size: 0.9rem;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        
+        /* Strategy Tags */
+        .strategy-section {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .strategy-section h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .strategy-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .strategy-tag {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .strategy-tag:hover {
+            transform: scale(1.02);
+        }
+        
+        .strategy-tag .name {
+            font-weight: 600;
+        }
+        
+        .strategy-tag .count {
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        
+        /* Stock Cards */
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        
+        .stock-card {
+            background: var(--card);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        /* Stock Header */
+        .stock-header {
+            padding: 20px;
+            position: relative;
+        }
+        
+        .stock-header.bullish {
+            background: linear-gradient(135deg, var(--success-light) 0%, #ecfdf5 100%);
+            border-left: 4px solid var(--success);
+        }
+        
+        .stock-header.bearish {
+            background: linear-gradient(135deg, var(--danger-light) 0%, #fef2f2 100%);
+            border-left: 4px solid var(--danger);
+        }
+        
+        .stock-header.neutral {
+            background: linear-gradient(135deg, var(--warning-light) 0%, #fffbeb 100%);
+            border-left: 4px solid var(--warning);
+        }
+        
+        .stock-header .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .stock-header h3 {
+            font-size: 1.1rem;
+            color: var(--text);
+            max-width: 250px;
+        }
+        
+        .stock-header .symbol {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            background: var(--primary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        
+        .stock-strategies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .stock-strategies .badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        /* Score Gauge */
+        .score-gauge {
+            display: flex;
+            gap: 16px;
+            padding: 16px 20px;
+            background: #fafbfc;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .gauge-item {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .gauge-item .gauge-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        
+        .gauge-item .gauge-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .gauge-item .gauge-fill.high { background: linear-gradient(90deg, var(--success), #34d399); }
+        .gauge-item .gauge-fill.medium { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+        .gauge-item .gauge-fill.low { background: linear-gradient(90deg, var(--danger), #f87171); }
+        
+        .gauge-item .score-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        
+        .gauge-item .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .score-high { color: var(--success); }
+        .score-medium { color: var(--warning); }
+        .score-low { color: var(--danger); }
+        
+        .stock-body {
+            padding: 16px 20px;
+        }
+        
+        /* Data Grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #fafbfc;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        
+        .data-item .label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .data-item .value {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .data-item .value.positive {
+            color: var(--success);
+        }
+        
+        .data-item .value.negative {
+            color: var(--danger);
+        }
+        
+        /* Direction Indicator */
+        .direction-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .direction-indicator.bullish {
+            background: var(--success-light);
+            color: #065f46;
+        }
+        
+        .direction-indicator.bearish {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+        
+        .direction-indicator.neutral {
+            background: var(--warning-light);
+            color: #92400e;
+        }
+        
+        /* News Section */
+        .news-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+        
+        .news-section h4 {
+            color: #0369a1;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .news-item {
+            padding: 10px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
+        
+        .news-title {
+            color: #0c4a6e;
+            text-decoration: none;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            display: block;
+        }
+        
+        .news-title:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        
+        .news-meta {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        
+        /* AI Analysis */
+        .ai-section {
+            margin-top: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .ai-header {
+            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            padding: 12px 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ai-header h4 {
+            color: #92400e;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .ai-header .toggle {
+            transition: transform 0.3s;
+        }
+        
+        .ai-section.collapsed .toggle {
+            transform: rotate(-90deg);
+        }
+        
+        .ai-content {
+            padding: 14px;
+            background: #fffef5;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #78350f;
+            white-space: pre-wrap;
+            line-height: 1.7;
+        }
+        
+        .ai-section.collapsed .ai-content {
+            display: none;
+        }
+        
+        .ai-model {
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #a16207;
+            text-align: right;
+            padding-top: 8px;
+            border-top: 1px dashed #fde047;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            margin-top: 40px;
+        }
+        
+        .footer p {
+            margin-bottom: 4px;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body { background: white; }
+            .container { max-width: 100%; }
+            .stock-card { break-inside: avoid; }
+            .header { box-shadow: none; }
+            .ai-content { max-height: none; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stocks-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .header { padding: 24px; }
+            .header h1 { font-size: 1.4rem; }
+            .data-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script>
+        function toggleAI(id) {
+            const section = document.getElementById(id);
+            section.classList.toggle('collapsed');
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📈 股票筛选报告</h1>
+            <div class="meta">
+                <div class="meta-item"><span>🌏</span><span>市场: HK</span></div>
+                <div class="meta-item"><span>📅</span><span>2026-03-05 22:57</span></div>
+                <div class="meta-item"><span>⏱️</span><span>耗时: 13.7 秒</span></div>
+                <div class="meta-item"><span>✅</span><span>筛选: 1 只</span></div>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">📊</div>
+                <div class="value">1</div>
+                <div class="label">符合条件股票</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🎯</div>
+                <div class="value">1</div>
+                <div class="label">命中策略数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🏆</div>
+                <div class="value">1</div>
+                <div class="label">最高命中次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">⚡</div>
+                <div class="value">14s</div>
+                <div class="label">分析耗时</div>
+            </div>
+        </div>
+        
+        <!-- Strategy Stats -->
+        <div class="strategy-section">
+            <h3>策略命中统计</h3>
+            <div class="strategy-tags">
+                <div class="strategy-tag" style="border-color: #3b82f6"><span class="name">跳过策略</span><span class="count">1</span></div>
+            </div>
+        </div>
+        
+        <!-- Stock Cards -->
+        <div class="stocks-grid">
+            
+        <div class="stock-card">
+            <div class="stock-header neutral">
+                <div class="title-row">
+                    <h3>CK Hutchison Holdings Limited</h3>
+                    <span class="symbol">0001</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">跳过策略</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 60.0%"></div></div>
+                    <div class="score-text score-medium">6.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 40.0%"></div></div>
+                    <div class="score-text score-low">4.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Industrials</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">2399.52 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">927.8 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">31.01</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value positive">+62.1%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.ckh.com.hk" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator neutral">➖ 中性 ()</div>
+                
+                
+        <div class="news-section">
+            <h4>📰 近期新闻 (10 条)</h4>
+            <div class="news-list">
+                
+            <div class="news-item">
+                <a href="https://hk.finance.yahoo.com/news/%E6%B8%AF%E8%82%A1-%E6%81%92%E6%8C%87%E5%85%A8%E6%97%A5%E5%8F%8D%E8%A6%86%E5%8D%8771%E9%BB%9E-%E5%8F%8B%E9%82%A6%E6%BC%B25-%E6%92%90%E5%B8%82-%E8%97%A5%E8%82%A1%E9%80%A0%E5%A5%BD-084108256.html?.tsrc=rss" target="_blank" class="news-title">《港股》恒指全日反覆升71點 友邦漲5%撐市 藥股造好</a>
+                <div class="news-meta">
+                    <span>2026-03-05 08:41</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://hk.finance.yahoo.com/news/%E6%B8%AF%E8%82%A1adr%E9%A0%90%E8%A8%88%E6%81%86%E6%8C%87%E4%BB%8A%E6%97%A9%E9%AB%98%E9%96%8B487%E9%BB%9E-%E5%A0%B125-737%E9%BB%9E-003001546.html?.tsrc=rss" target="_blank" class="news-title">港股ADR預計恆指今早高開487點 報25,737點</a>
+                <div class="news-meta">
+                    <span>2026-03-05 00:30</span>
+                </div>
+            </div>
+            <div class="news-item">
+                <a href="https://hk.finance.yahoo.com/news/%E5%85%A8%E6%97%A5%E9%80%9F%E5%A0%B1-%E6%81%86%E6%8C%87%E8%B7%8C518%E9%BB%9E-%E6%81%86%E7%94%9F%E7%A7%91%E6%8A%80%E6%8C%87%E6%95%B8%E8%B7%8C47%E9%BB%9E-%E9%98%BF%E9%87%8C%E5%B7%B4%E5%B7%B4%E8%B7%8C%E9%80%BE3-%E6%88%90%E4%BA%A4%E6%9A%A2%E6%97%BA-081202762.html?.tsrc=rss" target="_blank" class="news-title">《全日速報》恆指跌518點; 恆生科技指數跌47點 阿里巴巴跌逾3% 成交暢旺</a>
+                <div class="news-meta">
+                    <span>2026-03-04 08:12</span>
+                </div>
+            </div>
+            </div>
+        </div>
+                
+                
+        <div class="ai-section collapsed" id="ai-0">
+            <div class="ai-header" onclick="toggleAI('ai-0')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">**综合评分**  
+- 技术面评分: 6/10  
+- 基本面评分: 4/10  
+- 综合评分: 5/10  
+
+**短期走势判断**  
+- 方向: 中性偏震荡  
+- 置信度: 中（55%）  
+- 主要驱动因素: RSI超卖边缘反弹、布林带下轨支撑，但量能不足且市场高波动抑制上行空间。  
+
+**投资建议**  
+- 建议: 持有（观望）  
+- 理由: 当前股价接近布林带下轨（60.66）且RSI（38.35）接近超卖区间，存在技术性反弹可能；MACD柱状线收窄暗示卖压减弱，但成交量未显著放大，且ADX（23.48）显示趋势强度弱。基本面疲软（低ROE、利润率）和港股高波动环境制约上涨动力。建议等待放量突破MA20（63.57）或跌破支撑位（60.52）后再行动。  
+- 买入价位: 现价（61.15）或突破63.57后追涨  
+- 目标价位: 65.00（前高阻力）  
+- 止损价位: 59.50（布林带下轨下方）  
+
+**风险提示**  
+- 最大风险点: 港股市场高波动（VIX=21.9）叠加基本面弱势，若跌破关键支撑60.52可能加速下跌。  
+- 建议仓位: 轻仓（<20%），仅适合短线波段操作。  
+
+---  
+*注：分析基于公开数据，短期交易需结合实时市场动态调整策略。*</div>
+            <div class="ai-model">模型: deepseek-v3.2</div>
+        </div>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>报告生成时间: 2026-03-05 22:57:55</p>
+            <p style="font-size: 0.8rem; margin-top: 8px;">⚠️ 本报告仅供参考，不构成投资建议</p>
+        </div>
+    </div>
+</body>
+</html>

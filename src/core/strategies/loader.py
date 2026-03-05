@@ -4,9 +4,12 @@ import inspect
 from typing import List
 from src.core.strategies.strategy import BaseStrategy
 
-def get_strategies() -> List[BaseStrategy]:
+def get_strategies(enabled_only: bool = True) -> List[BaseStrategy]:
     """
     動態從 strategies 模組加載所有策略類別的實例。
+    
+    Args:
+        enabled_only: 是否只加载已启用的策略，默认为 True
     """
     strategies = []
     
@@ -20,7 +23,11 @@ def get_strategies() -> List[BaseStrategy]:
                 module = importlib.import_module(f"src.strategies.{name}")
                 for item_name, item in inspect.getmembers(module, inspect.isclass):
                     if issubclass(item, BaseStrategy) and item is not BaseStrategy:
-                        strategies.append(item())
+                        instance = item()
+                        # 检查策略是否启用
+                        if enabled_only and not getattr(instance, 'enabled', True):
+                            continue
+                        strategies.append(instance)
             except ImportError as e:
                 print(f"无法导入策略模块 {name}: {e}")
             except Exception as e:

@@ -46,10 +46,49 @@ class YahooFinanceRepository(StockRepository):
         """设置缓存目录结构"""
         os.makedirs(f"data_cache/{'US'}", exist_ok=True)
         os.makedirs(f"data_cache/{'HK'}", exist_ok=True)
-        # 不再创建 AI 分析缓存目录（缓存已禁用）
+    
+    def _is_cache_data_stale(self, symbol: str, market: str, interval: str = '1d', max_age_days: int = 7) -> bool:
+        """检查缓存数据是否过期
+        
+        Args:
+            symbol: 股票代码
+            market: 市场代码
+            interval: 时间间隔
+            max_age_days: 最大允许的天数
+            
+        Returns:
+            如果数据过期返回 True，否则返回 False
+        """
+        try:
+            cache_dir = os.path.join('data_cache', market.upper())
+            safe_symbol = symbol.replace(":", "_")
+            csv_file = os.path.join(cache_dir, f"{safe_symbol}_{interval}.csv")
+            
+            # 如果 CSV 文件不存在，返回 False（需要获取新数据）
+            if not os.path.exists(csv_file):
+                return False
+            
+            # 读取 CSV 文件的最后日期
+            df = pd.read_csv(csv_file, usecols=['Date'])
+            if df.empty:
+                return False
+            
+            # 获取最后日期
+            last_date_str = df['Date'].iloc[-1]
+            # 解析日期（处理时区）
+            last_date = pd.to_datetime(last_date_str).tz_localize(None).date()
+            today = datetime.now().date()
+            days_diff = (today - last_date).days
+            
+            return days_diff >= max_age_days
+            
+        except Exception as e:
+            # 出错时默认返回 True（需要刷新）
+            self.logger.warning(f"检查缓存过期时出错: {e}")
+            return True
     
     def _save_historical_data_as_csv(self, symbol: str, data: pd.DataFrame, market: str, interval: str = '1d') -> None:
-        """保存历史数据为CSV文件（总是保存，不依赖于缓存设置）"""
+        """保存历史数据为CSV文件"""
         try:
             cache_dir = os.path.join('data_cache', market.upper())
             safe_symbol = symbol.replace(":", "_")
@@ -61,34 +100,35 @@ class YahooFinanceRepository(StockRepository):
             raise CacheException(f"保存历史数据为CSV失败: {e}")
     
     def get_historical_data(self, symbol: str, market: str, interval: str = '1d', force_refresh: bool = False) -> pd.DataFrame:
-        """
-        获取股票历史数据
+        """获取股票历史数据
         
         Args:
             symbol: 股票代码
             market: 市场代码
             interval: 时间间隔
-            force_refresh: 是否强制刷新缓存，忽略 pickle 缓存直接获取最新数据
+            force_refresh: 是否强制刷新缓存
         """
         try:
             cache_key = f"{symbol}_{interval}_{market}"
             
-            # 只有在不是强制刷新时才检查 pickle 缓存
+            # 检查缓存（如果不是强制刷新）
             if not force_refresh:
                 cached_data = self.cache_service.get(cache_key)
                 if cached_data is not None:
-                    self.logger.info(f"从缓存获取 {symbol} ({interval}) 的历史数据")
-                    return cached_data
+                    # 检查 CSV 文件的最后日期，确认数据是否过期（默认1天前的数据就算过期）
+                    if self._is_cache_data_stale(symbol, market, interval, max_age_days=1):
+                        self.logger.info(f"缓存数据过期，强制刷新 {symbol}")
+                    else:
+                        self.logger.info(f"从缓存获取 {symbol} ({interval}) 的历史数据")
+                        return cached_data
             
-            # 获取数据（强制刷新或缓存不存在时执行）
+            # 从 Yahoo Finance 获取数据（或缓存过期时执行）
             hist = self._fetch_historical_data(symbol, market, interval)
             
-            # 保存为CSV文件（总是保存，不依赖于缓存设置）
+            # 保存数据
             self._save_historical_data_as_csv(symbol, hist, market, interval)
             
-            # 根据缓存设置决定是否缓存数据
-            if self.cache_service.enabled:
-                self.cache_service.set(cache_key, hist)
+            # 写入缓存
             
             return hist
         except Exception as e:
@@ -165,15 +205,6 @@ class YahooFinanceRepository(StockRepository):
         # 标准化 symbol
         symbol = symbol.upper().replace(".HK", "")
         
-        # 缓存读取已禁用 - 每次都重新获取新闻
-        # today = datetime.now().strftime("%Y-%m-%d")
-        # cache_key = f"news_{symbol}_{market}_{today}"
-        # cached_news = self.cache_service.get_json(cache_key, "news")
-        # 
-        # if cached_news:
-        #     self.logger.info(f"从缓存获取 {symbol} 的新闻数据")
-        #     return cached_news
-        
         # 构建 RSS URL
         if market.upper() == "HK":
             region = "HK"
@@ -231,11 +262,6 @@ class YahooFinanceRepository(StockRepository):
             # 按时间降序排序
             news_list.sort(key=lambda x: x["published"], reverse=True)
             
-            # 缓存写入已禁用 - 每次都重新获取新闻
-            # if news_list:
-            #     self.cache_service.set_json(cache_key, news_list, "news")
-            #     self.logger.info(f"获取 {symbol} 新闻 {len(news_list)} 条")
-            
             self.logger.info(f"获取 {symbol} 新闻 {len(news_list)} 条")
             
             return news_list
@@ -246,10 +272,10 @@ class YahooFinanceRepository(StockRepository):
     
     def save_historical_data(self, symbol: str, data: pd.DataFrame, market: str, interval: str = '1d') -> None:
         try:
-            # 保存为CSV文件（总是保存，不依赖于缓存设置）
+            # 保存为 CSV 文件
             self._save_historical_data_as_csv(symbol, data, market, interval)
             
-            # 根据缓存设置决定是否缓存数据
+            # 同时写入 pickle 缓存
             if self.cache_service.enabled:
                 cache_key = f"{symbol}_{interval}_{market}"
                 self.cache_service.set(cache_key, data)
