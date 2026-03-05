@@ -5,7 +5,7 @@ from src.core.models.entities import StockData
 
 class StockRepository(ABC):
     @abstractmethod
-    def get_historical_data(self, symbol: str, market: str, interval: str = '1d') -> pd.DataFrame:
+    def get_historical_data(self, symbol: str, market: str, interval: str = '1d', force_refresh: bool = False) -> pd.DataFrame:
         pass
 
     @abstractmethod

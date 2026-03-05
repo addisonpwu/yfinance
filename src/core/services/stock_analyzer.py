@@ -110,7 +110,8 @@ class StockAnalyzer:
         skip_strategies: bool = False,
         interval: str = '1d',
         model: str = 'deepseek-v3.2',
-        providers: list = None
+        providers: list = None,
+        force_refresh: bool = False
     ) -> StockAnalysisResult:
         """
         分析单只股票
@@ -120,6 +121,11 @@ class StockAnalyzer:
             market: 市场代码
             market_return: 大盘回报率
             is_market_healthy: 市场是否健康
+            skip_strategies: 是否跳过策略筛选
+            interval: 数据时间间隔
+            model: AI 模型名称
+            providers: AI 提供商列表
+            force_refresh: 是否强制刷新缓存获取最新数据
             skip_strategies: 是否跳过策略筛选
             interval: 数据时段类型
             model: AI 模型
@@ -135,7 +141,7 @@ class StockAnalyzer:
         
         try:
             # 获取股票数据（不包含新闻，新闻在策略筛选后获取）
-            hist = self.data_repo.get_historical_data(symbol, market, interval=interval)
+            hist = self.data_repo.get_historical_data(symbol, market, interval=interval, force_refresh=force_refresh)
             info = self.data_repo.get_financial_info(symbol)
             news = []  # 新闻在策略筛选后才获取
             

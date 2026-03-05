@@ -22,6 +22,9 @@ from src.config.constants import (
     RSI_PERIOD, MACD_FAST, MACD_SLOW, MACD_SIGNAL, BB_PERIOD, BB_STD_DEV, ATR_PERIOD,
     MA_PERIODS, CMO_PERIOD, WILLIAMS_R_PERIOD, STOCHASTIC_PERIOD, 
     STOCHASTIC_SMOOTH_PERIOD, VOLUME_Z_SCORE_PERIOD,
+    # 新增技术指标 (2026-03-04)
+    ADX_PERIOD, CMF_PERIOD, VWAP_ANCHOR, STOCH_RSI_PERIOD,
+    STOCH_RSI_SMOOTH_K, STOCH_RSI_SMOOTH_D,
     # 新闻配置
     NEWS_TIMEOUT, NEWS_MAX_ITEMS, NEWS_DAYS_BACK, NEWS_CACHE_TTL_HOURS,
     # AI 配置
@@ -111,6 +114,13 @@ class TechnicalIndicatorsConfig:
     stochastic_period: int = STOCHASTIC_PERIOD
     stochastic_smooth_period: int = STOCHASTIC_SMOOTH_PERIOD
     volume_z_score_period: int = VOLUME_Z_SCORE_PERIOD
+    # 新增技术指标配置 (2026-03-04)
+    adx_period: int = ADX_PERIOD
+    cmf_period: int = CMF_PERIOD
+    vwap_anchor: str = VWAP_ANCHOR
+    stoch_rsi_period: int = STOCH_RSI_PERIOD
+    stoch_rsi_smooth_k: int = STOCH_RSI_SMOOTH_K
+    stoch_rsi_smooth_d: int = STOCH_RSI_SMOOTH_D
 
     def __post_init__(self):
         if self.ma_periods is None:

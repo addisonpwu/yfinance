@@ -59,7 +59,7 @@ def run_analysis(
     market_service = MarketDataService()
     cache_manager = CacheVersionManager()
     primary_provider = providers[0] if providers else 'iflow'
-    stock_analyzer = StockAnalyzer(provider=primary_provider)
+    stock_analyzer = StockAnalyzer(provider=primary_provider, providers=providers)
     
     # --- 缓存版本检查 ---
     is_sync_needed, status_msg = cache_manager.check_version(market, force_fast_mode, interval)
@@ -108,7 +108,8 @@ def run_analysis(
             skip_strategies=skip_strategies,
             interval=interval,
             model=model,
-            providers=providers
+            providers=providers,
+            force_refresh=is_sync_needed
         )
         
         # 如果成功且有结果，写入报告

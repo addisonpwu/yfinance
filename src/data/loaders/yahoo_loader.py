@@ -60,16 +60,27 @@ class YahooFinanceRepository(StockRepository):
             self.logger.error(f"保存 {symbol} 历史数据为CSV失败: {e}")
             raise CacheException(f"保存历史数据为CSV失败: {e}")
     
-    def get_historical_data(self, symbol: str, market: str, interval: str = '1d') -> pd.DataFrame:
+    def get_historical_data(self, symbol: str, market: str, interval: str = '1d', force_refresh: bool = False) -> pd.DataFrame:
+        """
+        获取股票历史数据
+        
+        Args:
+            symbol: 股票代码
+            market: 市场代码
+            interval: 时间间隔
+            force_refresh: 是否强制刷新缓存，忽略 pickle 缓存直接获取最新数据
+        """
         try:
             cache_key = f"{symbol}_{interval}_{market}"
-            cached_data = self.cache_service.get(cache_key)
             
-            if cached_data is not None:
-                self.logger.info(f"从缓存获取 {symbol} ({interval}) 的历史数据")
-                return cached_data
+            # 只有在不是强制刷新时才检查 pickle 缓存
+            if not force_refresh:
+                cached_data = self.cache_service.get(cache_key)
+                if cached_data is not None:
+                    self.logger.info(f"从缓存获取 {symbol} ({interval}) 的历史数据")
+                    return cached_data
             
-            # 获取数据
+            # 获取数据（强制刷新或缓存不存在时执行）
             hist = self._fetch_historical_data(symbol, market, interval)
             
             # 保存为CSV文件（总是保存，不依赖于缓存设置）
@@ -546,6 +557,62 @@ def calculate_technical_indicators(hist: pd.DataFrame, config=None, validate_adj
 
         # 3. Volume_Ratio (量比: 当日成交量 / 前一日成交量)
         result['Volume_Ratio'] = result['Volume'] / result['Volume'].shift(1)
+
+        # ===== 新增技术指标 (2026-03-04) =====
+
+        # 1. ADX (Average Directional Index) - 趋势强度
+        adx_period = ti_config.adx_period
+        # 计算 True Range (TR)
+        high_low = result['High'] - result['Low']
+        high_close = abs(result['High'] - result['Close'].shift())
+        low_close = abs(result['Low'] - result['Close'].shift())
+        tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        
+        # 计算 +DM 和 -DM
+        diff_high = result['High'].diff()
+        diff_low = -result['Low'].diff()
+        plus_dm = diff_high.where((diff_high > diff_low) & (diff_high > 0), 0)
+        minus_dm = diff_low.where((diff_low > diff_high) & (diff_low > 0), 0)
+        
+        # 计算 +DI 和 -DI
+        plus_di = 100 * (plus_dm.rolling(window=adx_period, min_periods=1).mean() / tr)
+        minus_di = 100 * (minus_dm.rolling(window=adx_period, min_periods=1).mean() / tr)
+        
+        # 计算 DX
+        dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10)
+        
+        # 计算 ADX（DX 的平滑值）
+        result[f'ADX_{adx_period}'] = dx.rolling(window=adx_period, min_periods=1).mean()
+        result[f'Plus_DI_{adx_period}'] = plus_di
+        result[f'Minus_DI_{adx_period}'] = minus_di
+
+        # 2. CMF (Chaikin Money Flow) - 资金流向
+        cmf_period = ti_config.cmf_period
+        money_flow_multiplier = ((result['Close'] - result['Low']) - (result['High'] - result['Close'])) / \
+                                (result['High'] - result['Low'] + 1e-10)
+        money_flow_volume = money_flow_multiplier * result['Volume']
+        result[f'CMF_{cmf_period}'] = money_flow_volume.rolling(window=cmf_period, min_periods=1).sum() / \
+                                       result['Volume'].rolling(window=cmf_period, min_periods=1).sum()
+
+        # 3. VWAP (Volume Weighted Average Price) - 成交量加权均价
+        typical_price = (result['High'] + result['Low'] + result['Close']) / 3
+        result['VWAP'] = (typical_price * result['Volume']).cumsum() / result['Volume'].cumsum()
+
+        # 4. Stochastic RSI - 更敏感的超买超卖指标
+        stoch_rsi_period = ti_config.stoch_rsi_period
+        stoch_rsi_smooth_k = ti_config.stoch_rsi_smooth_k
+        stoch_rsi_smooth_d = ti_config.stoch_rsi_smooth_d
+        
+        # 获取已计算的 RSI 值
+        rsi_col = f'RSI_{ti_config.rsi_period}'
+        if rsi_col in result.columns:
+            rsi_values = result[rsi_col]
+            # 计算 Stochastic of RSI
+            rsi_min = rsi_values.rolling(window=stoch_rsi_period, min_periods=1).min()
+            rsi_max = rsi_values.rolling(window=stoch_rsi_period, min_periods=1).max()
+            stoch_rsi_k = 100 * (rsi_values - rsi_min) / (rsi_max - rsi_min + 1e-10)
+            result[f'Stoch_RSI_K_{stoch_rsi_period}'] = stoch_rsi_k.rolling(window=stoch_rsi_smooth_k, min_periods=1).mean()
+            result[f'Stoch_RSI_D_{stoch_rsi_period}'] = result[f'Stoch_RSI_K_{stoch_rsi_period}'].rolling(window=stoch_rsi_smooth_d, min_periods=1).mean()
 
     except Exception as e:
         print(f" - [技术指标计算] 计算技术指标时出错: {e}")

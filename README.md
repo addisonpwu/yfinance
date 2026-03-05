@@ -128,19 +128,74 @@ python3 main.py --market HK --symbol 0017.HK --interval 1h
   - `1d`: 日線數據（默認，下載全部歷史數據）
   - `1h`: 小時線數據（下載最近2年數據）
   - `1m`: 分鐘線數據（僅下載最近7天數據，適合短期分析）
+- `--provider`: 可選參數，指定 AI 分析提供商（默認為 `iflow`）：
+  - `iflow`: iFlow 心流 AI（默認）
+  - `nvidia`: NVIDIA NIM API
+  - `gemini`: Google Gemini API
+  - 可用逗號分隔多選（如 `iflow,nvidia,gemini`），多提供商會並行分析並合併結果
+- `--model`: 可選參數，指定 AI 模型名稱，或使用 `all` 啟用多模型投票共識
 
 **注意**：不同的 interval 會使用不同的緩存文件，例如 `0017.HK_1d.csv`、`0017.HK_1h.csv`、`0017.HK_1m.csv`，互不影響。
 
+### 使用範例
+
+```bash
+# 基礎篩選
+python3 main.py --market US
+python3 main.py --market HK
+
+# 快速模式
+python3 main.py --market HK --no-cache-update
+
+# 分析單一股票
+python3 main.py --market HK --symbol 0017.HK
+
+# 不同時間框架
+python3 main.py --market HK --interval 1h
+python3 main.py --market HK --interval 1m
+
+# AI 提供商選擇
+python3 main.py --market HK --provider iflow
+python3 main.py --market HK --provider nvidia --model z-ai/glm5
+python3 main.py --market HK --provider gemini --model gemini-2.5-flash
+
+# 多提供商並行分析
+python3 main.py --market HK --provider iflow,nvidia,gemini
+
+# 多模型投票共識
+python3 main.py --market HK --provider gemini --model all
+```
+
 ## AI 分析功能
 
-專案整合了 iFlow API（心流開放平台）的 AI 分析功能，為篩選結果提供專業的技術分析：
+專案整合了三大 AI 提供商（iFlow、NVIDIA NIM、Google Gemini）的分析功能，為篩選結果提供專業的技術分析：
+
+### 支持的 AI 提供商
+
+| 提供商 | API | 默認模型 | 特色 |
+|--------|-----|----------|------|
+| **iFlow** | 心流開放平台 | deepseek-v3.2 | 多模型支持，穩定快速 |
+| **NVIDIA** | NVIDIA NIM | z-ai/glm5 | 支持 reasoning_content |
+| **Gemini** | Google Gemini | gemini-2.5-flash | 100萬 token 上下文 |
 
 ### 功能特色
-- **智能分析引擎**: 使用 iFlow API 的 AI 模型對股票進行全面技術分析
+- **智能分析引擎**: 使用三大 AI 提供商的 API 進行全面技術分析
 - **多維度分析**: 涵蓋趨勢分析、支撐阻力、動能指標、成交量分析等 8 個維度
+- **增強分析框架**: 四維度結構化分析
+  - 市場環境評估 (30%): 大盤趨勢、VIX 恐慌指數、宏觀指標
+  - 技術面分析 (40%): RSI、MACD、均線排列、布林帶、量價配合
+  - 新聞影響分析 (20%): 最新新聞摘要、利好/利空判斷
+  - 風險評估 (10%): 當前風險級別、止損建議
 - **歷史數據**: 基於最近 100 天的歷史數據進行深度分析
-- **實時模型**: 顯示實際使用的 AI 模型名稱（如 deepseek-v3.2）
+- **實時模型**: 顯示實際使用的 AI 模型名稱
 - **標準化輸出**: 統一的輸出格式，確保一致性
+- **多提供商支持**: 可同時使用多個 AI 提供商進行分析，結果合併比對
+- **多模型投票**: 支持多模型投票共識，提高分析準確性
+
+### 新聞整合
+- 自動獲取 Yahoo Finance 最新新聞
+- 新聞按時間倒序排列，最新在前
+- AI 分析時參考新聞內容，判斷利好/利空影響
 
 ### 分析內容
 AI 分析包含以下 8 個詳細部分：

@@ -735,6 +735,23 @@ news_us = repo.get_news('AAPL', 'US', days_back=7, max_items=5)
 | **NVIDIA** | OpenAI SDK | z-ai/glm5 | NVIDIA NIM，支持 reasoning_content |
 | **Gemini** | Google GenAI | gemini-2.5-flash | Google 最新模型，100万 token 上下文 |
 
+### 多提供商支持
+
+支持同时使用多个 AI 提供商进行联合分析：
+
+```bash
+# 使用多个提供商（逗号分隔）
+python3 main.py --market HK --provider iflow,nvidia,gemini
+
+# 多提供商 + 指定模型
+python3 main.py --market HK --provider iflow,gemini --model deepseek-v3.2
+```
+
+多提供商分析时会：
+1. 并行调用每个提供商的 AI 分析
+2. 合并所有分析结果到一个报告中
+3. 显示每个提供商的置信度和分析摘要
+
 ### iFlow 提供商
 
 **支持模型**：
@@ -883,26 +900,17 @@ api_key = secrets.get_iflow_api_key()
 # 筛选港股
 python3 main.py --market HK
 
-# 筛选美股
-python3 main.py --market US
-
-# 快速模式（跳过缓存更新）
-python3 main.py --market HK --no-cache-update
-
-# 分析指定股票
-python3 main.py --market HK --symbol 0017.HK
-
-# 使用小时线数据
-python3 main.py --market HK --interval 1h
-
-# 跳过策略筛选
-python3 main.py --market HK --skip-strategies
-
 # 使用特定AI模型
 python3 main.py --market HK --model qwen3-max
 
 # 速度模式
 python3 main.py --market HK --speed fast
+
+# 多提供商模式（同时使用多个AI进行分析）
+python3 main.py --market HK --provider iflow,nvidia,gemini
+
+# 多提供商 + 指定模型（使用首个模型）
+python3 main.py --market HK --provider iflow,gemini --model deepseek-v3.2
 ```
 
 ### AI 提供商选择
@@ -926,7 +934,7 @@ python3 main.py --market HK --provider gemini --model all
 | 参数 | 说明 |
 |------|------|
 | `--market` | 必需，市场代码 (US/HK) |
-| `--provider` | AI 提供商 (iflow/nvidia/gemini)，默认 iflow |
+| `--provider` | AI 提供商 (iflow/nvidia/gemini)，可用逗号分隔多选，如 `iflow,nvidia,gemini` |
 | `--model` | AI 模型选择，或使用 `all` 启用多模型投票 |
 | `--no-cache-update` | 跳过缓存更新 |
 | `--skip-strategies` | 跳过策略筛选 |
@@ -1611,6 +1619,20 @@ if is_high_risk_environment():
 ---
 
 ## 近期更新日志
+
+### 2026-03-04
+- ✨ 多提供商支持升级
+  - `--provider` 参数支持逗号分隔多选 (如 `iflow,nvidia,gemini`)
+  - 多提供商分析时并行调用并合并结果
+- ✨ AI 提示词优化
+  - 所有分析器添加增强版四维度分析框架
+  - 市场环境评估 (30%)、技术面分析 (40%)、新闻影响分析 (20%)、风险评估 (10%)
+  - 技术信号详细指引：RSI、MACD、均线、布林带、量价配合
+  - 所有分析器添加新闻分析支持（格式化 + 分析指引）
+- ✨ 新闻分析增强
+  - 按时间倒序排列，最新新闻在前
+  - 添加新闻摘要内容
+  - 添加利好/利空判断标准指引
 
 ### 2026-02-21
 - ✨ 新增 Google Gemini API 分析器 (`gemini_analyzer.py`)

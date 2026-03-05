@@ -680,6 +680,36 @@ class GeminiAIAnalyzer(AIAnalyzer):
                 atr_pct = (atr / close * 100) if close else 0
                 indicators.append(f"ATR(14): {atr:.2f} ({atr_pct:.2f}%)")
             
+            # ===== 新增技术指标 (2026-03-04) =====
+            
+            # ADX 趋势强度
+            if 'ADX_14' in hist.columns:
+                adx = latest.get('ADX_14', 0)
+                plus_di = latest.get('Plus_DI_14', 0)
+                minus_di = latest.get('Minus_DI_14', 0)
+                trend_status = "强趋势" if adx > 25 else "横盘" if adx < 20 else "趋势形成"
+                indicators.append(f"ADX(14): {adx:.1f} (+DI: {plus_di:.1f}, -DI: {minus_di:.1f}) - {trend_status}")
+            
+            # CMF 资金流量
+            if 'CMF_20' in hist.columns:
+                cmf = latest.get('CMF_20', 0)
+                cmf_status = "吸筹" if cmf > 0 else "派发"
+                indicators.append(f"CMF(20): {cmf:.3f} ({cmf_status})")
+            
+            # VWAP
+            if 'VWAP' in hist.columns:
+                vwap = latest.get('VWAP', 0)
+                close = latest.get('Close', 0)
+                vwap_status = "机构获利的" if close > vwap else "机构被套的"
+                indicators.append(f"VWAP: {vwap:.2f} ({vwap_status})")
+            
+            # Stochastic RSI
+            if 'Stoch_RSI_K_14' in hist.columns:
+                stoch_rsi_k = latest.get('Stoch_RSI_K_14', 0)
+                stoch_rsi_d = latest.get('Stoch_RSI_D_14', 0)
+                stoch_status = "超卖" if stoch_rsi_k < 20 else "超买" if stoch_rsi_k > 80 else "正常"
+                indicators.append(f"Stoch RSI: K: {stoch_rsi_k:.1f}, D: {stoch_rsi_d:.1f} ({stoch_status})")
+            
             return "\n".join(indicators)
             
         except Exception as e:
@@ -799,22 +829,62 @@ class GeminiAIAnalyzer(AIAnalyzer):
         
         analysis_lower = analysis.lower()
         
-        # 判断方向
-        bullish_keywords = ['看涨', '买入', '上涨', '突破', '多头', 'bullish', 'buy', 'up']
-        bearish_keywords = ['看跌', '卖出', '下跌', '跌破', '空头', 'bearish', 'sell', 'down']
+        # 优先从"短期走势判断"部分提取方向（更精确）
+        short_term_section = ""
+        if "短期走势判断" in analysis:
+            match = re.search(r'短期走势判断[：:\s]*(.*?)(?=\n[═\-\s]{10,}|\n【|$)', analysis, re.DOTALL)
+            if match:
+                short_term_section = match.group(1)
         
-        bullish_count = sum(1 for kw in bullish_keywords if kw in analysis_lower)
-        bearish_count = sum(1 for kw in bearish_keywords if kw in analysis_lower)
+        direction = PredictionDirection.NEUTRAL
+        confidence = 0.5
         
-        if bullish_count > bearish_count:
-            direction = PredictionDirection.BULLISH
-        elif bearish_count > bullish_count:
-            direction = PredictionDirection.BEARISH
-        else:
-            direction = PredictionDirection.NEUTRAL
+        # 从短期走势判断部分提取方向
+        if short_term_section:
+            dir_match = re.search(r'方向[：:]\s*(看涨|看跌|中性|上升|下降|震荡)', short_term_section)
+            if dir_match:
+                dir_value = dir_match.group(1)
+                if dir_value in ['看涨', '上升']:
+                    direction = PredictionDirection.BULLISH
+                    confidence = 0.7
+                elif dir_value in ['看跌', '下降']:
+                    direction = PredictionDirection.BEARISH
+                    confidence = 0.7
+                elif dir_value in ['中性', '震荡']:
+                    direction = PredictionDirection.NEUTRAL
+                    confidence = 0.5
+        
+        # 如果没有找到，尝试从"投资建议"部分提取
+        if direction == PredictionDirection.NEUTRAL and "投资建议" in analysis:
+            advice_match = re.search(r'建议[：:]\s*(买入|卖出|持有|观望|增持|减持)', analysis)
+            if advice_match:
+                advice = advice_match.group(1)
+                if advice in ['买入', '增持']:
+                    direction = PredictionDirection.BULLISH
+                    confidence = 0.7
+                elif advice in ['卖出', '减持']:
+                    direction = PredictionDirection.BEARISH
+                    confidence = 0.7
+                elif advice in ['持有', '观望']:
+                    direction = PredictionDirection.NEUTRAL
+                    confidence = 0.5
+        
+        # 如果还是没有找到，使用关键词统计（备选方案）
+        if direction == PredictionDirection.NEUTRAL:
+            bullish_keywords = ['看涨', '买入', '上涨', '突破', '多头', 'bullish', 'buy', 'up']
+            bearish_keywords = ['看跌', '卖出', '下跌', '跌破', '空头', 'bearish', 'sell', 'down']
+            
+            bullish_count = sum(1 for kw in bullish_keywords if kw in analysis_lower)
+            bearish_count = sum(1 for kw in bearish_keywords if kw in analysis_lower)
+            
+            if bullish_count > bearish_count:
+                direction = PredictionDirection.BULLISH
+            elif bearish_count > bullish_count:
+                direction = PredictionDirection.BEARISH
+            else:
+                direction = PredictionDirection.NEUTRAL
         
         # 提取置信度
-        confidence = 0.5
         confidence_patterns = [
             r'置信度[：:]\s*(\d+(?:\.\d+)?)\s*%?',
             r'信心[度]?[：:]\s*(\d+(?:\.\d+)?)\s*%?',

@@ -46,6 +46,16 @@ STOCHASTIC_SMOOTH_PERIOD = 3
 VOLUME_Z_SCORE_PERIOD = 20
 
 # ============================================
+# 新增技术指标参数 (2026-03-04)
+# ============================================
+ADX_PERIOD = 14              # ADX 趋势强度周期
+CMF_PERIOD = 20              # CMF 资金流量周期
+VWAP_ANCHOR = 'D'           # VWAP 锚点 (D=日线)
+STOCH_RSI_PERIOD = 14       # Stochastic RSI 周期
+STOCH_RSI_SMOOTH_K = 3      # Stochastic RSI %K 平滑周期
+STOCH_RSI_SMOOTH_D = 3      # Stochastic RSI %D 平滑周期
+
+# ============================================
 # VIX 阈值（市场情绪）
 # ============================================
 VIX_LOW = 15.0          # < 15: 低波动/乐观

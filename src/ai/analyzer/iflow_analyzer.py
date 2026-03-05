@@ -1137,16 +1137,56 @@ class IFlowAIAnalyzer(AIAnalyzer):
         direction = "中性"
         confidence = 0.5
         
-        # 提取方向
-        if re.search(r'看涨|强烈买入|买入|上升', text):
-            direction = "看涨"
-            confidence = 0.7
-        elif re.search(r'看跌|强烈卖出|卖出|下降', text):
-            direction = "看跌"
-            confidence = 0.7
-        elif re.search(r'中性|持有|震荡', text):
-            direction = "中性"
-            confidence = 0.5
+        # 优先从"短期走势判断"部分提取方向（更精确）
+        short_term_section = ""
+        if "短期走势判断" in text:
+            # 提取"短期走势判断"部分到下一个大标题之前的内容
+            match = re.search(r'短期走势判断[：:\s]*(.*?)(?=\n[═\-\s]{10,}|\n【|$)', text, re.DOTALL)
+            if match:
+                short_term_section = match.group(1)
+        
+        # 从短期走势判断部分提取方向
+        if short_term_section:
+            dir_match = re.search(r'方向[：:]\s*(看涨|看跌|中性|上升|下降|震荡)', short_term_section)
+            if dir_match:
+                dir_value = dir_match.group(1)
+                if dir_value in ['看涨', '上升']:
+                    direction = "看涨"
+                    confidence = 0.7
+                elif dir_value in ['看跌', '下降']:
+                    direction = "看跌"
+                    confidence = 0.7
+                elif dir_value in ['中性', '震荡']:
+                    direction = "中性"
+                    confidence = 0.5
+        
+        # 如果没有找到，尝试从"投资建议"部分提取
+        if direction == "中性" and "投资建议" in text:
+            # 提取投资建议部分的"建议:"值
+            advice_match = re.search(r'建议[：:]\s*(买入|卖出|持有|观望|增持|减持)', text)
+            if advice_match:
+                advice = advice_match.group(1)
+                if advice in ['买入', '增持']:
+                    direction = "看涨"
+                    confidence = 0.7
+                elif advice in ['卖出', '减持']:
+                    direction = "看跌"
+                    confidence = 0.7
+                elif advice in ['持有', '观望']:
+                    direction = "中性"
+                    confidence = 0.5
+        
+        # 如果还是没有找到，使用全文搜索（备选方案）
+        if direction == "中性":
+            if re.search(r'看涨|强烈买入|买入|上升', text):
+                direction = "看涨"
+                confidence = 0.7
+            elif re.search(r'看跌|强烈卖出|卖出|下降', text):
+                direction = "看跌"
+                confidence = 0.7
+            elif re.search(r'中性|持有|震荡', text):
+                direction = "中性"
+                confidence = 0.5
         
         # 提取置信度
         conf_match = re.search(r'置信度[：:]\s*(高|中|低)', text)
@@ -1477,6 +1517,66 @@ AI分析结果将用于实盘交易决策，请务必严谨客观。
         else:
             latest_volume_sma = recent_data['Volume'].rolling(window=20, min_periods=1).mean().iloc[-1]
         
+        # ===== 新增技术指标 (2026-03-04) =====
+        
+        # ADX 趋势强度
+        if 'ADX_14' in hist.columns:
+            latest_adx = hist['ADX_14'].iloc[-1]
+            latest_plus_di = hist['Plus_DI_14'].iloc[-1]
+            latest_minus_di = hist['Minus_DI_14'].iloc[-1]
+        else:
+            # 后备计算 ADX
+            high_low = recent_data['High'] - recent_data['Low']
+            high_close = abs(recent_data['High'] - recent_data['Close'].shift())
+            low_close = abs(recent_data['Low'] - recent_data['Close'].shift())
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            diff_high = recent_data['High'].diff()
+            diff_low = -recent_data['Low'].diff()
+            plus_dm = diff_high.where((diff_high > diff_low) & (diff_high > 0), 0)
+            minus_dm = diff_low.where((diff_low > diff_high) & (diff_low > 0), 0)
+            plus_di = 100 * (plus_dm.rolling(window=14, min_periods=1).mean() / tr)
+            minus_di = 100 * (minus_dm.rolling(window=14, min_periods=1).mean() / tr)
+            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10)
+            latest_adx = dx.rolling(window=14, min_periods=1).mean().iloc[-1] if not dx.empty else "N/A"
+            latest_plus_di = plus_di.iloc[-1] if not plus_di.empty else "N/A"
+            latest_minus_di = minus_di.iloc[-1] if not minus_di.empty else "N/A"
+        
+        # CMF 资金流量
+        if 'CMF_20' in hist.columns:
+            latest_cmf = hist['CMF_20'].iloc[-1]
+        else:
+            # 后备计算 CMF
+            mf_multiplier = ((recent_data['Close'] - recent_data['Low']) - (recent_data['High'] - recent_data['Close'])) / \
+                           (recent_data['High'] - recent_data['Low'] + 1e-10)
+            mf_volume = mf_multiplier * recent_data['Volume']
+            latest_cmf = mf_volume.rolling(window=20, min_periods=1).sum().iloc[-1] / \
+                        recent_data['Volume'].rolling(window=20, min_periods=1).sum().iloc[-1] if not recent_data.empty else "N/A"
+        
+        # VWAP 成交量加权均价
+        if 'VWAP' in hist.columns:
+            latest_vwap = hist['VWAP'].iloc[-1]
+        else:
+            # 后备计算 VWAP
+            typical_price = (recent_data['High'] + recent_data['Low'] + recent_data['Close']) / 3
+            latest_vwap = (typical_price * recent_data['Volume']).cumsum().iloc[-1] / \
+                         recent_data['Volume'].cumsum().iloc[-1] if not recent_data.empty else "N/A"
+        
+        # Stochastic RSI
+        if 'Stoch_RSI_K_14' in hist.columns:
+            latest_stoch_rsi_k = hist['Stoch_RSI_K_14'].iloc[-1]
+            latest_stoch_rsi_d = hist['Stoch_RSI_D_14'].iloc[-1]
+        elif 'RSI_14' in hist.columns:
+            # 后备计算 Stochastic RSI
+            rsi_values = hist['RSI_14']
+            rsi_min = rsi_values.rolling(window=14, min_periods=1).min()
+            rsi_max = rsi_values.rolling(window=14, min_periods=1).max()
+            stoch_rsi_k = 100 * (rsi_values - rsi_min) / (rsi_max - rsi_min + 1e-10)
+            latest_stoch_rsi_k = stoch_rsi_k.rolling(window=3, min_periods=1).mean().iloc[-1] if not stoch_rsi_k.empty else "N/A"
+            latest_stoch_rsi_d = latest_stoch_rsi_k  # 简化
+        else:
+            latest_stoch_rsi_k = "N/A"
+            latest_stoch_rsi_d = "N/A"
+        
         return f"""
 【技术指标】
 - RSI (14): {format_value(latest_rsi)}
@@ -1486,6 +1586,10 @@ AI分析结果将用于实盘交易决策，请务必严谨客观。
 - 移动平均线: MA20: {format_value(ma_values[20])}, MA50: {format_value(ma_values[50])}, MA200: {format_value(ma_values[200])}
 - 威廉指标 (14): {format_value(latest_williams_r)}
 - 平均成交量 (20日): {format_value(latest_volume_sma, 0)}
+- ADX (14): {format_value(latest_adx)} / +DI: {format_value(latest_plus_di)} / -DI: {format_value(latest_minus_di)}
+- CMF (20): {format_value(latest_cmf)}
+- VWAP: {format_value(latest_vwap)}
+- Stochastic RSI: K: {format_value(latest_stoch_rsi_k)} / D: {format_value(latest_stoch_rsi_d)}
 """
     
     def _get_hist_summary(self, hist: pd.DataFrame) -> str:
