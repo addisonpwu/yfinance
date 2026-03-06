@@ -491,7 +491,8 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         for result in all_results:
             combined_summary += f"\n--- {result['model_used']} 模型 ---\n"
             combined_summary += f"判断: {result['direction']} (置信度: {result['confidence']:.0%})\n"
-            combined_summary += result['summary'][:500] + "...\n" if len(result['summary']) > 500 else result['summary'] + "\n"
+            # 完整显示分析结果（不截断）
+            combined_summary += result['summary'] + "\n"
         
         return AIAnalysisResult(
             summary=combined_summary,

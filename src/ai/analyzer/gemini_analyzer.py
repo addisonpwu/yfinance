@@ -1056,9 +1056,8 @@ class GeminiAIAnalyzer(AIAnalyzer):
         lines.append("各模型观点:")
         for model, result in results.items():
             lines.append(f"\n--- {model} ---")
-            # 截取摘要的前300字
-            summary_preview = result.summary[:300] + "..." if len(result.summary) > 300 else result.summary
-            lines.append(summary_preview)
+            # 完整显示分析结果（不截断）
+            lines.append(result.summary)
         
         return "\n".join(lines)
 

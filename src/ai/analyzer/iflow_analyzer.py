@@ -492,7 +492,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
 
 关键价位: {levels_result}
 
-【最近30天数据】
+【历史数据分析】
 {hist_summary}
 
 ════════════════════════════════════════════════════════════
@@ -1355,7 +1355,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
 
 {news_section}
 
-【最近 20 天历史数据】
+【最近 90 天历史数据】
 {hist_summary}
 
 ════════════════════════════════════════════════════════════
@@ -1573,20 +1573,161 @@ AI分析结果将用于实盘交易决策，请务必严谨客观。
 """
     
     def _get_hist_summary(self, hist: pd.DataFrame) -> str:
-        """获取历史数据摘要（最近30天）"""
+        """
+        获取历史数据摘要（90天压缩摘要）
+        
+        优化策略：
+        1. 提供关键统计数据（高点、低点、波动率等）
+        2. 提供周度收盘数据（约13周）
+        3. 提供关键价位区域
+        4. 避免逐行列出导致 token 过长
+        """
         if hist is None or hist.empty:
             return "无历史数据"
         
-        hist_lines = []
-        for idx, row in hist.tail(30).iterrows():
-            date_str = idx.strftime('%Y-%m-%d')
-            close = row.get('Close', 'N/A')
-            volume = row.get('Volume', 'N/A')
-            close_str = f"{close:.2f}" if isinstance(close, (int, float)) else str(close)
-            volume_str = f"{volume:,.0f}" if isinstance(volume, (int, float)) else str(volume)
-            hist_lines.append(f"{date_str}: 收盘价 {close_str}, 成交量 {volume_str}")
+        # 取最近90天数据
+        hist_90 = hist.tail(90) if len(hist) >= 90 else hist
         
-        return "\n".join(hist_lines)
+        # ===== 第一部分：90天关键统计 =====
+        current_price = hist_90['Close'].iloc[-1]
+        high_90 = hist_90['High'].max()
+        low_90 = hist_90['Low'].min()
+        avg_price = hist_90['Close'].mean()
+        price_volatility = hist_90['Close'].pct_change().std() * (252**0.5) * 100  # 年化波动率
+        
+        # 计算各期间涨跌幅
+        periods = {
+            '5日': min(5, len(hist_90)),
+            '10日': min(10, len(hist_90)),
+            '20日': min(20, len(hist_90)),
+            '60日': min(60, len(hist_90)),
+            '90日': len(hist_90)
+        }
+        
+        changes = {}
+        for name, days in periods.items():
+            if days >= 2:
+                start_price = hist_90['Close'].iloc[-days]
+                changes[name] = ((current_price - start_price) / start_price) * 100
+            else:
+                changes[name] = 0
+        
+        # ===== 第二部分：周度数据（压缩） =====
+        weekly_data = []
+        # 按周分组，每周取最后一个交易日
+        hist_weekly = hist_90.resample('W-FRI').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last',
+            'Volume': 'sum'
+        }).tail(13)  # 最近13周
+        
+        for idx, row in hist_weekly.iterrows():
+            week_str = idx.strftime('%Y-%m-%d')
+            weekly_data.append({
+                'date': week_str,
+                'open': row['Open'],
+                'high': row['High'],
+                'low': row['Low'],
+                'close': row['Close'],
+                'volume': row['Volume'],
+                'change': ((row['Close'] - row['Open']) / row['Open']) * 100 if row['Open'] > 0 else 0
+            })
+        
+        # ===== 第三部分：关键价位区域（支撑/阻力） =====
+        # 使用成交量加权找出关键价位
+        price_levels = []
+        
+        # 找出近期高点和低点区域
+        recent_20 = hist_90.tail(20)
+        recent_high = recent_20['High'].max()
+        recent_low = recent_20['Low'].min()
+        
+        # 找出90天内的关键价位（近似支撑阻力）
+        # 使用滚动窗口找局部高低点
+        resistance_levels = []
+        support_levels = []
+        
+        if len(hist_90) >= 20:
+            # 简单方法：找出近90天的明显高低点
+            for i in range(10, len(hist_90) - 10):
+                window = hist_90['High'].iloc[i-10:i+10]
+                if hist_90['High'].iloc[i] == window.max():
+                    resistance_levels.append(hist_90['High'].iloc[i])
+                window = hist_90['Low'].iloc[i-10:i+10]
+                if hist_90['Low'].iloc[i] == window.min():
+                    support_levels.append(hist_90['Low'].iloc[i])
+        
+        # 取最近的3个支撑和阻力位
+        resistance_levels = sorted(set(resistance_levels), reverse=True)[:3] if resistance_levels else [high_90]
+        support_levels = sorted(set(support_levels), reverse=True)[:3] if support_levels else [low_90]
+        
+        # ===== 第四部分：成交量分析 =====
+        avg_volume_20 = hist_90['Volume'].tail(20).mean()
+        avg_volume_90 = hist_90['Volume'].mean()
+        recent_volume = hist_90['Volume'].iloc[-1]
+        volume_trend = "放量" if recent_volume > avg_volume_20 * 1.3 else ("缩量" if recent_volume < avg_volume_20 * 0.7 else "正常")
+        
+        # ===== 第五部分：近期每日数据（最近10天详细） =====
+        recent_daily = []
+        for idx, row in hist_90.tail(10).iterrows():
+            date_str = idx.strftime('%m-%d')
+            close = row.get('Close', 0)
+            volume = row.get('Volume', 0)
+            high = row.get('High', 0)
+            low = row.get('Low', 0)
+            
+            # 计算日内波幅
+            intraday_range = ((high - low) / close * 100) if close > 0 else 0
+            
+            recent_daily.append(
+                f"{date_str}: 收{close:.2f} 高{high:.2f} 低{low:.2f} "
+                f"波幅{intraday_range:.1f}% 量{volume/1e6:.1f}M"
+            )
+        
+        # ===== 构建输出 =====
+        output = f"""【90天关键统计】
+- 当前价: {current_price:.2f}
+- 90日最高: {high_90:.2f} ({((current_price - high_90) / high_90 * 100):.1f}%)
+- 90日最低: {low_90:.2f} ({((current_price - low_90) / low_90 * 100):.1f}%)
+- 90日均价: {avg_price:.2f}
+- 年化波动率: {price_volatility:.1f}%
+
+【各期间涨跌幅】
+- 5日: {changes['5日']:+.1f}%
+- 10日: {changes['10日']:+.1f}%
+- 20日: {changes['20日']:+.1f}%
+- 60日: {changes['60日']:+.1f}%
+- 90日: {changes['90日']:+.1f}%
+
+【关键价位】
+- 阻力位: {', '.join([f'{r:.2f}' for r in resistance_levels])}
+- 支撑位: {', '.join([f'{s:.2f}' for s in support_levels])}
+- 近20日高点: {recent_high:.2f}
+- 近20日低点: {recent_low:.2f}
+
+【成交量分析】
+- 当日成交量: {recent_volume/1e6:.1f}M
+- 20日均量: {avg_volume_20/1e6:.1f}M
+- 90日均量: {avg_volume_90/1e6:.1f}M
+- 量能状态: {volume_trend}
+
+【周度数据（最近13周）】
+"""
+        # 添加周度数据表头
+        output += "日期        开盘     最高     最低     收盘     周涨跌幅\n"
+        output += "-" * 60 + "\n"
+        
+        for week in weekly_data:
+            output += f"{week['date']}  {week['open']:.2f}   {week['high']:.2f}   {week['low']:.2f}   {week['close']:.2f}   {week['change']:+.1f}%\n"
+        
+        output += f"""
+【近10日详细数据】
+"""
+        output += "\n".join(recent_daily)
+        
+        return output
     
     def _call_iflow_api(self, prompt: str, model_name: str, max_retries: int = 3) -> tuple[Optional[str], Optional[str]]:
         """

@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票筛选报告 - HK - 2026-03-06</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #93c5fd;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        
+        .header .meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+        
+        .header .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.95;
+            font-size: 0.9rem;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        
+        /* Strategy Tags */
+        .strategy-section {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        
+        .strategy-section h3 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .strategy-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .strategy-tag {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .strategy-tag:hover {
+            transform: scale(1.02);
+        }
+        
+        .strategy-tag .name {
+            font-weight: 600;
+        }
+        
+        .strategy-tag .count {
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        
+        /* Stock Cards */
+        .stocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        
+        .stock-card {
+            background: var(--card);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        
+        .stock-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        /* Stock Header */
+        .stock-header {
+            padding: 20px;
+            position: relative;
+        }
+        
+        .stock-header.bullish {
+            background: linear-gradient(135deg, var(--success-light) 0%, #ecfdf5 100%);
+            border-left: 4px solid var(--success);
+        }
+        
+        .stock-header.bearish {
+            background: linear-gradient(135deg, var(--danger-light) 0%, #fef2f2 100%);
+            border-left: 4px solid var(--danger);
+        }
+        
+        .stock-header.neutral {
+            background: linear-gradient(135deg, var(--warning-light) 0%, #fffbeb 100%);
+            border-left: 4px solid var(--warning);
+        }
+        
+        .stock-header .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .stock-header h3 {
+            font-size: 1.1rem;
+            color: var(--text);
+            max-width: 250px;
+        }
+        
+        .stock-header .symbol {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            background: var(--primary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        
+        .stock-strategies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .stock-strategies .badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+        }
+        
+        /* Score Gauge */
+        .score-gauge {
+            display: flex;
+            gap: 16px;
+            padding: 16px 20px;
+            background: #fafbfc;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .gauge-item {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .gauge-item .gauge-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        
+        .gauge-item .gauge-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .gauge-item .gauge-fill.high { background: linear-gradient(90deg, var(--success), #34d399); }
+        .gauge-item .gauge-fill.medium { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+        .gauge-item .gauge-fill.low { background: linear-gradient(90deg, var(--danger), #f87171); }
+        
+        .gauge-item .score-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        
+        .gauge-item .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .score-high { color: var(--success); }
+        .score-medium { color: var(--warning); }
+        .score-low { color: var(--danger); }
+        
+        .stock-body {
+            padding: 16px 20px;
+        }
+        
+        /* Data Grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: #fafbfc;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        
+        .data-item .label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .data-item .value {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .data-item .value.positive {
+            color: var(--success);
+        }
+        
+        .data-item .value.negative {
+            color: var(--danger);
+        }
+        
+        /* Direction Indicator */
+        .direction-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .direction-indicator.bullish {
+            background: var(--success-light);
+            color: #065f46;
+        }
+        
+        .direction-indicator.bearish {
+            background: var(--danger-light);
+            color: #991b1b;
+        }
+        
+        .direction-indicator.neutral {
+            background: var(--warning-light);
+            color: #92400e;
+        }
+        
+        /* News Section */
+        .news-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+        
+        .news-section h4 {
+            color: #0369a1;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .news-item {
+            padding: 10px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
+        
+        .news-title {
+            color: #0c4a6e;
+            text-decoration: none;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            display: block;
+        }
+        
+        .news-title:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        
+        .news-meta {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        
+        /* AI Analysis */
+        .ai-section {
+            margin-top: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .ai-header {
+            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            padding: 12px 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ai-header h4 {
+            color: #92400e;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .ai-header .toggle {
+            transition: transform 0.3s;
+        }
+        
+        .ai-section.collapsed .toggle {
+            transform: rotate(-90deg);
+        }
+        
+        .ai-content {
+            padding: 14px;
+            background: #fffef5;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #78350f;
+            white-space: pre-wrap;
+            line-height: 1.7;
+        }
+        
+        .ai-section.collapsed .ai-content {
+            display: none;
+        }
+        
+        .ai-model {
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #a16207;
+            text-align: right;
+            padding-top: 8px;
+            border-top: 1px dashed #fde047;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            margin-top: 40px;
+        }
+        
+        .footer p {
+            margin-bottom: 4px;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body { background: white; }
+            .container { max-width: 100%; }
+            .stock-card { break-inside: avoid; }
+            .header { box-shadow: none; }
+            .ai-content { max-height: none; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stocks-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .header { padding: 24px; }
+            .header h1 { font-size: 1.4rem; }
+            .data-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script>
+        function toggleAI(id) {
+            const section = document.getElementById(id);
+            section.classList.toggle('collapsed');
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📈 股票筛选报告</h1>
+            <div class="meta">
+                <div class="meta-item"><span>🌏</span><span>市场: HK</span></div>
+                <div class="meta-item"><span>📅</span><span>2026-03-06 23:19</span></div>
+                <div class="meta-item"><span>⏱️</span><span>耗时: 697.3 秒</span></div>
+                <div class="meta-item"><span>✅</span><span>筛选: 1 只</span></div>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">📊</div>
+                <div class="value">1</div>
+                <div class="label">符合条件股票</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🎯</div>
+                <div class="value">1</div>
+                <div class="label">命中策略数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🏆</div>
+                <div class="value">1</div>
+                <div class="label">最高命中次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">⚡</div>
+                <div class="value">697s</div>
+                <div class="label">分析耗时</div>
+            </div>
+        </div>
+        
+        <!-- Strategy Stats -->
+        <div class="strategy-section">
+            <h3>策略命中统计</h3>
+            <div class="strategy-tags">
+                <div class="strategy-tag" style="border-color: #3b82f6"><span class="name">跳过策略</span><span class="count">1</span></div>
+            </div>
+        </div>
+        
+        <!-- Stock Cards -->
+        <div class="stocks-grid">
+            
+        <div class="stock-card">
+            <div class="stock-header bearish">
+                <div class="title-row">
+                    <h3>HealthyWay Inc.</h3>
+                    <span class="symbol">2587</span>
+                </div>
+                <div class="stock-strategies">
+                    <span class="badge" style="background: #10b981">跳过策略</span>
+                </div>
+            </div>
+            
+            
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill medium" style="width: 50.0%"></div></div>
+                    <div class="score-text score-medium">5.0/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 30.0%"></div></div>
+                    <div class="score-text score-low">3.0/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill low" style="width: 40.0%"></div></div>
+                    <div class="score-text score-low">4.0/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            
+            
+            <div class="stock-body">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="label">🏢 行业</span>
+                        <span class="value">Healthcare</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">💰 市值</span>
+                        <span class="value">41.74 亿</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📊 成交量</span>
+                        <span class="value">2943.8 万</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📈 市盈率</span>
+                        <span class="value">N/A</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">📅 52周涨跌</span>
+                        <span class="value negative">-78.6%</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="label">🔗 链接</span>
+                        <span class="value"><a href="https://www.jkzlkj.cn" target="_blank" style="color: var(--primary);">官网</a></span>
+                    </div>
+                </div>
+                
+                <div class="direction-indicator bearish">📉 看跌 (47%)</div>
+                
+                
+                
+                
+        <div class="ai-section collapsed" id="ai-0">
+            <div class="ai-header" onclick="toggleAI('ai-0')">
+                <h4>🤖 AI 分析详情</h4>
+                <span class="toggle">▼</span>
+            </div>
+            <div class="ai-content">【多提供商分析】
+
+--- IFLOW 分析 ---
+模型: multi_model_consensus
+置信度: 47%
+【多模型共识分析】
+
+共识方向: 看跌
+共识置信度: 47%
+模型一致率: 67% (6 个模型投票)
+
+分析成功率: 100% (6/6 个模型)
+失败模型: 无
+
+投票分布:
+- 看涨: 2 票
+- 看跌: 4 票
+- 中性: 0 票
+
+主要共识点:
+- 暂无
+
+分歧点:
+- 暂无
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- kimi-k2 模型 ---
+判断: 看涨 (置信度: 50%)
+1. 综合评分  
+   技术面评分: 5/10  
+   基本面评分: 3/10  
+   综合评分: 4/10  
+
+2. 短期走势判断  
+   方向: 中性  
+   置信度: 低(<50%)  
+   主要驱动因素: 高波动市+ADX强但方向不明，区间4.7-5.0待突破  
+
+3. 投资建议  
+   建议: 持有  
+   理由: 现价夹于MA20/MA50间，MACD负柱收敛但未金叉，RSI中性；VIX>25需降仓位，盈亏比不足，等待放量突破5.0或跌破4.7再顺势跟进。  
+   买入价位: 现价  
+   目标价位: 5.30  
+   止损价位: 4.68  
+
+4. 风险提示  
+   最大风险点: 港股高波动+CMF严重负值，若再次放量跌破4.7或触发快速下探4.2  
+   建议仓位: 轻仓(<20%)
+
+--- deepseek-v3.2 模型 ---
+判断: 看涨 (置信度: 70%)
+**综合评分**  
+- 技术面评分: 5/10  
+- 基本面评分: 3/10  
+- 综合评分: 4/10  
+
+**短期走势判断**  
+- 方向: 中性  
+- 置信度: 中（50-70%）  
+- 主要驱动因素: 价格处于震荡区间，缺乏明确方向，量能不稳定，市场高波动环境抑制短期动能。  
+
+**投资建议**  
+- 建议: 持有  
+- 理由: 当前价格接近MA20（4.97）与MA50（4.86）粘合区，RSI中性（53.5），MACD在零轴附近徘徊，无明确趋势信号。布林带中轨附近震荡，ADX（47）显示趋势存在但强度不足。近期量能放大但价格未有效突破，需等待方向确认。目标位5.50接近前高阻力，止损位4.20可控制下行风险。  
+- 买入价位: 现价（4.91）  
+- 目标价位: 5.50  
+- 止损价位: 4.20  
+
+**风险提示**  
+- 最大风险点: 市场高波动（VIX=27.8）叠加个股量价背离风险，若跌破4.20支撑可能加速下跌。  
+- 建议仓位: 轻仓（<20%）
+
+--- qwen3-max 模型 ---
+判断: 看跌 (置信度: 90%)
+1. 综合评分  
+   技术面评分: 3/10  
+   基本面评分: 2/10  
+   综合评分: 2.5/10  
+
+2. 短期走势判断  
+   方向: 看跌  
+   置信度: 高(>70%)  
+   主要驱动因素: ADX强势下行趋势 + 价格跌破关键均线 + 量能配合下跌  
+
+3. 投资建议（必须全部填写）  
+   建议: 强烈卖出  
+   理由: 股价处于强下降趋势中（ADX=47，+DI远高于-DI），MACD为负且低于信号线，价格低于MA20与MA50，近期放量下跌，技术面全面偏空，短期反弹动能不足。  
+   买入价位: —  
+   目标价位: 4.00  
+   止损价位: 5.05  
+
+4. 风险提示  
+   最大风险点: 若市场情绪突然转向或突发利好消息，可能引发技术性反抽，但当前趋势强度高，反抽空间有限。  
+   建议仓位: 轻仓(<20%)（仅限已有持仓者减仓，不建议新开空单；若做多则严格禁止）
+
+--- tstars2.0 模型 ---
+判断: 看跌 (置信度: 70%)
+### 综合评分  
+**技术面评分: 4/10**  
+- RSI中性（53.5）缺乏明确方向，MACD接近零轴无趋势信号，布林带收窄反映震荡格局，ADX显示趋势强度中等但方向不明。  
+**基本面评分: 2/10**  
+- 市盈率、市净率等关键指标缺失，财务数据不透明，行业属性（医疗信息服务）受政策监管影响大，市值较小（4.17亿）流动性风险高。  
+**综合评分: 3/10**  
+
+---
+
+### 短期走势判断  
+**方向: 中性偏空**  
+**置信度: 中（55%）**  
+**主要驱动因素:**  
+- 技术面：布林带收窄后价格处于中轨，MACD无方向信号，ADX显示趋势强度弱化；  
+- 市场面：VIX指数27.8反映市场整体谨慎，医疗板块受政策不确定性压制；  
+- 量价：放量下跌（3月6日成交量21.4M vs 均值16M）显示抛压加剧。  
+
+---
+
+### 投资建议  
+**建议: 卖出**  
+**理由:**  
+1. 技术面无明确多头信号，布林带收窄且价格处于中轨，MACD接近零轴，RSI中性；  
+2. 放量下跌（3月6日量能超20日均量33%）显示短期抛压；  
+3. 基本面薄弱，财务数据缺失且行业政策风险高；  
+4. 历史波动率65.8%反映高风险特征，与当前中高风偏匹配。  
+
+**买入价位: 无明确买入信号**  
+**目标价位: 4.35（支撑位测试）**  
+**止损价位: 5.75（近期高点压力位）**  
+
+---
+
+### 风险提示  
+**最大风险点:**  
+- 放量下跌后若跌破4.21支撑位，可能触发恐慌性抛售；  
+- 医疗板块政策利空（如数据合规监管升级）导致估值重构；  
+- 流动性风险（市值小+波动率高）加剧价格异动。  
+
+**建议仓位: 轻仓（<20%）**  
+
+---
+
+### 关键验证点  
+1. 若3月10日前突破5.75压力位且伴随量能放大（>25M），可重新评估多头；  
+2. 若连续3日站稳4.21支撑位下方，则确认下行趋势延续。
+
+--- iflow-rome-30ba3b 模型 ---
+判断: 看跌 (置信度: 70%)
+1. 综合评分
+   技术面评分: 5/10
+   基本面评分: 2/10  
+   综合评分: 4/10
+
+2. 短期走势判断
+   方向: 看跌
+   置信度: 中(50-70%)
+   主要驱动因素: 技术指标弱势，量价配合不佳
+
+3. 投资建议
+   建议: 卖出
+   理由: RSI 53.517586处于中性区但MACD柱状线为负，价格跌破MA20和MA50，ADX虽强但+DI低于-DI，技术面综合指向短期下行趋势
+   买入价位: 现价
+   目标价位: 4.3
+   止损价位: 4.7
+
+4. 风险提示
+   最大风险点: 价格可能进一步下跌至4.21支撑位
+   建议仓位: 轻仓(<20%)
+
+--- qwen3-coder-plus 模型 ---
+判断: 看跌 (置信度: 70%)
+## 一、市场环境评估（权重30%）
+VIX指数为27.8，高于25，属于高波动市场环境，建议降低仓位操作。
+
+## 二、技术面分析（权重40%）
+1. RSI信号：RSI=53.52，在40-60健康区间，无明显超买超卖
+2. MACD信号：MACD=0.0064，信号线=0.0652，MACD低于信号线，看空信号
+3. 均线信号：价格4.91在MA20(4.97)下方，MA50(4.86)上方，短期偏弱
+4. 布林带信号：价格4.91在中轨附近，未突破上下轨
+5. 量价配合：近期成交量放大，但价格下跌，量价背离
+
+## 三、新闻影响分析（权重20%）
+基本面指标缺失，无法评估新闻影响，维持技术面判断。
+
+## 四、风险评估（权重10%）
+最大风险点：股价从近期高点6.56大幅回调，短期跌幅较大
+建议止损价位：4.65
+建议仓位：轻仓
+
+════════════════════════════════════════════════════════════
+
+## 1. 综合评分
+技术面评分: 4/10
+基本面评分: 2/10  
+综合评分: 3/10
+
+## 2. 短期走势判断
+方向: 看跌
+置信度: 中(50-70%)
+主要驱动因素: 短期跌幅21.6%显示下降趋势，MACD看空信号，量价背离
+
+## 3. 投资建议（必须全部填写）
+建议: 卖出
+理由: 短期跌幅巨大(-21.6%)，MACD死叉信号，威廉指标-78.95显示超卖但可能继续探底，量价背离风险较大
+买入价位: 不建议买入
+目标价位: 4.50
+止损价位: 4.65
+
+## 4. 风险提示
+最大风险点: 股价从6.56高位大幅回调至4.91，短期波动剧烈，可能继续寻底
+建议仓位: 轻仓(<20%)
+
+
+--- NVIDIA 分析 ---
+模型: nvidia_multi_model_consensus
+置信度: 60%
+【NVIDIA 多模型共识分析】
+
+共识方向: 看跌
+共识置信度: 60%
+模型一致率: 75% (4 个模型投票)
+
+投票分布:
+- 看涨: 1 票
+- 看跌: 3 票
+- 中性: 0 票
+
+════════════════════════════════════════════════════════════
+
+【各模型详细分析】
+
+--- meta/llama-3.3-70b-instruct 模型 ---
+判断: 看跌 (置信度: 90%)
+根据提供的数据和分析框架，以下是综合分析结果：
+
+1. 综合评分
+   - 技术面评分: 6/10
+   - 基本面评分: 无法评估（缺乏必要数据）
+   - 综合评分: 6/10
+
+2. 短期走势判断
+   - 方向: 看跌
+   - 置信度: 高（>70%）
+   - 主要驱动因素: 技术指标显示下降趋势，RSI和ADX指标表明有下降趋势。
+
+3. 投资建议
+   - 建议: 卖出
+   - 理由: 股票技术面指标显示下降趋势，多个指标（如RSI、MACD、adx）都表明下降趋势，市场环境也较为谨慎。
+   - 买入价位: 无（建议卖出）
+   - 目标价位: 4.21
+   - 止损价位: 4.70
+
+4. 风险提示
+   - 最大风险点: 下降趋势加剧，可能导致较大损失。
+   - 建议仓位: 轻仓（<20%）
+
+注意：以上分析基于提供的数据和分析框架，如有任何变化或更新的信息，分析结果可能会有所不同。实盘交易决策应结合自身风险承受能力和市场判断进行。
+
+--- stepfun-ai/step-3.5-flash 模型 ---
+判断: 看跌 (置信度: 90%)
+1. 综合评分  
+   技术面评分: 4/10  
+   基本面评分: 2/10  
+   综合评分: 3/10  
+
+2. 短期走势判断  
+   方向: 看跌  
+   置信度: 高 (>70%)  
+   主要驱动因素: MACD死叉确认、价格跌破MA20/MA50、ADX 47.2显示强劲下降趋势、CMF负值反映资金流出。  
+
+3. 投资建议  
+   建议: 卖出  
+   理由: 技术指标明确指向下降趋势：MACD线下穿信号线，价格低于关键均线（MA20/MA50），ADX高值确认趋势强度，CMF持续负值，多时间框架短期与中期均下滑。目标支撑4.21，当前价4.77仍有下跌空间，建议卖出规避风险。  
+   买入价位: 不推荐买入  
+   目标价位: 4.21  
+   止损价位: 4.95  
+
+4. 风险提示  
+   最大风险点: 价格意外反弹突破阻力位4.95（MA20上方），可能因突发正面新闻或市场整体反弹导致止损触发。  
+   建议仓位: 轻仓 (<20%)
+
+--- minimaxai/minimax-m2.5 模型 ---
+判断: 看涨 (置信度: 70%)
+<think>用户要求我作为一位专业的短期股票分析师，对股票 2587.HK (HealthyWay Inc.) 进行综合投资建议。我需要按照给定的分析框架进行严格分析。
+
+让我整理一下关键数据：
+
+**股票信息：**
+- 代码: 2587.HK
+- 名称: HealthyWay Inc.
+- 行业: Healthcare / Health Information Services
+- 当前价格: 4.77
+
+**技术指标：**
+- RSI (14): 53.42 - 中性偏多
+- MACD: 0.04055 / Signal: 0.0962 - MACD在零轴上方但低于信号线
+- 布林带上轨: 6.033353 / 下轨: 3.836647 / 中轨: 4.935
+- MA20: 4.935, MA50: 4.8436, MA200: 11.4898
+- ADX (14): 47.246502 / +DI: 37.69 / -DI: 17.63
+- CMF (20): -0.5832636 - 资金流出
+- Stochastic RSI: K: 65.36083 / D: 71.24156 - 快线低于慢线
+
+**多时间框架：**
+- 短期(5日): 下降 (-12.8%)
+- 中期(20日): 下降 (-3.6%)
+- 长期(60日): 上升 (+6.7%)
+
+**市场情绪：**
+- VIX指数: 26.8
+- 市场状态: 高波动/谨慎
+
+
+- 风险等级: 中高
+
+**关键价位：**
+- 阻力位: 4.84, 4.93
+- 支撑位: 4.50, 4.21
+- 止损价: 4.14
+- 目标价: 4.93
+
+**近期数据：** 从2月初到3月初，股价从4.49波动，最高达到6.26，现已回落至4.77。近期成交量明显放大，尤其是3月4日达到2944万股，反映市场交投活跃。
+
+VIX指数位于26.8，显示市场情绪紧张。技术指标方面，RSI处于53.42的中性区域，MACD呈现死叉态势，短期均线呈下降趋势。布林带位置显示股价接近下轨，同时资金呈流出状态。综合来看，技术面偏弱，倾向于中性或谨慎看跌。
+
+市场波动性较高，风险等级达到中高水平，因此需要降低仓位以应对潜在风险。尽管长期60日均线仍保持上升趋势，ADX指标显示趋势强度不弱，但这并不能完全抵消短期的疲软信号。
+
+技术面呈现出复杂的态势：RSI位于53.42，处于相对中性的位置，但MACD出现死叉，短期均线形成空头排列。股价接近布林带下轨，同时成交量和资金流向都呈现负面信号。这些指标综合评分为3.5分，显示出市场的谨慎态势。
+
+基本面方面，由于缺乏关键财务数据，如市盈率、利润率和营收增长等，无法进行深入分析。最终综合评分为2分。
+
+从短期走势看，市场趋势不明朗，置信度较低。主要驱动因素包括成交量放大、资金净流出以及VIX指数处于高位，这些都可能增加市场的不确定性。
+
+投资建议采取谨慎策略。短期均线呈下降趋势，MACD存在死叉风险，资金呈现净流出态势。需要静待更明确的方向信号。目前的建议是持有观察，等待更好的介入时机。
+
+如果股价快速反弹至4.84-4.93区间，且技术指标出现明显好转，才会考虑适当建仓。最大风险点在于股价可能下探至4.21-4.14的支撑区域。
+
+综合技术面和资金面因素，当前更适合轻仓观望，等待更明确的方向信号。近期股价波动剧烈，应保持审慎态度。
+</think>
+
+## 综合投资分析报告
+
+### 一、市场环境评估（权重30%）
+
+- **VIX指数**: 26.8 → 高于25警戒线
+- **市场状态**: 高波动/谨慎
+- **评估**: 当前市场波动性较高，风险情绪偏谨慎，应降低仓位应对
+
+### 二、技术面分析（权重40%）
+
+**当前信号：**
+- **RSI (14)**: 53.42 → 中性区域，略有偏多
+- **MACD**: 快线0.04055 < 信号线0.0962 → 死叉形态，短线偏空
+- **均线**: 价格4.77 < MA20(4.935) < MA50(4.8436) → 空头排列雏形
+- **布林带**: 价格接近下轨(3.84)，有超卖迹象但未突破
+- **量价**: CMF=-0.583资金净流出；近期放量下跌，价跌量增
+
+**技术面评分: 3.5/10**
+
+### 三、新闻影响分析（权重20%）
+
+- 无重大正面/负面新闻披露
+- 基本面信息缺失（无PE、PEG、营收增长等数据）
+
+**新闻影响评分: 5/10（中性）**
+
+### 四、风险评估（权重10%）
+
+- 短期下降趋势明确，MACD死叉形成
+- 资金持续流出，成交量放大显示卖压沉重
+- 距离60日最低点4.21仅5.8%空间
+
+**风险评估: 2/10**
+
+---
+
+## 最终分析结果
+
+### 1. 综合评分
+
+```
+技术面评分: 3.5/10
+基本面评分: 5/10  
+综合评分: 3.5/10
+```
+
+### 2. 短期走势判断
+
+- **方向**: 看跌
+- **置信度**: 中(50-70%)
+- **主要驱动因素**: MACD死叉形成+短期均线空头排列+CMF资金净流出+短期跌幅12.8%
+
+### 3. 投资建议
+
+- **建议**: 卖出/观望
+- **理由**: 短期技术面偏弱，MACD死叉后加速下行，MA20/MA50均线形成反压，CMF资金持续流出。尽管长期60日趋势未破，但短期卖压明显，应降低仓位等待企稳信号。
+- **买入价位**: 暂不建议买入
+- **目标价位**: 4.50/4.21
+- **止损价位**: 4.14
+
+### 4. 风险提示
+
+- **最大风险点**: 短期下降趋势延续，股价进一步下探4.21-4.14支撑区间；市场高波动环境下可能触发更大幅度抛售
+- **建议仓位**: 轻仓(<20%)或清仓观望
+
+---
+
+**操作策略**: 当前建议持有但逢高减仓，等待股价在4.21-4.50区间企稳后再考虑重新介入。若跌破4.14应坚决止损。
+
+--- qwen/qwen3.5-122b-a10b 模型 ---
+判断: 看跌 (置信度: 70%)
+
+
+1. 综合评分
+技术面评分：3/10
+基本面评分：3/10
+综合评分：3/10
+
+2. 短期走势判断
+方向：看跌
+置信度：中 (50-70%)
+主要驱动因素：股价受制于 MA20/50 均线压制，资金大幅流出 (CMF -0.58)，前期高点已现派发迹象。
+
+3. 投资建议（必须全部填写）
+建议：持有
+理由：当前处于下降趋势中，价格未站稳 MA20，虽短期有反弹但 MACD 死叉且资金大幅净流出。建议耐心等待 4.21 支撑位确认后再考虑，避免当前追高或抄底风险。
+买入价位：4.25 (支撑确认)
+目标价位：4.93 (阻力位)
+止损价位：4.50
+
+4. 风险提示
+最大风险点：跌破 4.58 前低引发加速下跌至 4.00 关口，且高波动环境易触发止损。
+建议仓位：轻仓 (<20%)
+
+
+--- GEMINI 分析 ---
+模型: gemini_consensus_1models
+置信度: 70%
+=== Gemini 多模型共识分析 ===
+
+模型数量: 1
+共识方向: 看跌
+一致率: 100.0%
+综合置信度: 70.0%
+
+各模型观点:
+
+--- gemini-2.5-flash ---
+**综合分析报告：2587.HK**
+
+**1. 综合评分**
+   技术面评分: 1/10 (技术信号全面恶化，呈现强烈的空头趋势)
+   基本面评分: 1/10 (高企的市净率和机构被套的VWAP显示基本面存在巨大风险或估值严重偏高)
+   综合评分: 1/10
+
+**2. 短期走势判断**
+   方向: 看跌
+   置信度: 高(>70%)
+   主要驱动因素: MACD死叉，价格跌破所有均线，CMF显示强力派发，配合机构被套，下行压力巨大。
+
+**3. 投资建议**
+   建议: 强烈卖出 / 观望
+   理由: 2587.HK面临严重的下行风险。技术面显示股价处于强劲下跌趋势中，MACD形成死叉，股价已跌破所有短期和中期均线（空头排列），CMF指标显示资金正大量流出（派发）。此外，高达15.66的市净率和机构VWAP远高于现价，进一步警示基本面可能存在严重高估及潜在抛售压力。鉴于其高度投机性和缺乏基本面支撑的风险，建议立即规避或清仓。
+   买入价位: N/A (不建议买入)
+   目标价位: 4.40 (关注前期低点支撑，若有效跌破，下行空间将进一步打开)
+   止损价位: 5.00 (若股价意外反弹并站稳此阻力位（高于MA20/MA50），则需重新评估看跌观点，对于已持仓者，此为避免更大损失的止损点)
+
+**4. 风险提示**
+   最大风险点:
+    1. **估值过高风险:** 15.66倍的市净率远超行业平均水平，暗示股价可能严重脱离其内在价值。
+    2. **机构被套风险:** VWAP高达8.67，远高于当前股价，机构可能存在大量浮亏，随时有割肉离场的抛售压力。
+    3. **技术面全面恶化:** 均线空头排列、MACD死叉、CMF强烈派发，预示下跌趋势将持续。
+    4. **高波动性:** 近期股价经历大涨大跌，投机性较强，不确定性高。
+   建议仓位: 轻仓(<20%) 或 完全空仓 (强烈建议)
+
+</div>
+            <div class="ai-model">模型: multi_provider(iflow, nvidia, gemini)</div>
+        </div>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>报告生成时间: 2026-03-06 23:31:33</p>
+            <p style="font-size: 0.8rem; margin-top: 8px;">⚠️ 本报告仅供参考，不构成投资建议</p>
+        </div>
+    </div>
+</body>
+</html>

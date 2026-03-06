@@ -148,10 +148,12 @@
         "available_models": ["kimi-k2", "deepseek-v3.2", "qwen3-max", "tstars2.0", "iflow-rome-30ba3b", "qwen3-coder-plus"]
       },
       "nvidia": {
-        "default_model": "qwen/qwen3.5-397b-a17b",
+        "default_model": "meta/llama-3.3-70b-instruct",
         "available_models": [
-          "qwen/qwen3.5-397b-a17b",
-          "moonshotai/kimi-k2.5"
+          "meta/llama-3.3-70b-instruct",
+          "stepfun-ai/step-3.5-flash",
+          "minimaxai/minimax-m2.5",
+          "qwen/qwen3.5-122b-a10b"
         ]
       },
       "gemini": {
