@@ -131,7 +131,12 @@
     "timeout": 60000,
     "max_news_items": 10,
     "days_back": 14,
-    "cache_ttl_hours": 6
+    "cache_ttl_hours": 6,
+    "provider": "both",
+    "google": {
+      "default_language": "zh-TW",
+      "default_region": "TW"
+    }
   },
   "ai": {
     "api_timeout": 30,

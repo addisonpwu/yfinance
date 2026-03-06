@@ -15,6 +15,7 @@ import random
 import threading
 
 from src.data.loaders.yahoo_loader import YahooFinanceRepository, calculate_technical_indicators, optimize_dataframe_memory
+from src.data.loaders.news_service import NewsService
 from src.core.strategies.strategy import StrategyContext, StrategyEngine
 from src.core.strategies.loader import get_strategies
 from src.ai.analyzer.service import AIAnalysisService
@@ -45,6 +46,7 @@ class StockAnalyzer:
     
     def __init__(self, provider: str = 'iflow', providers: list = None):
         self.data_repo = YahooFinanceRepository()
+        self.news_service = NewsService()  # 统一新闻服务
         self.strategy_engine = StrategyEngine(get_strategies())
         
         # 支持多提供商：providers 参数优先，否则使用 provider 参数
@@ -242,8 +244,8 @@ class StockAnalyzer:
                     error="未通过任何策略"
                 )
             
-            # 策略筛选通过后才获取新闻
-            news = self.data_repo.get_news(symbol, market)
+            # 策略筛选通过后才获取新闻（使用 NewsService）
+            news = self.news_service.get_news(symbol, market)
             
             # AI 分析（支持多提供商）
             ai_analysis = None

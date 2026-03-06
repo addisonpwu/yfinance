@@ -166,11 +166,24 @@ class StrategiesConfig:
 
 
 @dataclass
+class NewsGoogleConfig:
+    """Google News 配置"""
+    default_language: str = "zh-TW"
+    default_region: str = "TW"
+
+
+@dataclass
 class NewsConfig:
     timeout: int = NEWS_TIMEOUT
     max_news_items: int = NEWS_MAX_ITEMS
     days_back: int = NEWS_DAYS_BACK
     cache_ttl_hours: int = NEWS_CACHE_TTL_HOURS
+    provider: str = "both"  # "google" | "yahoo" | "both"
+    google: NewsGoogleConfig = None
+    
+    def __post_init__(self):
+        if self.google is None:
+            self.google = NewsGoogleConfig()
 
 
 @dataclass
@@ -363,7 +376,12 @@ class ConfigManager:
                 timeout=news_config.get('timeout', NEWS_TIMEOUT),
                 max_news_items=news_config.get('max_news_items', NEWS_MAX_ITEMS),
                 days_back=news_config.get('days_back', NEWS_DAYS_BACK),
-                cache_ttl_hours=news_config.get('cache_ttl_hours', NEWS_CACHE_TTL_HOURS)
+                cache_ttl_hours=news_config.get('cache_ttl_hours', NEWS_CACHE_TTL_HOURS),
+                provider=news_config.get('provider', 'both'),
+                google=NewsGoogleConfig(
+                    default_language=news_config.get('google', {}).get('default_language', 'zh-TW'),
+                    default_region=news_config.get('google', {}).get('default_region', 'TW')
+                )
             ),
             ai=AIConfig(
                 api_timeout=ai_config.get('api_timeout', AI_API_TIMEOUT),
