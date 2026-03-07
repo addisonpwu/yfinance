@@ -213,7 +213,8 @@ class IFlowAIAnalyzer(AIAnalyzer):
     def __init__(self):
         self.api_key = os.environ.get("IFLOW_API_KEY", "")
         config = config_manager.get_config()
-        self.cache_service = OptimizedCache(enabled=config.data.enable_cache)
+        # 禁用 AI 分析缓存
+        self.cache_service = OptimizedCache(enabled=False)
         self.config = config
         self.logger = get_ai_logger()
         self.api_url = "https://apis.iflow.cn/v1/chat/completions"

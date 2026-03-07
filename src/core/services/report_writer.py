@@ -15,6 +15,9 @@ import logging
 class ReportWriter:
     """报告写入器，支持 TXT 和 HTML 格式"""
     
+    # 报告输出目录
+    REPORT_DIR = "reports"
+    
     # 交易所映射
     EXCHANGE_MAP = {
         'NMS': 'NASDAQ',
@@ -44,6 +47,16 @@ class ReportWriter:
         'market_regime': '#6b7280'           # 灰色
     }
     
+    # AI 提供商颜色映射
+    PROVIDER_COLORS = {
+        'iflow': '#3498db',      # 蓝色
+        'nvidia': '#27ae60',     # 绿色
+        'gemini': '#9b59b6',     # 紫色
+        'IFLOW': '#3498db',
+        'NVIDIA': '#27ae60',
+        'GEMINI': '#9b59b6'
+    }
+    
     def __init__(self, filename: str = None, market: str = 'HK', output_format: str = 'html'):
         """
         初始化报告写入器
@@ -57,7 +70,12 @@ class ReportWriter:
         # 移除已有的 .txt 扩展名，避免重复
         if raw_filename.endswith('.txt'):
             raw_filename = raw_filename[:-4]
-        self.base_filename = raw_filename
+        
+        # 确保 reports 目录存在
+        os.makedirs(self.REPORT_DIR, exist_ok=True)
+        
+        # 报告文件路径（在 reports 目录下）
+        self.base_filename = os.path.join(self.REPORT_DIR, raw_filename)
         self.market = market
         self.output_format = output_format
         self._lock = threading.Lock()
@@ -772,6 +790,89 @@ class ReportWriter:
             color: #64748b;
         }}
         
+        .news-summary {{
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 4px;
+            line-height: 1.4;
+        }}
+        
+        .news-sentiment-placeholder {{
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+        }}
+        
+        /* Technical Indicators Section */
+        .tech-section {{
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-top: 12px;
+            border: 1px solid var(--border);
+        }}
+        
+        .tech-section h4 {{
+            color: var(--text);
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        
+        .tech-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }}
+        
+        .tech-item {{
+            display: flex;
+            flex-direction: column;
+            padding: 8px 10px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }}
+        
+        .tech-item.indicator-success {{
+            border-color: var(--success);
+            background: var(--success-light);
+        }}
+        
+        .tech-item.indicator-danger {{
+            border-color: var(--danger);
+            background: var(--danger-light);
+        }}
+        
+        .tech-label {{
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }}
+        
+        .tech-value {{
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+        }}
+        
+        .tech-status {{
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }}
+        
+        .tech-item.indicator-success .tech-status {{
+            color: var(--success);
+        }}
+        
+        .tech-item.indicator-danger .tech-status {{
+            color: var(--danger);
+        }}
+        
         /* AI Analysis */
         .ai-section {{
             margin-top: 12px;
@@ -829,6 +930,39 @@ class ReportWriter:
             border-top: 1px dashed #fde047;
         }}
         
+        /* Multi-provider AI Analysis */
+        .ai-section.ai-multi {{
+            border: none;
+        }}
+        
+        .ai-multi-content {{
+            max-height: none;
+            background: transparent;
+            padding: 0;
+        }}
+        
+        .ai-provider-section {{
+            margin-bottom: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }}
+        
+        .ai-provider-header {{
+            padding: 10px 14px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }}
+        
+        .ai-provider-content {{
+            padding: 12px 14px;
+            font-size: 0.8rem;
+            color: #78350f;
+            white-space: pre-wrap;
+            line-height: 1.7;
+            background: #fffef5;
+        }}
+        
         /* Footer */
         .footer {{
             text-align: center;
@@ -848,6 +982,10 @@ class ReportWriter:
             .stock-card {{ break-inside: avoid; }}
             .header {{ box-shadow: none; }}
             .ai-content {{ max-height: none; }}
+            .ai-section.collapsed .ai-content {{ display: block; }}
+            .ai-section.collapsed .toggle {{ display: none; }}
+            .ai-multi-content {{ max-height: none; }}
+            .news-sentiment-placeholder {{ display: none; }}
         }}
         
         /* Responsive */
@@ -932,6 +1070,7 @@ class ReportWriter:
         strategies = result.get('strategies', [])
         ai_analysis = result.get('ai_analysis')
         news = result.get('news', [])
+        technical_indicators = result.get('technical_indicators', {})
         
         # 格式化数据
         market_cap = info.get('marketCap')
@@ -979,6 +1118,41 @@ class ReportWriter:
         fund_width = min(fund_score * 10, 100) if fund_score else 0
         total_width = min(total_score * 10, 100) if total_score else 0
         
+        # 预构建评分区域 HTML（避免嵌套 f-string）
+        score_gauge_html = ''
+        if total_score > 0:
+            tech_class = get_score_class(tech_score)
+            fund_class = get_score_class(fund_score)
+            total_class = get_score_class(total_score)
+            score_gauge_html = f'''
+            <div class="score-gauge">
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill {tech_class}" style="width: {tech_width}%"></div></div>
+                    <div class="score-text score-{tech_class}">{tech_score}/10</div>
+                    <div class="label">技术面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill {fund_class}" style="width: {fund_width}%"></div></div>
+                    <div class="score-text score-{fund_class}">{fund_score}/10</div>
+                    <div class="label">基本面</div>
+                </div>
+                <div class="gauge-item">
+                    <div class="gauge-bar"><div class="gauge-fill {total_class}" style="width: {total_width}%"></div></div>
+                    <div class="score-text score-{total_class}">{total_score}/10</div>
+                    <div class="label">综合</div>
+                </div>
+            </div>
+            '''
+        
+        # 预构建策略标签 HTML
+        strategy_badges = ''.join([f'<span class="badge" style="background: {self.STRATEGY_COLORS.get(s, "#10b981")}">{self.STRATEGY_NAMES.get(s, s)}</span>' for s in strategies])
+        
+        # 预构建方向指示器 HTML
+        direction_html = f'<div class="direction-indicator {direction_class}">{direction_icon} {direction} ({confidence})</div>' if direction else ''
+        
+        # 预构建链接 HTML
+        website_html = f'<a href="{info.get("website", "#")}" target="_blank" style="color: var(--primary);">官网</a>' if info.get('website') else 'N/A'
+        
         return f'''
         <div class="stock-card">
             <div class="stock-header {direction_class}">
@@ -987,29 +1161,11 @@ class ReportWriter:
                     <span class="symbol">{symbol.replace('.HK', '') if market.upper() == 'HK' else symbol}</span>
                 </div>
                 <div class="stock-strategies">
-                    {''.join([f'<span class="badge" style="background: {self.STRATEGY_COLORS.get(s, "#10b981")}">{self.STRATEGY_NAMES.get(s, s)}</span>' for s in strategies])}
+                    {strategy_badges}
                 </div>
             </div>
             
-            {'' if total_score == 0 else f'''
-            <div class="score-gauge">
-                <div class="gauge-item">
-                    <div class="gauge-bar"><div class="gauge-fill {get_score_class(tech_score)}" style="width: {tech_width}%"></div></div>
-                    <div class="score-text score-{get_score_class(tech_score)}">{tech_score}/10</div>
-                    <div class="label">技术面</div>
-                </div>
-                <div class="gauge-item">
-                    <div class="gauge-bar"><div class="gauge-fill {get_score_class(fund_score)}" style="width: {fund_width}%"></div></div>
-                    <div class="score-text score-{get_score_class(fund_score)}">{fund_score}/10</div>
-                    <div class="label">基本面</div>
-                </div>
-                <div class="gauge-item">
-                    <div class="gauge-bar"><div class="gauge-fill {get_score_class(total_score)}" style="width: {total_width}%"></div></div>
-                    <div class="score-text score-{get_score_class(total_score)}">{total_score}/10</div>
-                    <div class="label">综合</div>
-                </div>
-            </div>
-            '''}
+            {score_gauge_html}
             
             <div class="stock-body">
                 <div class="data-grid">
@@ -1035,11 +1191,13 @@ class ReportWriter:
                     </div>
                     <div class="data-item">
                         <span class="label">🔗 链接</span>
-                        <span class="value">{f'<a href="{info.get("website", "#")}" target="_blank" style="color: var(--primary);">官网</a>' if info.get('website') else 'N/A'}</span>
+                        <span class="value">{website_html}</span>
                     </div>
                 </div>
                 
-                {f'''<div class="direction-indicator {direction_class}">{direction_icon} {direction} ({confidence})</div>''' if direction else ''}
+                {direction_html}
+                
+                {self._build_technical_indicators_html(technical_indicators) if technical_indicators else ''}
                 
                 {self._build_news_section_html(news) if news else ''}
                 
@@ -1048,21 +1206,27 @@ class ReportWriter:
         </div>'''
     
     def _build_news_section_html(self, news: list) -> str:
-        """构建新闻显示区域"""
+        """构建新闻显示区域 - 增强：显示5条新闻 + 摘要"""
         if not news:
             return ''
         
         news_items = []
-        for item in news[:3]:
+        for item in news[:5]:  # 显示5条新闻
             title = item.get('title', 'N/A')
             link = item.get('link', '#')
             published = item.get('published', '')
+            summary = item.get('summary', '')
+            
+            # 截取摘要前100字
+            summary_short = summary[:100] + '...' if len(summary) > 100 else summary
             
             news_items.append(f'''
             <div class="news-item">
                 <a href="{link}" target="_blank" class="news-title">{title[:60]}{'...' if len(title) > 60 else ''}</a>
+                {f'<div class="news-summary">{summary_short}</div>' if summary_short else ''}
                 <div class="news-meta">
                     <span>{published}</span>
+                    <span class="news-sentiment-placeholder">情感分析: 待定</span>
                 </div>
             </div>''')
         
@@ -1074,23 +1238,161 @@ class ReportWriter:
             </div>
         </div>'''
     
+    def _build_technical_indicators_html(self, indicators: Dict[str, Any]) -> str:
+        """构建技术指标显示区域"""
+        if not indicators:
+            return ''
+        
+        items = []
+        
+        # RSI
+        if 'rsi' in indicators:
+            rsi = indicators['rsi']
+            status = indicators.get('rsi_status', 'normal')
+            status_class = 'indicator-danger' if status == 'overbought' else 'indicator-success' if status == 'oversold' else ''
+            status_text = '超买' if status == 'overbought' else '超卖' if status == 'oversold' else '正常'
+            items.append(f'''
+            <div class="tech-item {status_class}">
+                <span class="tech-label">RSI(14)</span>
+                <span class="tech-value">{rsi:.1f}</span>
+                <span class="tech-status">{status_text}</span>
+            </div>''')
+        
+        # MACD
+        if 'macd' in indicators:
+            macd = indicators['macd']
+            signal = indicators.get('macd_signal', 0)
+            macd_status = indicators.get('macd_status', 'death_cross')
+            status_class = 'indicator-success' if macd_status == 'golden_cross' else 'indicator-danger'
+            status_text = '金叉' if macd_status == 'golden_cross' else '死叉'
+            items.append(f'''
+            <div class="tech-item {status_class}">
+                <span class="tech-label">MACD</span>
+                <span class="tech-value">{macd:.4f}</span>
+                <span class="tech-status">{status_text}</span>
+            </div>''')
+        
+        # 布林带位置
+        if 'bb_position' in indicators:
+            bb_pos = indicators['bb_position']
+            bb_status = indicators.get('bb_status', 'in_band')
+            status_text = '上轨外' if bb_status == 'above_upper' else '下轨外' if bb_status == 'below_lower' else '带内'
+            items.append(f'''
+            <div class="tech-item">
+                <span class="tech-label">布林带</span>
+                <span class="tech-value">{bb_pos:.2f}</span>
+                <span class="tech-status">{status_text}</span>
+            </div>''')
+        
+        # 均线位置
+        if 'ma_score' in indicators:
+            ma_score = indicators['ma_score']
+            items.append(f'''
+            <div class="tech-item">
+                <span class="tech-label">均线位置</span>
+                <span class="tech-value">{ma_score}</span>
+                <span class="tech-status">上方/总数</span>
+            </div>''')
+        
+        # ATR
+        if 'atr_pct' in indicators:
+            atr_pct = indicators['atr_pct']
+            items.append(f'''
+            <div class="tech-item">
+                <span class="tech-label">ATR%</span>
+                <span class="tech-value">{atr_pct:.2f}%</span>
+                <span class="tech-status">波动率</span>
+            </div>''')
+        
+        if not items:
+            return ''
+        
+        return f'''
+        <div class="tech-section">
+            <h4>📊 技术指标</h4>
+            <div class="tech-grid">
+                {''.join(items)}
+            </div>
+        </div>'''
+    
     def _build_ai_section_html(self, ai_analysis: Dict[str, Any], index: int) -> str:
-        """构建可折叠的 AI 分析区域"""
+        """构建可折叠的 AI 分析区域 - 支持多提供商展示"""
         if not ai_analysis:
             return ''
         
         summary = ai_analysis.get('summary', 'N/A')
         model = ai_analysis.get('model_used', 'N/A')
         
-        return f'''
-        <div class="ai-section collapsed" id="ai-{index}">
-            <div class="ai-header" onclick="toggleAI('ai-{index}')">
-                <h4>🤖 AI 分析详情</h4>
-                <span class="toggle">▼</span>
-            </div>
-            <div class="ai-content">{summary}</div>
-            <div class="ai-model">模型: {model}</div>
-        </div>'''
+        # 检测是否为多提供商分析
+        is_multi_provider = '---' in summary and ('IFLOW' in summary.upper() or 'NVIDIA' in summary.upper() or 'GEMINI' in summary.upper())
+        
+        if is_multi_provider:
+            # 解析多提供商分析
+            provider_sections = self._parse_multi_provider_summary(summary)
+            sections_html = ''
+            
+            for i, (provider, content) in enumerate(provider_sections):
+                color = self.PROVIDER_COLORS.get(provider.lower(), '#3498db')
+                sections_html += f'''
+                <div class="ai-provider-section" style="border-left: 4px solid {color};">
+                    <div class="ai-provider-header" style="background: {color}15;">
+                        <span class="provider-name" style="color: {color};">{provider.upper()}</span>
+                    </div>
+                    <div class="ai-provider-content">{content}</div>
+                </div>'''
+            
+            return f'''
+            <div class="ai-section ai-multi" id="ai-{index}">
+                <div class="ai-header" onclick="toggleAI('ai-{index}')">
+                    <h4>🤖 AI 分析详情 (多提供商)</h4>
+                    <span class="toggle">▼</span>
+                </div>
+                <div class="ai-content ai-multi-content">
+                    {sections_html}
+                </div>
+            </div>'''
+        else:
+            # 单提供商分析
+            return f'''
+            <div class="ai-section collapsed" id="ai-{index}">
+                <div class="ai-header" onclick="toggleAI('ai-{index}')">
+                    <h4>🤖 AI 分析详情</h4>
+                    <span class="toggle">▼</span>
+                </div>
+                <div class="ai-content">{summary}</div>
+                <div class="ai-model">模型: {model}</div>
+            </div>'''
+    
+    def _parse_multi_provider_summary(self, summary: str) -> List[tuple]:
+        """解析多提供商分析摘要，返回 [(provider, content), ...]"""
+        import re
+        
+        # 匹配格式: --- PROVIDER 分析 ---
+        pattern = r'---\s*(IFLOW|NVIDIA|GEMINI)\s*分析\s*---'
+        parts = re.split(pattern, summary, flags=re.IGNORECASE)
+        
+        results = []
+        
+        # parts[0] 是标题 "【多提供商分析】\n\n"
+        # parts 后续交替为 provider 名称和内容
+        if len(parts) > 1:
+            i = 1
+            while i < len(parts) - 1:
+                provider = parts[i].strip()
+                content = parts[i + 1].strip() if i + 1 < len(parts) else ''
+                # 移除下一个提供商标记之后的内容
+                next_marker = re.search(pattern, content)
+                if next_marker:
+                    content = content[:next_marker.start()].strip()
+                if provider and content:
+                    results.append((provider, content))
+                i += 2
+        
+        # 如果解析失败，返回原始内容
+        if not results:
+            results.append(('AI', summary))
+        
+        return results
     
     def get_filename(self) -> str:
         """获取输出文件名"""

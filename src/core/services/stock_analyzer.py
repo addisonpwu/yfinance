@@ -33,6 +33,7 @@ class StockAnalysisResult:
     news: list
     ai_analysis: Optional[Dict]
     success: bool  # 是否成功分析（通过基础筛选）
+    technical_indicators: Optional[Dict] = None  # 技术指标
     error: Optional[str] = None
 
 
@@ -43,6 +44,104 @@ class StockAnalyzer:
     _rate_limit_lock = threading.Lock()
     _last_request_time = 0.0
     _consecutive_errors = 0
+    
+    @staticmethod
+    def _extract_technical_indicators(hist: pd.DataFrame) -> Dict[str, Any]:
+        """从历史数据中提取最新的技术指标"""
+        if hist is None or hist.empty:
+            return {}
+        
+        try:
+            latest = hist.iloc[-1]
+            indicators = {}
+            
+            # RSI
+            if 'RSI_14' in hist.columns:
+                rsi_val = latest.get('RSI_14')
+                if pd.notna(rsi_val):
+                    indicators['rsi'] = round(float(rsi_val), 2)
+                    # RSI 状态判断
+                    if rsi_val > 70:
+                        indicators['rsi_status'] = 'overbought'  # 超买
+                    elif rsi_val < 30:
+                        indicators['rsi_status'] = 'oversold'  # 超卖
+                    else:
+                        indicators['rsi_status'] = 'normal'
+            
+            # MACD
+            if 'MACD' in hist.columns and 'MACD_Signal' in hist.columns:
+                macd_val = latest.get('MACD')
+                signal_val = latest.get('MACD_Signal')
+                hist_val = latest.get('MACD_Histogram')
+                
+                if pd.notna(macd_val) and pd.notna(signal_val):
+                    indicators['macd'] = round(float(macd_val), 4)
+                    indicators['macd_signal'] = round(float(signal_val), 4)
+                    if pd.notna(hist_val):
+                        indicators['macd_hist'] = round(float(hist_val), 4)
+                    
+                    # MACD 状态判断
+                    if macd_val > signal_val:
+                        indicators['macd_status'] = 'golden_cross'  # 金叉
+                    else:
+                        indicators['macd_status'] = 'death_cross'  # 死叉
+            
+            # 布林带
+            if all(col in hist.columns for col in ['BB_Upper', 'BB_Lower', 'BB_Middle', 'BBP']):
+                bb_upper = latest.get('BB_Upper')
+                bb_lower = latest.get('BB_Lower')
+                bb_middle = latest.get('BB_Middle')
+                bbp = latest.get('BBP')
+                
+                if all(pd.notna(v) for v in [bb_upper, bb_lower, bb_middle]):
+                    indicators['bb_upper'] = round(float(bb_upper), 2)
+                    indicators['bb_lower'] = round(float(bb_lower), 2)
+                    indicators['bb_middle'] = round(float(bb_middle), 2)
+                    if pd.notna(bbp):
+                        indicators['bb_position'] = round(float(bbp), 2)  # 0-1之间，0下轨，1上轨
+                    
+                    close = latest.get('Close')
+                    if pd.notna(close):
+                        # 布林带位置状态
+                        if close >= bb_upper:
+                            indicators['bb_status'] = 'above_upper'  # 突破上轨
+                        elif close <= bb_lower:
+                            indicators['bb_status'] = 'below_lower'  # 跌破下轨
+                        else:
+                            indicators['bb_status'] = 'in_band'  # 在带内
+            
+            # 移动平均线位置
+            close = latest.get('Close')
+            if pd.notna(close):
+                ma_positions = {}
+                ma_periods = [5, 10, 20, 50, 200]
+                for period in ma_periods:
+                    ma_col = f'MA_{period}'
+                    if ma_col in hist.columns:
+                        ma_val = latest.get(ma_col)
+                        if pd.notna(ma_val):
+                            ma_positions[f'ma_{period}'] = round(float(ma_val), 2)
+                            ma_positions[f'above_ma_{period}'] = close > ma_val
+                
+                if ma_positions:
+                    indicators['ma'] = ma_positions
+                    # 计算价格在多少条均线之上
+                    above_count = sum(1 for k, v in ma_positions.items() if k.startswith('above_ma_') and v)
+                    total_ma = sum(1 for k in ma_positions if k.startswith('above_ma_'))
+                    indicators['ma_score'] = f"{above_count}/{total_ma}"
+            
+            # ATR
+            if 'ATR_14' in hist.columns:
+                atr_val = latest.get('ATR_14')
+                atr_pct = latest.get('ATR_Pct')
+                if pd.notna(atr_val):
+                    indicators['atr'] = round(float(atr_val), 2)
+                if pd.notna(atr_pct):
+                    indicators['atr_pct'] = round(float(atr_pct), 2)
+            
+            return indicators
+        except Exception as e:
+            return {}
     
     def __init__(self, provider: str = 'iflow', providers: list = None):
         self.data_repo = YahooFinanceRepository()
@@ -157,6 +256,7 @@ class StockAnalyzer:
                     news=[],
                     ai_analysis=None,
                     success=False,
+                    technical_indicators=None,
                     error="数据不足"
                 )
             
@@ -174,6 +274,7 @@ class StockAnalyzer:
                             news=[],
                             ai_analysis=None,
                             success=False,
+                            technical_indicators=None,
                             error="成交量过低"
                         )
                 
@@ -189,6 +290,7 @@ class StockAnalyzer:
                             news=[],
                             ai_analysis=None,
                             success=False,
+                            technical_indicators=None,
                             error="价格数据无效"
                         )
                 
@@ -203,6 +305,7 @@ class StockAnalyzer:
                         news=[],
                         ai_analysis=None,
                         success=False,
+                        technical_indicators=None,
                         error="数据点不足"
                     )
             
@@ -241,6 +344,7 @@ class StockAnalyzer:
                     news=[],  # 未通过策略，不获取新闻
                     ai_analysis=None,
                     success=False,
+                    technical_indicators=None,
                     error="未通过任何策略"
                 )
             
@@ -300,6 +404,9 @@ class StockAnalyzer:
             except Exception as ai_e:
                 self.logger.error(f"AI 分析出错: {ai_e}")
             
+            # 提取技术指标
+            technical_indicators = self._extract_technical_indicators(hist)
+            
             return StockAnalysisResult(
                 symbol=symbol,
                 exchange=info.get('exchange', 'UNKNOWN'),
@@ -307,7 +414,8 @@ class StockAnalyzer:
                 info=info,
                 news=news,
                 ai_analysis=ai_analysis,
-                success=True
+                success=True,
+                technical_indicators=technical_indicators
             )
             
         except Exception as e:
@@ -321,6 +429,7 @@ class StockAnalyzer:
                 news=[],
                 ai_analysis=None,
                 success=False,
+                technical_indicators=None,
                 error=str(e)
             )
     
@@ -332,5 +441,6 @@ class StockAnalyzer:
             'strategies': result.strategies,
             'info': result.info,
             'news': result.news,
-            'ai_analysis': result.ai_analysis
+            'ai_analysis': result.ai_analysis,
+            'technical_indicators': result.technical_indicators
         }

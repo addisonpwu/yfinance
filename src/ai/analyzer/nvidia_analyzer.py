@@ -117,7 +117,8 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         
         # 配置
         config = config_manager.get_config()
-        self.cache_service = OptimizedCache(enabled=enable_cache and config.data.enable_cache)
+        # 禁用 AI 分析缓存
+        self.cache_service = OptimizedCache(enabled=False)
         self.config = config
         self.logger = get_ai_logger()
         
