@@ -350,7 +350,7 @@ LAUNCH_TECHNICAL_WEIGHT = 0.10                  # 技术指标权重
 LAUNCH_VOLUME_WEIGHT = 0.05                     # 成交量模式权重
 
 # ============================================
-# OBV 底背离 + BOLL 超卖策略参数
+# OBV 底背离 + BOLL 超卖策略参数 v1.0 (旧版)
 # ============================================
 OBV_BOLL_LLV_PERIOD = 20                        # LLV 周期（最低价回看）
 OBV_BOLL_OBV_LOOKBACK = 5                       # OBV 对比回看天数
@@ -359,3 +359,44 @@ OBV_BOLL_VOLUME_RATIO_MAX = 1.0                 # 量比上限
 OBV_BOLL_MA_LONG_PERIOD = 120                   # 长期均线周期
 OBV_BOLL_MIN_DATA_POINTS = 125                  # 最小数据点数(120+5)
 OBV_BOLL_CONFIDENCE = 0.80                      # 策略置信度
+
+# ============================================
+# OBV 底背离 + BOLL 超卖策略参数 v2.0 (评分制)
+# ============================================
+
+# CMF 资金流向参数
+OBV_BOLL_CMF_PERIOD = 20             # CMF 资金流向周期
+
+# 评分权重
+OBV_BOLL_OBV_WEIGHT = 30             # OBV底背离权重
+OBV_BOLL_BOLL_WEIGHT = 25            # 布林带超卖权重
+OBV_BOLL_VOLUME_WEIGHT = 15          # 量比权重
+OBV_BOLL_TREND_WEIGHT = 15           # 长期趋势权重
+OBV_BOLL_CMF_WEIGHT = 15             # CMF资金流向权重
+
+# 评分阈值
+OBV_BOLL_MIN_PASS_SCORE = 60         # 最低通过分数
+OBV_BOLL_STRONG_SIGNAL_SCORE = 75    # 强信号分数
+
+# OBV 底背离增强参数
+OBV_BOLL_OBV_SHORT_PERIOD = 5        # 短区间回看天数
+OBV_BOLL_OBV_LONG_PERIOD = 10        # 长区间回看天数
+OBV_BOLL_OBV_SLOPE_MIN = 0.02        # OBV斜率最小阈值
+
+# 布林带超卖细化参数
+OBV_BOLL_BB_DEEP_OVERSOLD = 0.02     # 深度超卖阈值(跌破2%)
+OBV_BOLL_BB_MID_OVERSOLD = 0.01      # 中度超卖阈值(跌破1%)
+OBV_BOLL_BB_WIDTH_LOOKBACK = 100     # 带宽回看天数
+OBV_BOLL_BB_SQUEEZE_PERCENTILE = 0.25 # 带宽压缩百分位
+
+# 标准量比参数
+OBV_BOLL_STD_VOLUME_PERIOD = 5       # 标准量比计算周期
+
+# 止盈止损参数
+OBV_BOLL_STOP_LOSS_ATR_MULT = 2.0    # 止损ATR倍数
+OBV_BOLL_TAKE_PROFIT_ATR_MULT_1 = 3.0 # 止盈1 ATR倍数
+OBV_BOLL_TAKE_PROFIT_ATR_MULT_2 = 5.0 # 止盈2 ATR倍数
+
+# 市场环境调整
+OBV_BOLL_UNHEALTHY_THRESHOLD_ADD = 10 # 市场不健康时阈值提高
+OBV_BOLL_UNHEALTHY_CONFIDENCE_PENALTY = 0.85 # 市场不健康时置信度惩罚

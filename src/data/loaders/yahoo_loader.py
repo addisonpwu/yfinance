@@ -584,6 +584,18 @@ def calculate_technical_indicators(hist: pd.DataFrame, config=None, validate_adj
         # 3. Volume_Ratio (量比: 当日成交量 / 前一日成交量)
         result['Volume_Ratio'] = result['Volume'] / result['Volume'].shift(1)
 
+        # 4. Volume_Ratio_Standard (标准量比: 当日成交量 / 前5日平均成交量，不含当日)
+        # 这是标准定义，区别于上述的环比量比
+        std_volume_period = 5  # 默认值，可从配置获取
+        try:
+            from src.config.constants import OBV_BOLL_STD_VOLUME_PERIOD
+            std_volume_period = OBV_BOLL_STD_VOLUME_PERIOD
+        except ImportError:
+            pass
+        result['Volume_Ratio_Standard'] = result['Volume'] / result['Volume'].shift(1).rolling(
+            window=std_volume_period, min_periods=1
+        ).mean()
+
         # ===== 新增技术指标 (2026-03-04) =====
 
         # 1. ADX (Average Directional Index) - 趋势强度
