@@ -8,7 +8,8 @@ from typing import List, Dict, Optional
 
 from src.core.services.market_data_service import MarketDataService
 from src.core.services.cache_version_manager import CacheVersionManager
-from src.core.services.stock_analyzer import StockAnalyzer, StockAnalysisResult
+from src.core.services.stock_analyzer import StockAnalyzer
+from src.core.models.entities import StockAnalysisResult
 from src.core.services.progress_tracker import ProgressTracker
 from src.core.services.report_writer import ReportWriter
 from src.core.strategies.loader import get_strategies

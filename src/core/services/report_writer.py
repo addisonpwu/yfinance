@@ -675,6 +675,10 @@ class ReportWriter:
         # 构建技术指标 HTML
         tech_html = self._build_technical_indicators_html_dark(technical_indicators) if technical_indicators else ''
         
+        # 构建策略评分明细 HTML
+        strategy_details = result.get('strategy_details', [])
+        scores_html = self._build_strategy_scores_html(strategy_details) if strategy_details else ''
+        
         # 构建 AI 分析 HTML
         ai_html = self._build_ai_section_html_dark(ai_analysis, ai_id) if ai_analysis else ''
         
@@ -768,6 +772,7 @@ class ReportWriter:
                             </div>
 
                             {tech_html}
+                            {scores_html}
                         </div>
 
                         <!-- Right: AI Analysis -->
@@ -990,6 +995,131 @@ class ReportWriter:
         
         return results
     
+
+    def _build_strategy_scores_html(self, strategy_details: List[Dict]) -> str:
+        """构建策略评分明细 HTML - 深色主题"""
+        if not strategy_details:
+            return ''
+        
+        # 根据市场选择货币符号
+        currency_symbol = '¥' if self.market.upper() == 'HK' else '$'
+        
+        html_parts = []
+        
+        for sd in strategy_details:
+            strategy_name = sd.get('strategy_name', '未知策略')
+            details = sd.get('details', {})
+            score_breakdown = details.get('score_breakdown', {})
+            risk_management = details.get('risk_management')
+            is_strong = details.get('is_strong_signal', False)
+            total_score = details.get('total_score', 0)
+            
+            # 策略标题颜色
+            strategy_key = strategy_name.lower().replace('策略', '').replace(' ', '_')
+            strategy_color = self.STRATEGY_COLORS.get(strategy_key, '#3b82f6')
+            
+            # 构建评分明细区域
+            if score_breakdown:
+                # 评分项名称映射
+                score_labels = {
+                    'obv_divergence': ('OBV底背離', 30),
+                    'boll_oversold': ('布林帶超賣', 25),
+                    'volume_ratio': ('量比評分', 15),
+                    'money_flow': ('資金流評分', 15),
+                    'trend': ('趨勢評分', 15)
+                }
+                
+                score_items = []
+                for key, (label, max_score) in score_labels.items():
+                    if key in score_breakdown:
+                        score = score_breakdown[key]
+                        # 计算进度条百分比
+                        pct = min(score / max_score * 100, 100) if max_score > 0 else 0
+                        # 根据得分比例确定颜色
+                        if pct >= 80:
+                            bar_color = '#10b981'  # green
+                        elif pct >= 50:
+                            bar_color = '#f59e0b'  # amber
+                        else:
+                            bar_color = '#6b7280'  # gray
+                        
+                        score_items.append("""
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs text-gray-400 w-20">{label}</span>
+                                    <div class="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-all" style="width: {pct}%; background: {bar_color}"></div>
+                                    </div>
+                                    <span class="text-xs font-mono w-12 text-right" style="color: {bar_color}">{score:.0f}/{max_score}分</span>
+                                </div>""".format(label=label, pct=pct, bar_color=bar_color, score=score, max_score=max_score))
+                
+                # 强信号标识
+                strong_badge = ''
+                if is_strong:
+                    strong_badge = '<span class="ml-2 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs font-bold">✅ 強信號</span>'
+                
+                # 确定总分颜色
+                total_color = '#f59e0b' if is_strong else '#3b82f6'
+                score_items_str = ''.join(score_items)
+                
+                score_section = """
+                            <div class="pt-4 border-t border-terminal-border">
+                                <h4 class="text-xs font-semibold text-terminal-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <span>📊 {strategy_name} 評分明細</span>
+                                    {strong_badge}
+                                </h4>
+                                <div class="space-y-2">
+                                    {score_items_str}
+                                </div>
+                                <div class="mt-3 pt-2 border-t border-terminal-border/50 flex items-center justify-between">
+                                    <span class="text-sm text-gray-400">總分</span>
+                                    <span class="font-mono font-bold text-lg" style="color: {total_color}">{total_score:.0f}分</span>
+                                </div>
+                            </div>""".format(strategy_name=strategy_name, strong_badge=strong_badge, score_items_str=score_items_str, total_color=total_color, total_score=total_score)
+                
+                html_parts.append(score_section)
+            
+            # 构建风险管理区域
+            if risk_management:
+                entry_price = risk_management.get('entry_price', 0)
+                stop_loss = risk_management.get('stop_loss', 0)
+                stop_loss_pct = risk_management.get('stop_loss_pct', 0)
+                take_profit_1 = risk_management.get('take_profit_1', 0)
+                take_profit_2 = risk_management.get('take_profit_2', 0)
+                rr_ratio = risk_management.get('risk_reward_ratio', 0)
+                
+                risk_section = """
+                            <div class="pt-4 border-t border-terminal-border">
+                                <h4 class="text-xs font-semibold text-terminal-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <span>🎯 風險管理</span>
+                                </h4>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    <div class="flex justify-between py-1">
+                                        <span class="text-gray-400">入場價</span>
+                                        <span class="font-mono text-blue-400">{currency_symbol}{entry_price:.2f}</span>
+                                    </div>
+                                    <div class="flex justify-between py-1">
+                                        <span class="text-gray-400">止損價</span>
+                                        <span class="font-mono text-red-400">{currency_symbol}{stop_loss:.2f} (-{stop_loss_pct:.0f}%)</span>
+                                    </div>
+                                    <div class="flex justify-between py-1">
+                                        <span class="text-gray-400">止盈1</span>
+                                        <span class="font-mono text-green-400">{currency_symbol}{take_profit_1:.2f}</span>
+                                    </div>
+                                    <div class="flex justify-between py-1">
+                                        <span class="text-gray-400">止盈2</span>
+                                        <span class="font-mono text-green-400">{currency_symbol}{take_profit_2:.2f}</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-t border-terminal-border/50 flex items-center justify-between">
+                                    <span class="text-xs text-gray-400">風險收益比</span>
+                                    <span class="font-mono text-sm text-amber-400">1:{rr_ratio:.1f}</span>
+                                </div>
+                            </div>""".format(currency_symbol=currency_symbol, entry_price=entry_price, stop_loss=stop_loss, stop_loss_pct=stop_loss_pct, take_profit_1=take_profit_1, take_profit_2=take_profit_2, rr_ratio=rr_ratio)
+                
+                html_parts.append(risk_section)
+        
+        return ''.join(html_parts)
+
     def get_filename(self) -> str:
         """获取输出文件名"""
         return f"{self.base_filename}.txt"

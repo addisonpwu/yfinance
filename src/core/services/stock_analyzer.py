@@ -9,7 +9,6 @@
 """
 from typing import Dict, Optional, Any
 import pandas as pd
-from dataclasses import dataclass
 import time
 import random
 import threading
@@ -18,23 +17,10 @@ from src.data.loaders.yahoo_loader import YahooFinanceRepository, calculate_tech
 from src.data.loaders.news_service import NewsService
 from src.core.strategies.strategy import StrategyContext, StrategyEngine
 from src.core.strategies.loader import get_strategies
+from src.core.models.entities import StockAnalysisResult
 from src.ai.analyzer.service import AIAnalysisService
 from src.config.settings import config_manager
 from src.utils.logger import get_analysis_logger
-
-
-@dataclass
-class StockAnalysisResult:
-    """股票分析结果"""
-    symbol: str
-    exchange: str
-    strategies: list
-    info: Dict
-    news: list
-    ai_analysis: Optional[Dict]
-    success: bool  # 是否成功分析（通过基础筛选）
-    technical_indicators: Optional[Dict] = None  # 技术指标
-    error: Optional[str] = None
 
 
 class StockAnalyzer:
@@ -317,6 +303,7 @@ class StockAnalyzer:
             
             # 执行策略或跳过
             passed_strategies = []
+            strategy_details = []  # 存储策略详情
             if skip_strategies:
                 passed_strategies = ["跳过策略"]
             else:
@@ -333,6 +320,11 @@ class StockAnalyzer:
                 for i, result in enumerate(strategy_results):
                     if result.passed:
                         passed_strategies.append(strategies_to_run[i].name)
+                        # 保存完整的策略详情
+                        strategy_details.append({
+                            'strategy_name': strategies_to_run[i].name,
+                            'details': result.details
+                        })
             
             # 如果未通过任何策略且未跳过策略，返回失败（不获取新闻）
             if not passed_strategies and not skip_strategies:
@@ -340,6 +332,7 @@ class StockAnalyzer:
                     symbol=symbol,
                     exchange=info.get('exchange', 'UNKNOWN'),
                     strategies=[],
+                    strategy_details=[],
                     info=info,
                     news=[],  # 未通过策略，不获取新闻
                     ai_analysis=None,
@@ -411,6 +404,7 @@ class StockAnalyzer:
                 symbol=symbol,
                 exchange=info.get('exchange', 'UNKNOWN'),
                 strategies=passed_strategies,
+                strategy_details=strategy_details,
                 info=info,
                 news=news,
                 ai_analysis=ai_analysis,
@@ -442,5 +436,6 @@ class StockAnalyzer:
             'info': result.info,
             'news': result.news,
             'ai_analysis': result.ai_analysis,
-            'technical_indicators': result.technical_indicators
+            'technical_indicators': result.technical_indicators,
+            'strategy_details': result.strategy_details
         }

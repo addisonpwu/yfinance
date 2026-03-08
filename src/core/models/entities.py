@@ -22,3 +22,18 @@ class AIAnalysisResult:
     confidence: float
     model_used: str
     detailed_analysis: Optional[Dict] = None
+
+
+@dataclass
+class StockAnalysisResult:
+    """股票分析结果"""
+    symbol: str
+    exchange: str
+    strategies: list
+    info: Dict
+    news: list
+    ai_analysis: Optional[Dict]
+    success: bool  # 是否成功分析（通过基础筛选）
+    technical_indicators: Optional[Dict] = None  # 技术指标
+    strategy_details: list = field(default_factory=list)  # 策略详情列表
+    error: Optional[str] = None
