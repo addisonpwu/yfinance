@@ -52,6 +52,11 @@ class OBVBollDivergenceStrategy(BaseStrategy):
                 details={"reason": f"数据不足，需要至少 {self.config.min_data_points} 天"}
             )
         
+        # 缓存最新数据点，避免重复访问
+        latest = hist.iloc[-1]
+        current_close = latest['Close']
+        current_low = latest['Low']
+        
         # 1. 计算各维度评分
         obv_score, obv_type, obv_details = self._check_obv_divergence_enhanced(hist)
         boll_score, boll_type, boll_details = self._check_boll_oversold_enhanced(hist)
@@ -137,8 +142,8 @@ class OBVBollDivergenceStrategy(BaseStrategy):
             obv_vs_5d = obv_current > obv_5d_ago
             obv_vs_10d = obv_current > obv_10d_ago
             
-            # OBV斜率 (5日)
-            obv_slope = (obv_current - obv_5d_ago) / 5 / abs(obv_5d_ago) if obv_5d_ago != 0 else 0
+            # OBV斜率 (5日) - 使用更安全的阈值判断避免除零
+            obv_slope = (obv_current - obv_5d_ago) / 5 / max(abs(obv_5d_ago), 1e-10)
             
             # 评分
             score = 0
@@ -146,13 +151,13 @@ class OBVBollDivergenceStrategy(BaseStrategy):
             
             if is_new_low:
                 if obv_vs_5d and obv_vs_10d and obv_slope > self.config.obv_slope_min:
-                    score = self.config.obv_weight  # 30分，强背离
+                    score = self.config.obv_weight * self.config.obv_strong_multiplier  # 强背离
                     divergence_type = "强"
                 elif obv_vs_5d:
-                    score = self.config.obv_weight * 0.67  # 20分，中等背离
+                    score = self.config.obv_weight * self.config.obv_moderate_multiplier  # 中等背离
                     divergence_type = "中等"
                 elif obv_current > obv_10d_ago:
-                    score = self.config.obv_weight * 0.33  # 10分，弱背离
+                    score = self.config.obv_weight * self.config.obv_weak_multiplier  # 弱背离
                     divergence_type = "弱"
             
             details = {
@@ -189,37 +194,44 @@ class OBVBollDivergenceStrategy(BaseStrategy):
             # 跌破幅度
             breach_pct = (bb_lower - current_close) / bb_lower if bb_lower > 0 else 0
             
-            # 带宽
-            bb_width = (bb_upper - bb_lower) / bb_middle if bb_middle > 0 else 0
+            # 带宽 - 使用预计算的 BB_Width
+            bb_width = hist['BB_Width'].iloc[-1] if 'BB_Width' in hist.columns else 0
             
-            # 带宽百分位（近100日）
+            # 带宽百分位（近100日）- 使用预计算的 BB_Width 列
             lookback = min(self.config.bb_width_lookback, len(hist))
-            bb_width_series = (hist['BB_Upper'].iloc[-lookback:] - hist['BB_Lower'].iloc[-lookback:]) / hist['BB_Middle'].iloc[-lookback:]
-            # 过滤无效值
-            bb_width_series = bb_width_series.dropna()
-            if len(bb_width_series) > 0:
-                width_percentile = (bb_width_series < bb_width).sum() / len(bb_width_series)
+            if 'BB_Width' in hist.columns:
+                bb_width_series = hist['BB_Width'].iloc[-lookback:].dropna()
+                if len(bb_width_series) > 0:
+                    width_percentile = (bb_width_series < bb_width).sum() / len(bb_width_series)
+                else:
+                    width_percentile = 0.5
             else:
-                width_percentile = 0.5
+                # 降级：实时计算
+                bb_width_series = (hist['BB_Upper'].iloc[-lookback:] - hist['BB_Lower'].iloc[-lookback:]) / hist['BB_Middle'].iloc[-lookback:]
+                bb_width_series = bb_width_series.dropna()
+                if len(bb_width_series) > 0:
+                    width_percentile = (bb_width_series < bb_width).sum() / len(bb_width_series)
+                else:
+                    width_percentile = 0.5
             
             # 评分
             score = 0
             oversold_type = "无"
             
             if breach_pct > self.config.bb_deep_oversold:
-                score = self.config.boll_weight  # 25分，深度超卖
+                score = self.config.boll_weight * self.config.boll_deep_multiplier  # 深度超卖
                 oversold_type = "深度"
             elif breach_pct > self.config.bb_mid_oversold:
-                score = self.config.boll_weight * 0.72  # 18分，中度超卖
+                score = self.config.boll_weight * self.config.boll_mid_multiplier  # 中度超卖
                 oversold_type = "中度"
             elif breach_pct > 0:
-                score = self.config.boll_weight * 0.4  # 10分，轻度超卖
+                score = self.config.boll_weight * self.config.boll_light_multiplier  # 轻度超卖
                 oversold_type = "轻度"
             
             # 带宽压缩加分
             is_squeeze = width_percentile < self.config.bb_squeeze_percentile
             if is_squeeze and score > 0:
-                score = min(score + 3, self.config.boll_weight)  # 加3分，但不超过满分
+                score = min(score + self.config.boll_squeeze_bonus, self.config.boll_weight)  # 加分，但不超过满分
             
             details = {
                 "breach_pct": round(breach_pct * 100, 2),
@@ -331,30 +343,58 @@ class OBVBollDivergenceStrategy(BaseStrategy):
         """
         try:
             current_close = hist['Close'].iloc[-1]
+            
+            # 优先使用 MA_120，缺失时降级使用 MA_50
             ma_120 = hist['MA_120'].iloc[-1] if 'MA_120' in hist.columns else None
+            ma_50 = hist['MA_50'].iloc[-1] if 'MA_50' in hist.columns else None
             
             score = 0
             trend_type = "下跌趋势"
             distance_pct = None
+            ma_used = None
             
-            if ma_120 is None or pd.isna(ma_120):
-                score = self.config.trend_weight * 0.5  # 数据不足，给一半分
+            # 判断使用哪个均线
+            if ma_120 is not None and not pd.isna(ma_120):
+                ma_to_use = ma_120
+                ma_used = "MA_120"
+            elif ma_50 is not None and not pd.isna(ma_50):
+                ma_to_use = ma_50
+                ma_used = "MA_50"
+            else:
+                # 数据不足，给一半分
+                score = self.config.trend_weight * 0.5
                 trend_type = "数据不足"
-            elif current_close > ma_120:
-                distance_pct = (current_close - ma_120) / ma_120
+                details = {
+                    "ma_used": None,
+                    "ma_120": None,
+                    "ma_50": round(float(ma_50), 2) if ma_50 and not pd.isna(ma_50) else None,
+                    "current_close": round(float(current_close), 2),
+                    "distance_pct": None,
+                    "trend_type": trend_type
+                }
+                return score, trend_type, details
+            
+            # 计算距离百分比
+            if current_close > ma_to_use:
+                distance_pct = (current_close - ma_to_use) / ma_to_use
+                # MA_50 降级时评分降低
+                score_multiplier = 0.7 if ma_used == "MA_50" else 1.0
+                
                 if distance_pct > 0.05:
-                    score = self.config.trend_weight  # 15分，强势上涨
-                    trend_type = "强势上涨"
+                    score = self.config.trend_weight * score_multiplier  # 强势上涨
+                    trend_type = f"强势上涨({ma_used})"
                 else:
-                    score = self.config.trend_weight * 0.67  # 10分，上涨趋势
-                    trend_type = "上涨趋势"
+                    score = self.config.trend_weight * 0.67 * score_multiplier  # 上涨趋势
+                    trend_type = f"上涨趋势({ma_used})"
             else:
                 score = 0
-                trend_type = "下跌趋势"
-                distance_pct = (current_close - ma_120) / ma_120
+                trend_type = f"下跌趋势({ma_used})"
+                distance_pct = (current_close - ma_to_use) / ma_to_use
             
             details = {
+                "ma_used": ma_used,
                 "ma_120": round(float(ma_120), 2) if ma_120 and not pd.isna(ma_120) else None,
+                "ma_50": round(float(ma_50), 2) if ma_50 and not pd.isna(ma_50) else None,
                 "current_close": round(float(current_close), 2),
                 "distance_pct": round(distance_pct * 100, 2) if distance_pct is not None else None,
                 "trend_type": trend_type

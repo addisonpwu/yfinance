@@ -515,6 +515,10 @@ def calculate_technical_indicators(hist: pd.DataFrame, config=None, validate_adj
         bb_width = bb_width.replace(0, np.nan)  # 避免除零
         result['BBP'] = (result['Close'] - result['BB_Lower']) / bb_width
 
+        # BB_Width (布林带宽度) - 用于策略中带宽压缩判断
+        # BB_Width = (BB_Upper - BB_Lower) / BB_Middle
+        result['BB_Width'] = (result['BB_Upper'] - result['BB_Lower']) / result['BB_Middle']
+
         # 移动平均线 (可配置周期)
         for period in ti_config.ma_periods:
             result[f'MA_{period}'] = result['Close'].rolling(window=period, min_periods=1).mean()

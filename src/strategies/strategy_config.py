@@ -39,6 +39,10 @@ from src.config.constants import (
     OBV_BOLL_STOP_LOSS_ATR_MULT, OBV_BOLL_TAKE_PROFIT_ATR_MULT_1, OBV_BOLL_TAKE_PROFIT_ATR_MULT_2,
     OBV_BOLL_UNHEALTHY_THRESHOLD_ADD, OBV_BOLL_UNHEALTHY_CONFIDENCE_PENALTY,
     OBV_BOLL_CMF_PERIOD,
+    # 评分系数 (v2.0 优化)
+    OBV_BOLL_OBV_STRONG_MULTIPLIER, OBV_BOLL_OBV_MODERATE_MULTIPLIER, OBV_BOLL_OBV_WEAK_MULTIPLIER,
+    OBV_BOLL_BOLL_DEEP_MULTIPLIER, OBV_BOLL_BOLL_MID_MULTIPLIER, OBV_BOLL_BOLL_LIGHT_MULTIPLIER,
+    OBV_BOLL_BOLL_SQUEEZE_BONUS,
 )
 
 
@@ -173,6 +177,15 @@ class OBVBollConfig:
     # ===== v2.0 市场环境调整 =====
     unhealthy_threshold_add: float = OBV_BOLL_UNHEALTHY_THRESHOLD_ADD
     unhealthy_confidence_penalty: float = OBV_BOLL_UNHEALTHY_CONFIDENCE_PENALTY
+
+    # ===== v2.0 评分系数 =====
+    obv_strong_multiplier: float = OBV_BOLL_OBV_STRONG_MULTIPLIER       # 强背离系数
+    obv_moderate_multiplier: float = OBV_BOLL_OBV_MODERATE_MULTIPLIER   # 中等背离系数
+    obv_weak_multiplier: float = OBV_BOLL_OBV_WEAK_MULTIPLIER           # 弱背离系数
+    boll_deep_multiplier: float = OBV_BOLL_BOLL_DEEP_MULTIPLIER         # 深度超卖系数
+    boll_mid_multiplier: float = OBV_BOLL_BOLL_MID_MULTIPLIER           # 中度超卖系数
+    boll_light_multiplier: float = OBV_BOLL_BOLL_LIGHT_MULTIPLIER       # 轻度超卖系数
+    boll_squeeze_bonus: float = OBV_BOLL_BOLL_SQUEEZE_BONUS             # 带宽压缩加分
 
     def validate(self) -> bool:
         """验证配置有效性"""

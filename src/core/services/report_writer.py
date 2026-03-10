@@ -4,8 +4,11 @@
 负责报告文件的实时输出和格式化，支持 JSON 和 HTML 格式
 - JSON: 输出筛选的股票代码列表
 - HTML: 输出详细分析报告
+- 增量保存: 每只股票分析完成后实时更新 HTML
 """
 import threading
+import time
+import tempfile
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import os
@@ -82,11 +85,16 @@ class ReportWriter:
         # 报告文件路径（在 reports 目录下）
         self.base_filename = os.path.join(self.REPORT_DIR, raw_filename)
         self.market = market
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # 使用 RLock 支持可重入锁
         self._initialized = False
         self._results: List[Dict[str, Any]] = []
         self._start_time = datetime.now()
         self.logger = logging.getLogger(__name__)
+        
+        # 增量保存相关属性
+        self._last_update_time: float = 0.0  # 上次更新时间戳
+        self._min_update_interval: float = 0.3  # 最小更新间隔（秒），防抖
+        self._is_completed: bool = False  # 是否已完成最终报告
     
     def _generate_basename(self, market: str) -> str:
         """生成默认文件名（不含扩展名）"""
@@ -105,7 +113,7 @@ class ReportWriter:
     
     def write_stock_result(self, result: Dict[str, Any]) -> None:
         """
-        收集单只股票的分析结果
+        收集单只股票的分析结果并增量更新 HTML
         
         Args:
             result: 股票分析结果字典
@@ -115,6 +123,81 @@ class ReportWriter:
         
         with self._lock:
             self._results.append(result)
+            # 增量更新 HTML（未加锁版本，因为已经在锁内）
+            self._incremental_update_html_unlocked()
+    
+    def _incremental_update_html_unlocked(self) -> None:
+        """
+        增量更新 HTML 文件（内部方法，调用前必须持有锁）
+        
+        使用防抖机制避免高频文件 I/O
+        """
+        # 如果已完成最终报告，不再增量更新
+        if self._is_completed:
+            return
+        
+        # 防抖检查
+        current_time = time.time()
+        time_since_last_update = current_time - self._last_update_time
+        
+        if time_since_last_update < self._min_update_interval:
+            # 间隔太短，跳过本次更新（但保留最新数据）
+            return
+        
+        # 更新时间戳
+        self._last_update_time = current_time
+        
+        try:
+            # 重建 HTML
+            html_content = self._build_html(self._results, self.market, is_in_progress=True)
+            
+            # 原子写入
+            self._write_html_atomic(html_content)
+            
+        except Exception as e:
+            self.logger.error(f"增量更新 HTML 失败: {e}")
+    
+    def _write_html_atomic(self, content: str) -> None:
+        """
+        原子写入 HTML 文件
+        
+        使用临时文件 + os.replace() 确保 HTML 文件始终完整可读
+        
+        Args:
+            content: HTML 内容
+        """
+        html_filename = f"{self.base_filename}.html"
+        
+        try:
+            # 创建临时文件
+            fd, temp_path = tempfile.mkstemp(
+                suffix='.html',
+                prefix='report_',
+                dir=self.REPORT_DIR
+            )
+            
+            try:
+                # 写入内容
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                
+                # 原子替换（rename 在同文件系统上是原子的）
+                os.replace(temp_path, html_filename)
+                
+            except Exception as e:
+                # 清理临时文件
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+                raise e
+                
+        except Exception as e:
+            self.logger.error(f"原子写入 HTML 失败: {e}")
+            # 降级为普通写入
+            try:
+                with open(html_filename, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            except Exception as fallback_e:
+                self.logger.error(f"降级写入 HTML 也失败: {fallback_e}")
     
     def _parse_ai_summary(self, summary: str) -> tuple:
         """解析 AI 分析摘要，提取关键信息"""
@@ -156,16 +239,21 @@ class ReportWriter:
         """
         写入摘要列表并生成最终报告
         
+        这是分析完成后的最终确认，生成最终版 HTML（无"分析进行中"提示）
+        
         Args:
             results: 股票分析结果列表
             market: 市场代码
         """
         with self._lock:
+            # 标记为已完成，停止增量更新
+            self._is_completed = True
+            
             # 生成 JSON 报告（只有股票代码）
             self._generate_json_report(results, market)
             
-            # 生成 HTML 报告
-            self._generate_html_report(results, market)
+            # 生成最终版 HTML 报告（is_in_progress=False）
+            self._generate_html_report(results, market, is_final=True)
     
     def _generate_json_report(self, results: List[Dict[str, Any]], market: str) -> None:
         """生成 JSON 格式的股票代码列表"""
@@ -192,19 +280,27 @@ class ReportWriter:
         except Exception as e:
             print(f"生成 JSON 报告时出错: {e}")
     
-    def _generate_html_report(self, results: List[Dict[str, Any]], market: str) -> None:
-        """生成 HTML 格式的完整报告"""
+    def _generate_html_report(self, results: List[Dict[str, Any]], market: str, is_final: bool = False) -> None:
+        """生成 HTML 格式的完整报告
+        
+        Args:
+            results: 股票分析结果列表
+            market: 市场代码
+            is_final: 是否为最终版报告（非增量更新）
+        """
         html_filename = f"{self.base_filename}.html"
         
-        html_content = self._build_html(results, market)
+        # 最终版不显示"分析进行中"状态
+        html_content = self._build_html(results, market, is_in_progress=not is_final)
         
         try:
             with open(html_filename, 'w', encoding='utf-8') as f:
                 f.write(html_content)
-            print(f"\n📊 HTML 报告已生成: {html_filename}")
             
-            # 尝试生成 PDF
-            self._try_generate_pdf(html_content)
+            if is_final:
+                print(f"\n📊 HTML 报告已生成: {html_filename}")
+                # 尝试生成 PDF（仅在最终版时）
+                self._try_generate_pdf(html_content)
         except Exception as e:
             print(f"生成 HTML 报告时出错: {e}")
     
@@ -237,8 +333,14 @@ class ReportWriter:
         except Exception as e:
             self.logger.debug(f"pdfkit PDF生成失败: {e}")
     
-    def _build_html(self, results: List[Dict[str, Any]], market: str) -> str:
-        """构建完整的 HTML 报告 - 现代化深色终端主题"""
+    def _build_html(self, results: List[Dict[str, Any]], market: str, is_in_progress: bool = False) -> str:
+        """构建完整的 HTML 报告 - 现代化深色终端主题
+        
+        Args:
+            results: 股票分析结果列表
+            market: 市场代码
+            is_in_progress: 是否正在分析中（增量更新模式）
+        """
         end_time = datetime.now()
         duration = (end_time - self._start_time).total_seconds()
         
@@ -263,6 +365,30 @@ class ReportWriter:
         
         # 获取策略名称列表
         strategy_names_list = [self.STRATEGY_NAMES.get(s, s) for s in strategy_stats.keys()]
+        
+        # 状态标题和提示
+        status_title = "股票篩選報告 (分析中...)" if is_in_progress else "股票篩選報告"
+        status_badge = '''
+                <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span class="text-amber-400 text-sm font-medium">分析進行中</span>
+                </div>''' if is_in_progress else ''
+        
+        # 分析中提示条
+        progress_banner = '''
+        <!-- Progress Banner -->
+        <div class="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div>
+                <p class="text-amber-400 font-semibold">分析進行中，報告實時更新...</p>
+                <p class="text-terminal-muted text-sm">已找到 <span class="text-amber-400 font-bold">''' + str(len(results)) + '''</span> 只符合條件的股票</p>
+            </div>
+        </div>''' if is_in_progress else ''
         
         return f'''<!DOCTYPE html>
 <html lang="zh-CN">
@@ -411,11 +537,12 @@ class ReportWriter:
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-xl font-bold text-white tracking-tight">股票篩選報告</h1>
+                        <h1 class="text-xl font-bold text-white tracking-tight">{status_title}</h1>
                         <p class="text-sm text-terminal-muted">{market} Market • {self._start_time.strftime('%Y-%m-%d')} • {', '.join(strategy_names_list[:2])}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-6 text-sm">
+                    {status_badge}
                     <div class="text-right">
                         <div class="text-terminal-muted text-xs uppercase tracking-wider">篩選耗時</div>
                         <div class="font-mono text-terminal-accent font-semibold">{duration:.1f}s</div>
@@ -430,6 +557,7 @@ class ReportWriter:
     </header>
 
     <main class="max-w-7xl mx-auto px-6 py-8">
+        {progress_banner}
 
         <!-- Summary Stats -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
