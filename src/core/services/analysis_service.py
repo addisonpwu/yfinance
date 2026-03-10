@@ -88,9 +88,9 @@ def run_analysis(
     print(f"已加载 {len(strategies_to_run)} 个策略: {[s.name for s in strategies_to_run]}")
     
     # --- 初始化报告和进度追踪 ---
-    report_writer = ReportWriter(output_filename, market, output_format='both')
+    report_writer = ReportWriter(output_filename, market)
     report_writer.initialize()
-    print(f"--- 报告将保存至: {report_writer.get_filename()} ---")
+    print(f"--- JSON 报告: {report_writer.get_filename()} ---")
     print(f"--- HTML 报告: {report_writer.get_html_filename()} ---")
     
     progress_tracker = ProgressTracker(total_stocks)

@@ -1,8 +1,9 @@
 """
 报告写入器
 
-负责报告文件的实时输出和格式化，支持 TXT 和 HTML 格式
-采用现代化深色终端主题风格
+负责报告文件的实时输出和格式化，支持 JSON 和 HTML 格式
+- JSON: 输出筛选的股票代码列表
+- HTML: 输出详细分析报告
 """
 import threading
 from typing import Dict, List, Optional, Any
@@ -14,7 +15,7 @@ import logging
 
 
 class ReportWriter:
-    """报告写入器，支持 TXT 和 HTML 格式"""
+    """报告写入器，支持 JSON 和 HTML 格式"""
     
     # 报告输出目录
     REPORT_DIR = "reports"
@@ -62,14 +63,13 @@ class ReportWriter:
         'GEMINI': '#8b5cf6'
     }
     
-    def __init__(self, filename: str = None, market: str = 'HK', output_format: str = 'html'):
+    def __init__(self, filename: str = None, market: str = 'HK'):
         """
         初始化报告写入器
         
         Args:
             filename: 输出文件名（可含或不含扩展名）
             market: 市场代码
-            output_format: 输出格式
         """
         raw_filename = filename or self._generate_basename(market)
         # 移除已有的 .txt 扩展名，避免重复
@@ -82,7 +82,6 @@ class ReportWriter:
         # 报告文件路径（在 reports 目录下）
         self.base_filename = os.path.join(self.REPORT_DIR, raw_filename)
         self.market = market
-        self.output_format = output_format
         self._lock = threading.Lock()
         self._initialized = False
         self._results: List[Dict[str, Any]] = []
@@ -96,30 +95,17 @@ class ReportWriter:
     
     def initialize(self) -> bool:
         """
-        初始化报告文件
+        初始化报告写入器
         
         Returns:
-            是否成功创建
+            是否成功初始化
         """
-        try:
-            # 初始化 TXT 文件
-            if self.output_format in ('txt', 'both'):
-                txt_filename = f"{self.base_filename}.txt"
-                with open(txt_filename, 'w', encoding='utf-8') as f:
-                    f.write(f"=== 股票筛选报告 ===\n")
-                    f.write(f"生成时间: {self._start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                    f.write(f"市场: {self.market}\n")
-                    f.write("=" * 50 + "\n\n")
-            
-            self._initialized = True
-            return True
-        except Exception as e:
-            print(f"创建报告文件时发生错误: {e}")
-            return False
+        self._initialized = True
+        return True
     
     def write_stock_result(self, result: Dict[str, Any]) -> None:
         """
-        写入单只股票的分析结果
+        收集单只股票的分析结果
         
         Args:
             result: 股票分析结果字典
@@ -129,88 +115,6 @@ class ReportWriter:
         
         with self._lock:
             self._results.append(result)
-            
-            # 写入 TXT 格式
-            if self.output_format in ('txt', 'both'):
-                self._write_txt_stock(result)
-    
-    def _write_txt_stock(self, result: Dict[str, Any]) -> None:
-        """写入 TXT 格式的股票信息 - 结构化展示"""
-        info = result.get('info', {})
-        symbol = result.get('symbol', '')
-        strategies = result.get('strategies', [])
-        ai_analysis = result.get('ai_analysis')
-        news = result.get('news', [])
-        
-        # 格式化字段
-        market_cap = info.get('marketCap')
-        market_cap_str = f"{market_cap / 1e8:.2f} 亿" if isinstance(market_cap, (int, float)) else "N/A"
-        
-        pe_ratio = info.get('trailingPE')
-        pe_ratio_str = f"{pe_ratio:.2f}" if isinstance(pe_ratio, (int, float)) else "N/A"
-        
-        float_shares = info.get('floatShares')
-        float_shares_str = f"{float_shares / 1e8:.2f} 亿股" if isinstance(float_shares, (int, float)) else "N/A"
-        
-        volume = info.get('volume')
-        volume_str = f"{volume / 1e4:.1f} 万" if isinstance(volume, (int, float)) else "N/A"
-        
-        # 52周涨跌
-        change_52w = info.get('52WeekChange')
-        change_symbol = "📈" if isinstance(change_52w, (int, float)) and change_52w > 0 else "📉" if isinstance(change_52w, (int, float)) else "➖"
-        change_str = f"{change_52w * 100:+.1f}%" if isinstance(change_52w, (int, float)) else "N/A"
-        
-        # 提取 AI 分析关键信息
-        ai_summary = ai_analysis.get('summary', '') if ai_analysis else ''
-        direction, confidence, tech_score, fund_score, total_score = self._parse_ai_summary(ai_summary)
-        
-        txt_filename = f"{self.base_filename}.txt"
-        try:
-            with open(txt_filename, 'a', encoding='utf-8') as f:
-                # 标题行
-                f.write(f"\n{'═' * 60}\n")
-                f.write(f"  ✅ {info.get('longName', symbol)}\n")
-                f.write(f"     📌 {symbol} | {info.get('sector', 'N/A')}\n")
-                f.write(f"{'═' * 60}\n")
-                
-                # 策略标签
-                strategy_names = [self.STRATEGY_NAMES.get(s, s) for s in strategies]
-                f.write(f"  🎯 命中策略: {' | '.join(strategy_names)}\n")
-                f.write(f"{'─' * 60}\n")
-                
-                # 关键数据 - 两列布局
-                f.write(f"  📊 基本数据\n")
-                f.write(f"  ├─ 市值: {market_cap_str:>12}  │  市盈率: {pe_ratio_str:>10}\n")
-                f.write(f"  ├─ 成交量: {volume_str:>10}  │  流通股: {float_shares_str:>10}\n")
-                f.write(f"  └─ 52周涨跌: {change_str:>8} {change_symbol}\n")
-                
-                # AI 分析摘要
-                if ai_analysis:
-                    f.write(f"{'─' * 60}\n")
-                    f.write(f"  🤖 AI 分析摘要\n")
-                    if direction:
-                        direction_icon = "🟢" if direction == "看涨" else "🔴" if direction == "看跌" else "🟡"
-                        f.write(f"  ├─ 方向: {direction_icon} {direction} (置信度: {confidence})\n")
-                    if total_score:
-                        f.write(f"  ├─ 综合评分: {total_score}/10")
-                        if tech_score:
-                            f.write(f" (技术: {tech_score}/10, 基本: {fund_score}/10)")
-                        f.write("\n")
-                    f.write(f"  └─ 模型: {ai_analysis.get('model_used', 'N/A')}\n")
-                
-                # 近期新闻
-                if news:
-                    f.write(f"{'─' * 60}\n")
-                    f.write(f"  📰 近期新闻 (最近 {len(news[:3])} 条)\n")
-                    for i, item in enumerate(news[:3], 1):
-                        title = item.get('title', 'N/A')[:50]
-                        date = item.get('published', '')
-                        f.write(f"     {i}. [{date}] {title}{'...' if len(item.get('title', '')) > 50 else ''}\n")
-                
-                f.write(f"{'═' * 60}\n")
-                
-        except Exception as e:
-            print(f"写入 TXT 报告时出错: {e}")
     
     def _parse_ai_summary(self, summary: str) -> tuple:
         """解析 AI 分析摘要，提取关键信息"""
@@ -257,56 +161,36 @@ class ReportWriter:
             market: 市场代码
         """
         with self._lock:
-            # 写入 TXT 摘要
-            if self.output_format in ('txt', 'both'):
-                self._write_txt_summary(results, market)
+            # 生成 JSON 报告（只有股票代码）
+            self._generate_json_report(results, market)
             
             # 生成 HTML 报告
-            if self.output_format in ('html', 'both'):
-                self._generate_html_report(results, market)
+            self._generate_html_report(results, market)
     
-    def _write_txt_summary(self, results: List[Dict[str, Any]], market: str) -> None:
-        """写入 TXT 格式的摘要 - 结构化展示"""
-        formatted_stocks = []
+    def _generate_json_report(self, results: List[Dict[str, Any]], market: str) -> None:
+        """生成 JSON 格式的股票代码列表"""
+        stocks = []
         
-        for stock in results:
-            info = stock.get('info', {})
-            long_name = info.get('longName', stock['symbol'])
-            exchange_name = self.EXCHANGE_MAP.get(stock.get('exchange'), stock.get('exchange', 'UNKNOWN'))
-            symbol = stock['symbol']
-            
-            if market.upper() == 'HK':
-                try:
-                    symbol = str(int(symbol.replace('.HK', '')))
-                except (ValueError, AttributeError):
-                    pass
-            
-            formatted_stocks.append({
-                'display': f"{exchange_name}:{symbol}",
-                'name': long_name,
-                'strategies': stock.get('strategies', [])
-            })
+        for result in results:
+            symbol = result.get('symbol', '')
+            if symbol:
+                stocks.append(symbol)
         
-        txt_filename = f"{self.base_filename}.txt"
+        report_data = {
+            "market": market,
+            "date": self._start_time.strftime('%Y-%m-%d'),
+            "generated_at": self._start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "total_stocks": len(stocks),
+            "stocks": stocks
+        }
+        
+        json_filename = f"{self.base_filename}.json"
         try:
-            with open(txt_filename, 'a', encoding='utf-8') as f:
-                f.write(f"\n{'═' * 60}\n")
-                f.write(f"  📋 筛选摘要\n")
-                f.write(f"{'═' * 60}\n")
-                f.write(f"  📊 统计: 共筛选出 {len(results)} 只股票\n")
-                f.write(f"  📅 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"{'─' * 60}\n")
-                f.write(f"  📝 股票列表 (便于复制到交易软件):\n")
-                f.write(f"     {', '.join([s['display'] for s in formatted_stocks])}\n")
-                f.write(f"{'─' * 60}\n")
-                f.write(f"  📈 详细列表:\n")
-                for i, s in enumerate(formatted_stocks, 1):
-                    strategy_names = [self.STRATEGY_NAMES.get(st, st) for st in s['strategies']]
-                    f.write(f"     {i:2d}. {s['display']:15} - {s['name'][:20]} [{', '.join(strategy_names)}]\n")
-                f.write(f"{'═' * 60}\n")
-                f.write(f"  ⚠️  本报告仅供参考，不构成投资建议\n")
+            with open(json_filename, 'w', encoding='utf-8') as f:
+                json.dump(report_data, f, ensure_ascii=False, indent=2)
+            print(f"\n📊 JSON 报告已生成: {json_filename}")
         except Exception as e:
-            print(f"写入 TXT 摘要时出错: {e}")
+            print(f"生成 JSON 报告时出错: {e}")
     
     def _generate_html_report(self, results: List[Dict[str, Any]], market: str) -> None:
         """生成 HTML 格式的完整报告"""
@@ -1121,8 +1005,8 @@ class ReportWriter:
         return ''.join(html_parts)
 
     def get_filename(self) -> str:
-        """获取输出文件名"""
-        return f"{self.base_filename}.txt"
+        """获取 JSON 输出文件名"""
+        return f"{self.base_filename}.json"
     
     def get_html_filename(self) -> str:
         """获取 HTML 文件名"""
@@ -1130,12 +1014,12 @@ class ReportWriter:
     
     def exists(self) -> bool:
         """检查文件是否存在"""
-        return os.path.exists(f"{self.base_filename}.txt")
+        return os.path.exists(f"{self.base_filename}.json")
     
     def read_content(self) -> str:
-        """读取 TXT 文件内容"""
+        """读取 JSON 文件内容"""
         try:
-            with open(f"{self.base_filename}.txt", 'r', encoding='utf-8') as f:
+            with open(f"{self.base_filename}.json", 'r', encoding='utf-8') as f:
                 return f.read()
         except Exception as e:
             print(f"读取报告文件时发生错误: {e}")

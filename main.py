@@ -98,18 +98,9 @@ def main():
     config = config_manager.get_config()
     print(f"--- 速度配置: 並行={config.api.max_workers}, 延遲={config.api.base_delay}s ---")
 
-    # 生成报告文件名
+    # 生成报告文件名（不含扩展名，由 ReportWriter 处理）
     today_str = datetime.now().strftime('%Y-%m-%d')
-    output_filename = f"{args.market.lower()}_stocks_{today_str}.txt"
-
-    # 初始化报告文件（写入标题）
-    try:
-        with open(output_filename, 'w', encoding='utf-8') as f:
-            f.write("--- 最終篩選結果 (詳細) ---\n")
-        print(f"--- 報告文件已創建: {output_filename} ---")
-    except Exception as e:
-        print(f"創建報告文件時發生錯誤: {e}")
-        output_filename = None
+    output_filename = f"{args.market.lower()}_stocks_{today_str}"
 
     final_list = run_analysis(
         args.market,
@@ -123,57 +114,12 @@ def main():
     )
 
     print("\n--- 最終篩選結果 ---")
-    if final_list and output_filename and os.path.exists(output_filename):
-        # 读取已写入的内容
-        try:
-            with open(output_filename, 'r', encoding='utf-8') as f:
-                existing_content = f.read()
-            print(existing_content)
-        except Exception as e:
-            print(f"讀取報告文件時發生錯誤: {e}")
-
-        # 追加摘要列表（实时报告只包含详细分析）
-        exchange_map = {
-            'NMS': 'NASDAQ',
-            'NGM': 'NASDAQ',
-            'NCM': 'NASDAQ',
-            'NYQ': 'NYSE',
-            'PCX': 'NYSE ARCA',
-            'TAI': 'TWSE',
-            'HKG': 'HKEX'
-        }
-
-        formatted_stocks = []
+    if final_list:
+        # 打印股票代码列表
+        print(f"共筛选出 {len(final_list)} 只股票:")
         for stock in final_list:
-            info = stock.get('info', {})
-            long_name = info.get('longName', stock['symbol'])
-            exchange_name = exchange_map.get(stock['exchange'], stock['exchange'])
-            symbol = stock['symbol']
-
-            if args.market.upper() == 'HK':
-                symbol = str(int(symbol.replace('.HK', '')))
-
-            formatted_stocks.append(f"{exchange_name}:{symbol} ({long_name})")
-
-        # 追加摘要列表到文件
-        summary_lines = [
-            "\n" + "="*50,
-            "--- 摘要列表 (便於複製到交易軟體) ---",
-            ", ".join(formatted_stocks)
-        ]
-        with open(output_filename, 'a', encoding='utf-8') as f:
-            f.write("\n".join(summary_lines))
-
-        print("\n" + "="*50)
-        print("--- 摘要列表 (便於複製到交易軟體) ---")
-        print(", ".join(formatted_stocks))
-        print(f"\n--- 完整報告已儲存至 {output_filename} ---")
-
-    elif final_list:
-        # 如果没有输出文件，只打印结果
-        for stock in final_list:
-            info = stock.get('info', {})
-            print(f"✅ {info.get('longName', stock['symbol'])} ({stock['symbol']}) - {stock['strategies']}")
+            print(f"  ✅ {stock['symbol']}")
+        print(f"\n--- 完整報告已儲存至 reports/ 目錄 ---")
     else:
         print("在指定的市場中，沒有找到符合任何策略的股票。")
 
