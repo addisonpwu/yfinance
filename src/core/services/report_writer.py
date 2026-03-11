@@ -640,7 +640,13 @@ class ReportWriter:
         
         # 解析 AI 分析
         ai_summary = ai_analysis.get('summary', '') if ai_analysis else ''
-        direction, confidence, tech_score, fund_score, total_score = self._parse_ai_summary(ai_summary)
+        direction, confidence_parsed, tech_score, fund_score, total_score = self._parse_ai_summary(ai_summary)
+        
+        # 优先使用 ai_analysis 中的 confidence 字段，否则从 summary 解析
+        if ai_analysis and 'confidence' in ai_analysis:
+            confidence = f"{ai_analysis['confidence']:.0%}"
+        else:
+            confidence = confidence_parsed
         
         # 确定方向样式
         direction_class = 'badge-neutral'
@@ -964,44 +970,31 @@ class ReportWriter:
         """解析多提供商分析摘要，返回 [(provider, content), ...]"""
         import re
         
-        # 匹配格式: --- PROVIDER 分析 --- 或 【PROVIDER 多模型共识分析】
-        pattern = r'(?:---\s*(IFLOW|NVIDIA|GEMINI)\s*分析\s*---)|(?:【(IFLOW|NVIDIA|GEMINI)\s*(?:多模型)?[共识分析]+】)'
-        parts = re.split(pattern, summary, flags=re.IGNORECASE)
+        # 只匹配 "--- PROVIDER 分析 ---" 格式（不匹配 "【PROVIDER ...】" 格式）
+        # 这样可以避免错误分割 NVIDIA 多模型共识分析的内容
+        pattern = r'---\s*(IFLOW|NVIDIA|GEMINI)\s*分析\s*---'
         
         results = []
         
-        # 处理分割后的内容
-        i = 1
-        while i < len(parts):
-            # 检查两种捕获组
-            provider = parts[i] if parts[i] else (parts[i+1] if i+1 < len(parts) and parts[i+1] else None)
-            if provider:
-                provider = provider.strip().upper()
-                # 找到下一个提供商标记之前的内容
-                content_start = i + 2 if parts[i] else i + 3
-                content = parts[content_start] if content_start < len(parts) else ''
-                
-                # 截取到下一个提供商标记
-                next_match = re.search(pattern, content, flags=re.IGNORECASE)
-                if next_match:
-                    content = content[:next_match.start()]
-                
-                content = content.strip()
-                if provider and content:
-                    results.append((provider, content))
-            i += 3
+        # 找到所有匹配项
+        matches = list(re.finditer(pattern, summary, flags=re.IGNORECASE))
         
-        # 如果解析失败，尝试简单分割
-        if not results:
-            for provider in ['IFLOW', 'NVIDIA', 'GEMINI']:
-                marker = f'--- {provider} 分析 ---'
-                if marker in summary:
-                    parts = summary.split(marker)
-                    if len(parts) > 1:
-                        content = parts[1].split('---')[0].strip()
-                        results.append((provider, content))
+        for i, match in enumerate(matches):
+            provider = match.group(1).upper()
+            start = match.end()
+            
+            # 内容结束位置：下一个匹配的开始，或者字符串末尾
+            if i + 1 < len(matches):
+                end = matches[i + 1].start()
+            else:
+                end = len(summary)
+            
+            content = summary[start:end].strip()
+            
+            if provider and content:
+                results.append((provider, content))
         
-        # 如果还是失败，返回原始内容
+        # 如果解析失败，返回原始内容
         if not results:
             results.append(('AI', summary))
         

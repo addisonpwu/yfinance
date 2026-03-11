@@ -137,10 +137,11 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         self._reasoning_color = "\033[90m" if self._use_color else ""
         self._reset_color = "\033[0m" if self._use_color else ""
         
-        # 初始化 OpenAI 客户端
+        # 初始化 OpenAI 客户端（设置 5 分钟超时，避免 NVIDIA API 504 错误）
         self.client = OpenAI(
             base_url=self.NVIDIA_API_BASE_URL,
-            api_key=self.api_key
+            api_key=self.api_key,
+            timeout=300.0  # 5 分钟超时
         )
         
         # 预测追踪器
@@ -237,23 +238,31 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         3. 综合分析
         """
         symbol = stock_data.get('symbol', 'Unknown')
+        self.logger.info(f"[NVIDIA] 开始分析 {symbol}，模型: {model}")
         
         # 获取增强数据
+        self.logger.info(f"[NVIDIA] {symbol} - 步骤0: 获取多时间框架数据和市场情绪")
         multi_tf_data = self._get_multi_timeframe_data(stock_data, hist) if use_multi_timeframe else None
         market_sentiment = self._get_market_sentiment()
         
         # 第一步：趋势判断
+        self.logger.info(f"[NVIDIA] {symbol} - 步骤1/3: 趋势判断分析中...")
         trend_prompt = self._build_trend_prompt(stock_data, hist, multi_tf_data, market_sentiment)
         trend_result, _ = self._call_nvidia_api(trend_prompt, model, stream=False)
         
         if not trend_result:
+            self.logger.warning(f"[NVIDIA] {symbol} - 步骤1失败: 趋势判断返回空结果")
             return None
+        self.logger.info(f"[NVIDIA] {symbol} - 步骤1完成: 趋势判断成功")
         
         # 第二步：关键价位和风险评估
+        self.logger.info(f"[NVIDIA] {symbol} - 步骤2/3: 关键价位和风险评估中...")
         levels_prompt = self._build_levels_prompt(stock_data, hist, trend_result)
         levels_result, _ = self._call_nvidia_api(levels_prompt, model, stream=False)
+        self.logger.info(f"[NVIDIA] {symbol} - 步骤2完成: 关键价位分析成功")
         
         # 第三步：综合分析
+        self.logger.info(f"[NVIDIA] {symbol} - 步骤3/3: 综合分析中...")
         final_prompt = self._build_final_prompt(
             stock_data, hist, trend_result, levels_result, 
             multi_tf_data, market_sentiment
@@ -261,10 +270,12 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         final_result, model_used = self._call_nvidia_api(final_prompt, model, stream=self.enable_streaming)
         
         if not final_result:
+            self.logger.warning(f"[NVIDIA] {symbol} - 步骤3失败: 综合分析返回空结果")
             return None
         
         # 提取关键信息
         direction, confidence = self._extract_direction_and_confidence(final_result)
+        self.logger.info(f"[NVIDIA] {symbol} - 分析完成: 方向={direction}, 置信度={confidence:.0%}, 模型={model_used}")
         
         return AIAnalysisResult(
             summary=final_result,
@@ -324,8 +335,18 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         model_name: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """
-        调用 NVIDIA API（非流式）
+        同步调用 NVIDIA API
+        
+        Args:
+            prompt: 分析提示词
+            model_name: 模型名称
+        
+        Returns:
+            (API 返回的文本内容, 实际使用的模型名称) 的元组
         """
+        start_time = time.time()
+        self.logger.info(f"[NVIDIA API] 开始同步调用，模型: {model_name}，提示词长度: {len(prompt)} 字符")
+        
         completion = self.client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
@@ -340,6 +361,9 @@ class NvidiaAIAnalyzer(AIAnalyzer):
             },
             stream=False
         )
+        
+        elapsed = time.time() - start_time
+        self.logger.info(f"[NVIDIA API] 同步调用完成，耗时: {elapsed:.1f}秒")
         
         if completion.choices and len(completion.choices) > 0:
             content = completion.choices[0].message.content

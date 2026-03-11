@@ -297,24 +297,36 @@ class IFlowAIAnalyzer(AIAnalyzer):
         3. 风险评估
         4. 综合建议
         """
+        import time as time_module
         symbol = stock_data.get('symbol', 'Unknown')
+        start_time = time_module.time()
+        
+        self.logger.info(f"[iFlow] 开始分析 {symbol}，模型: {model}")
         
         # 获取增强数据
+        self.logger.info(f"[iFlow] {symbol} - 步骤0: 获取多时间框架数据和市场情绪")
         multi_tf_data = self._get_multi_timeframe_data(stock_data, hist) if use_multi_timeframe else None
         market_sentiment = self._get_market_sentiment()
         
         # 第一步：趋势判断
+        self.logger.info(f"[iFlow] {symbol} - 步骤1/3: 趋势判断分析中...")
         trend_prompt = self._build_trend_prompt(stock_data, hist, multi_tf_data, market_sentiment)
         trend_result, _ = self._call_iflow_api(trend_prompt, model, max_retries=2)
         
         if not trend_result:
+            self.logger.warning(f"[iFlow] {symbol} - 步骤1失败: 趋势判断返回空结果")
             return None
         
+        self.logger.info(f"[iFlow] {symbol} - 步骤1完成: 趋势判断成功")
+        
         # 第二步：关键价位和风险评估
+        self.logger.info(f"[iFlow] {symbol} - 步骤2/3: 关键价位和风险评估中...")
         levels_prompt = self._build_levels_prompt(stock_data, hist, trend_result)
         levels_result, _ = self._call_iflow_api(levels_prompt, model, max_retries=2)
+        self.logger.info(f"[iFlow] {symbol} - 步骤2完成: 关键价位分析成功")
         
         # 第三步：综合分析
+        self.logger.info(f"[iFlow] {symbol} - 步骤3/3: 综合分析中...")
         final_prompt = self._build_final_prompt(
             stock_data, hist, trend_result, levels_result, 
             multi_tf_data, market_sentiment
@@ -322,10 +334,14 @@ class IFlowAIAnalyzer(AIAnalyzer):
         final_result, model_used = self._call_iflow_api(final_prompt, model)
         
         if not final_result:
+            self.logger.warning(f"[iFlow] {symbol} - 步骤3失败: 综合分析返回空结果")
             return None
         
         # 提取关键信息
         direction, confidence = self._extract_direction_and_confidence(final_result)
+        
+        elapsed = time_module.time() - start_time
+        self.logger.info(f"[iFlow] {symbol} - 分析完成: 方向={direction}, 置信度={confidence:.0%}, 模型={model_used}, 耗时={elapsed:.1f}秒")
         
         return AIAnalysisResult(
             summary=final_result,
@@ -1742,6 +1758,10 @@ AI分析结果将用于实盘交易决策，请务必严谨客观。
         Returns:
             (API 返回的文本内容, 实际使用的模型名称) 的元组，如果调用失败返回 (None, None)
         """
+        import time as time_module
+        start_time = time_module.time()
+        self.logger.info(f"[iFlow API] 开始调用，模型: {model_name}，提示词长度: {len(prompt)} 字符")
+        
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -1778,27 +1798,28 @@ AI分析结果将用于实盘交易决策，请务必严谨客观。
                 if 'choices' in result and len(result['choices']) > 0:
                     content = result['choices'][0]['message']['content']
                     model = result.get('model', model_name)
+                    elapsed = time_module.time() - start_time
+                    self.logger.info(f"[iFlow API] 调用完成，耗时: {elapsed:.1f}秒")
                     return content, model
                 else:
+                    self.logger.warning(f"[iFlow API] 响应格式异常: 无 choices")
                     return None, None
 
             except requests.exceptions.RequestException as e:
                 last_error = e
                 if attempt < max_retries - 1:
                     # 指数退避等待
-                    import time
                     wait_time = 2 ** attempt
-                    self.logger.warning(f"API 调用失败 (尝试 {attempt + 1}/{max_retries})，{wait_time}秒后重试: {e}")
-                    time.sleep(wait_time)
+                    self.logger.warning(f"[iFlow API] 调用失败 (尝试 {attempt + 1}/{max_retries})，{wait_time}秒后重试: {e}")
+                    time_module.sleep(wait_time)
                 continue
             except (json.JSONDecodeError, KeyError) as e:
                 last_error = e
                 if attempt < max_retries - 1:
-                    import time
                     wait_time = 2 ** attempt
-                    self.logger.warning(f"解析响应失败 (尝试 {attempt + 1}/{max_retries})，{wait_time}秒后重试: {e}")
-                    time.sleep(wait_time)
+                    self.logger.warning(f"[iFlow API] 解析响应失败 (尝试 {attempt + 1}/{max_retries})，{wait_time}秒后重试: {e}")
+                    time_module.sleep(wait_time)
                 continue
 
-        self.logger.error(f"API 调用最终失败 (共 {max_retries} 次尝试): {last_error}")
+        self.logger.error(f"[iFlow API] 调用最终失败 (共 {max_retries} 次尝试): {last_error}")
         return None, None

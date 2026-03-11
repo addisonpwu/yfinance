@@ -368,7 +368,8 @@ class StockAnalyzer:
                                         'provider': p,
                                         'summary': result.summary,
                                         'model_used': result.model_used,
-                                        'confidence': result.confidence
+                                        'confidence': result.confidence,
+                                        'detailed_analysis': result.detailed_analysis if hasattr(result, 'detailed_analysis') else None
                                     })
                         except Exception as e:
                             self.logger.warning(f"提供商 {p} 分析失败: {e}")
@@ -376,15 +377,21 @@ class StockAnalyzer:
                     if ai_results:
                         # 合并多提供商结果
                         combined_summary = f"【多提供商分析】\n\n"
+                        total_confidence = 0
                         for r in ai_results:
                             combined_summary += f"--- {r['provider'].upper()} 分析 ---\n"
                             combined_summary += f"模型: {r['model_used']}\n"
                             combined_summary += f"置信度: {r['confidence']:.0%}\n"
                             combined_summary += f"{r['summary']}\n\n"
+                            total_confidence += r['confidence']
+                        
+                        # 计算平均置信度
+                        avg_confidence = total_confidence / len(ai_results) if ai_results else 0.5
                         
                         ai_analysis = {
                             'summary': combined_summary,
-                            'model_used': f"multi_provider({', '.join([r['provider'] for r in ai_results])})"
+                            'model_used': f"multi_provider({', '.join([r['provider'] for r in ai_results])})",
+                            'confidence': avg_confidence
                         }
                 else:
                     # 单提供商分析
