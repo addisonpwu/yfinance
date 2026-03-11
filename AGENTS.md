@@ -111,6 +111,7 @@
 │  - iFlow: 心流 AI (默认)                                                     │
 │  - nvidia: NVIDIA NIM API                                                    │
 │  - gemini: Google Gemini API                                                 │
+│  - 多提供商: 用逗号分隔 (如 --provider iflow,nvidia,gemini)                   │
 │                                                                              │
 │  分析流程:                                                                    │
 │  1. 构建分析提示词 (价格数据 + 技术指标 + 基本面 + 新闻)                      │
@@ -125,6 +126,7 @@
 │     - 投资建议 (含价位建议)                                                  │
 │  3. 缓存 AI 分析结果 (按数据哈希 + 模型 + 新闻哈希)                           │
 │  4. 多模型投票共识 (可选，通过 --model all 启用)                              │
+│  5. 多提供商合并 (置信度平均值，结果汇总到同一报告)                           │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -701,8 +703,8 @@ news_us = repo.get_news('AAPL', 'US', days_back=7, max_items=5)
         "available_models": ["deepseek-v3.2", "qwen3-max", "tstars2.0"]
       },
       "nvidia": {
-        "default_model": "z-ai/glm5",
-        "available_models": ["z-ai/glm5", "deepseek-ai/deepseek-v3.2"]
+        "default_model": "meta/llama-3.3-70b-instruct",
+        "available_models": ["meta/llama-3.3-70b-instruct"]
       },
       "gemini": {
         "default_model": "gemini-2.5-flash",
@@ -772,20 +774,21 @@ result = service.analyze_stock(stock_data, hist, model='deepseek-v3.2')
 ### NVIDIA 提供商
 
 **支持模型**：
+- `meta/llama-3.3-70b-instruct` - Meta Llama 3.3 70B（推荐）
 - `z-ai/glm5` - 智谱 GLM-5
 - `deepseek-ai/deepseek-v3.2` - DeepSeek on NVIDIA
 - `qwen/qwen3.5-397b-a17b` - 通义千问
-- `moonshotai/kimi-k2.5` - Moonshot Kimi
 
 **特色功能**：
 - 支持 `reasoning_content`（思考过程）展示
 - 流式响应支持
+- 5 分钟超时配置（避免 504 Gateway Timeout）
 
 **使用示例**：
 ```python
 # 使用 NVIDIA
 service = AIAnalysisService(provider='nvidia', enable_streaming=True)
-result = service.analyze_stock(stock_data, hist, model='z-ai/glm5')
+result = service.analyze_stock(stock_data, hist, model='meta/llama-3.3-70b-instruct')
 ```
 
 ### Gemini 提供商
@@ -1002,6 +1005,9 @@ google-genai>=0.3.0 # Google Gemini API
 | 配置验证失败 | 检查 `config.json` 格式和 `.env` 文件 |
 | Gemini SDK 未安装 | 运行 `pip install google-genai` |
 | NVIDIA SDK 未安装 | 运行 `pip install openai` |
+| NVIDIA API 504 超时 | OpenAI 客户端已设置 5 分钟超时 (`timeout=300.0`)，如仍超时可检查网络 |
+| 多提供商置信度显示 0% | 已修复：`stock_analyzer.py` 添加 `confidence` 字段，`report_writer.py` 优先使用该值 |
+| NVIDIA 内容显示不完整 | 已修复：`_parse_multi_provider_summary` 正则表达式不再错误匹配内部标题 |
 
 ### 调试方法
 
@@ -1352,6 +1358,7 @@ Sd = 下跌幅度之和
 ┌─────────────────────────────────────┐
 │           页面头部                   │
 │  标题、市场、日期、耗时              │
+│  [展開全部] [折疊全部] 按钮          │
 ├─────────────────────────────────────┤
 │           统计卡片                   │
 │  筛选数量 | 策略数 | 涨跌 | 耗时     │
@@ -1364,9 +1371,16 @@ Sd = 下跌幅度之和
 │  │ 代码 | 名称 | 行业          │    │
 │  │ 市值 | PE | 涨跌幅          │    │
 │  │ 策略标签                    │    │
-│  │ 评分显示                    │    │
-│  │ AI 分析摘要                 │    │
+│  │ 评分圆环 (带 glow 效果)     │    │
+│  │ AI 分析摘要条:              │    │
+│  │   方向 | 置信度 | 入场 | 止损│    │
+│  │ 技术指标 (带趋势箭头)       │    │
+│  │ AI 分析详情 (可折叠)        │    │
+│  │ 近期新闻                    │    │
 │  └─────────────────────────────┘    │
+├─────────────────────────────────────┤
+│           回到顶部按钮               │
+│  (固定位置，滚动超过 300px 显示)     │
 └─────────────────────────────────────┘
 ```
 
@@ -1376,6 +1390,15 @@ Sd = 下跌幅度之和
 - **打印优化**: 浏览器 Cmd+P 导出 PDF
 - **深色主题**: 支持系统深色模式
 - **卡片阴影**: 现代化视觉效果
+- **CSS 变量**: 使用 `:root` 定义颜色变量，便于主题切换
+- **评分圆环**: 带 glow 发光效果，低分使用更亮的 `#ff6b6b`
+
+### 交互特性
+
+- **全局展开/折叠**: Header 提供「展開全部」「折疊全部」按钮
+- **AI 分析摘要**: 折叠区域外展示关键信息（方向、置信度、入场价、止损价）
+- **技术指标趋势**: RSI、布林带、均线位置添加趋势箭头 (↑/↓/→)
+- **回到顶部**: 固定位置按钮，滚动超过 300px 时显示
 
 ### 自定义报告
 
@@ -1619,6 +1642,25 @@ if is_high_risk_environment():
 ---
 
 ## 近期更新日志
+
+### 2026-03-11
+- ✨ iFlow 分析器添加详细日志
+  - `_step_by_step_analysis` 添加开始分析、步骤进度、完成分析日志
+  - `_call_iflow_api` 添加 API 调用开始、完成耗时日志
+- 🐛 修复多提供商分析结果中 `confidence` 字段缺失问题
+  - `stock_analyzer.py` 多提供商合并时添加 `confidence` 字段和 `avg_confidence` 计算
+  - `report_writer.py` 优先使用 `ai_analysis['confidence']` 而非从 summary 解析
+- 🐛 修复 HTML 报告多提供商解析问题
+  - `_parse_multi_provider_summary` 正则表达式错误匹配 `【NVIDIA 多模型共识分析】`
+  - 导致 NVIDIA 内容被截断，只显示前两行
+  - 修复：只匹配 `--- PROVIDER 分析 ---` 格式
+- 🎨 HTML 报告优化 (P0-P2)
+  - P0: AI 分析摘要条（方向、置信度、入场价、止损价）
+  - P0: 评分圆环可读性（更亮的低分颜色 `#ff6b6b` + glow 效果）
+  - P1: 全局展开/折叠按钮
+  - P1: 技术指标趋势箭头（↑/↓/→）
+  - P2: CSS 变量提取（`:root` 定义颜色变量）
+  - P2: 回到顶部按钮（固定位置，滚动超过 300px 显示）
 
 ### 2026-03-04
 - ✨ 多提供商支持升级

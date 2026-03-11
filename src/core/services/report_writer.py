@@ -208,7 +208,7 @@ class ReportWriter:
         total_score = 0
         
         if not summary:
-            return direction, confidence, tech_score, fund_score, total_score
+            return direction, confidence, tech_score, fund_score, total_score, 0.0, 0.0, 0.0  # P0-1: 添加入场价、止损价、止盈价
         
         # 提取方向
         dir_match = re.search(r'方向:\s*(看涨|看跌|中性)', summary)
@@ -233,7 +233,7 @@ class ReportWriter:
         if total_match:
             total_score = float(total_match.group(1))
         
-        return direction, confidence, tech_score, fund_score, total_score
+        return direction, confidence, tech_score, fund_score, total_score, 0.0, 0.0, 0.0  # P0-1: 添加入场价、止损价、止盈价
     
     def write_summary(self, results: List[Dict[str, Any]], market: str) -> None:
         """
@@ -551,6 +551,11 @@ class ReportWriter:
                         <div class="text-terminal-muted text-xs uppercase tracking-wider">符合條件</div>
                         <div class="font-mono text-terminal-success font-semibold">{len(results)} 只股票</div>
                     </div>
+                    <!-- P1-4: 全局展开/折叠按钮 -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="expandAllAI()" class="global-toggle-btn bg-blue-500/20 text-blue-400 border border-blue-500/30">展開全部</button>
+                        <button onclick="collapseAllAI()" class="global-toggle-btn bg-gray-500/20 text-gray-400 border border-gray-500/30">折疊全部</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -611,7 +616,48 @@ class ReportWriter:
                 icon.classList.toggle('rotate-180');
             }}
         }}
+        
+        // P1-4: 全局展开所有 AI 分析
+        function expandAllAI() {{
+            document.querySelectorAll('[id^="ai-"]').forEach(el => {{
+                el.classList.remove('hidden-content');
+                const icon = document.getElementById('icon-' + el.id);
+                if (icon) icon.classList.add('rotate-180');
+            }});
+        }}
+        
+        // P1-4: 全局折叠所有 AI 分析
+        function collapseAllAI() {{
+            document.querySelectorAll('[id^="ai-"]').forEach(el => {{
+                el.classList.add('hidden-content');
+                const icon = document.getElementById('icon-' + el.id);
+                if (icon) icon.classList.remove('rotate-180');
+            }});
+        }}
+        
+        // P2-7: 回到顶部按钮逻辑
+        window.addEventListener('scroll', () => {{
+            const btn = document.getElementById('back-to-top');
+            if (btn) {{
+                if (window.scrollY > 300) {{
+                    btn.classList.add('visible');
+                }} else {{
+                    btn.classList.remove('visible');
+                }}
+            }}
+        }});
+        
+        function scrollToTop() {{
+            window.scrollTo({{ top: 0, behavior: 'smooth' }});
+        }}
     </script>
+    
+    <!-- P2-7: 回到顶部按钮 -->
+    <div id="back-to-top" class="back-to-top" onclick="scrollToTop()">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+        </svg>
+    </div>
 </body>
 </html>'''
     
@@ -640,7 +686,7 @@ class ReportWriter:
         
         # 解析 AI 分析
         ai_summary = ai_analysis.get('summary', '') if ai_analysis else ''
-        direction, confidence_parsed, tech_score, fund_score, total_score = self._parse_ai_summary(ai_summary)
+        direction, confidence_parsed, tech_score, fund_score, total_score, entry_price, stop_loss, take_profit = self._parse_ai_summary(ai_summary)
         
         # 优先使用 ai_analysis 中的 confidence 字段，否则从 summary 解析
         if ai_analysis and 'confidence' in ai_analysis:
@@ -664,7 +710,7 @@ class ReportWriter:
                 return '#10b981'  # green
             elif score >= 5:
                 return '#f59e0b'  # amber
-            return '#ef4444'  # red
+            return '#ff6b6b'  # P0-3: 更亮的红色，提高低分可读性
         
         # 评分条计算
         tech_color = get_score_color(tech_score) if tech_score else '#374151'
@@ -817,7 +863,7 @@ class ReportWriter:
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">RSI(14)</span>
-                <span class="font-mono">{rsi:.1f} {status_text}</span>
+                <span class="font-mono">{rsi:.1f} {status_text} →</span>
             </div>''')
         
         # MACD
@@ -840,7 +886,7 @@ class ReportWriter:
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">布林帶</span>
-                <span class="font-mono">{bb_pos:.2f} {status_text}</span>
+                <span class="font-mono">{bb_pos:.2f} {status_text} →</span>
             </div>''')
         
         # 均线位置
@@ -849,7 +895,7 @@ class ReportWriter:
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">均線位置</span>
-                <span class="font-mono">{ma_score}/5</span>
+                <span class="font-mono">{ma_score}/5 →</span>
             </div>''')
         
         # ATR
@@ -858,7 +904,7 @@ class ReportWriter:
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">ATR%</span>
-                <span class="font-mono">{atr_pct:.2f}%</span>
+                <span class="font-mono">{atr_pct:.2f}% →</span>
             </div>''')
         
         if not items:
@@ -878,7 +924,7 @@ class ReportWriter:
             return ''
         
         news_items = []
-        for item in news[:3]:  # 显示3条新闻
+        for item in news:  # 显示所有新闻
             title = item.get('title', 'N/A')
             link = item.get('link', '#')
             published = item.get('published', '')
