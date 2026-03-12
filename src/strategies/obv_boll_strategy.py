@@ -344,30 +344,34 @@ class OBVBollDivergenceStrategy(BaseStrategy):
         try:
             current_close = hist['Close'].iloc[-1]
             
-            # 优先使用 MA_120，缺失时降级使用 MA_50
-            ma_120 = hist['MA_120'].iloc[-1] if 'MA_120' in hist.columns else None
-            ma_50 = hist['MA_50'].iloc[-1] if 'MA_50' in hist.columns else None
+            # 动态MA周期选择：优先使用配置的ma_long_period，降级使用其他可用MA
+            ma_periods_to_try = [
+                self.config.ma_long_period,  # 配置的长期均线周期
+                200, 120, 50, 20  # 降级备用周期
+            ]
             
-            score = 0
-            trend_type = "下跌趋势"
-            distance_pct = None
+            ma_to_use = None
             ma_used = None
+            ma_value = None
             
-            # 判断使用哪个均线
-            if ma_120 is not None and not pd.isna(ma_120):
-                ma_to_use = ma_120
-                ma_used = "MA_120"
-            elif ma_50 is not None and not pd.isna(ma_50):
-                ma_to_use = ma_50
-                ma_used = "MA_50"
-            else:
-                # 数据不足，给一半分
+            # 按优先级查找可用的MA列
+            for period in ma_periods_to_try:
+                ma_col = f'MA_{period}'
+                if ma_col in hist.columns:
+                    ma_val = hist[ma_col].iloc[-1]
+                    if not pd.isna(ma_val):
+                        ma_to_use = period
+                        ma_used = ma_col
+                        ma_value = ma_val
+                        break
+            
+            # 如果找不到任何可用的MA，给一半分
+            if ma_to_use is None:
                 score = self.config.trend_weight * 0.5
                 trend_type = "数据不足"
                 details = {
                     "ma_used": None,
-                    "ma_120": None,
-                    "ma_50": round(float(ma_50), 2) if ma_50 and not pd.isna(ma_50) else None,
+                    "ma_value": None,
                     "current_close": round(float(current_close), 2),
                     "distance_pct": None,
                     "trend_type": trend_type
@@ -375,10 +379,11 @@ class OBVBollDivergenceStrategy(BaseStrategy):
                 return score, trend_type, details
             
             # 计算距离百分比
-            if current_close > ma_to_use:
-                distance_pct = (current_close - ma_to_use) / ma_to_use
-                # MA_50 降级时评分降低
-                score_multiplier = 0.7 if ma_used == "MA_50" else 1.0
+            if current_close > ma_value:
+                distance_pct = (current_close - ma_value) / ma_value
+                # 降级评分调整：如果使用的不是配置的周期，降低评分
+                is_degraded = ma_to_use != self.config.ma_long_period
+                score_multiplier = 0.7 if is_degraded else 1.0
                 
                 if distance_pct > 0.05:
                     score = self.config.trend_weight * score_multiplier  # 强势上涨
@@ -389,15 +394,16 @@ class OBVBollDivergenceStrategy(BaseStrategy):
             else:
                 score = 0
                 trend_type = f"下跌趋势({ma_used})"
-                distance_pct = (current_close - ma_to_use) / ma_to_use
+                distance_pct = (current_close - ma_value) / ma_value
             
             details = {
                 "ma_used": ma_used,
-                "ma_120": round(float(ma_120), 2) if ma_120 and not pd.isna(ma_120) else None,
-                "ma_50": round(float(ma_50), 2) if ma_50 and not pd.isna(ma_50) else None,
+                "ma_value": round(float(ma_value), 2),
                 "current_close": round(float(current_close), 2),
                 "distance_pct": round(distance_pct * 100, 2) if distance_pct is not None else None,
-                "trend_type": trend_type
+                "trend_type": trend_type,
+                "is_degraded": ma_to_use != self.config.ma_long_period,
+                "configured_period": self.config.ma_long_period
             }
             
             return score, trend_type, details

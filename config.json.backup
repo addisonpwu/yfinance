@@ -123,7 +123,7 @@
       "volume_ratio_min": 0.4,
       "volume_ratio_max": 1.0,
       "ma_long_period": 200,
-      "min_data_points": 205,
+      "min_data_points": 125,
       "confidence": 0.80,
       "obv_weight": 20,
       "boll_weight": 20,
