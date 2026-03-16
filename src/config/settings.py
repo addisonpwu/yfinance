@@ -29,6 +29,8 @@ from src.config.constants import (
     NEWS_TIMEOUT, NEWS_MAX_ITEMS, NEWS_DAYS_BACK, NEWS_CACHE_TTL_HOURS,
     # AI 配置
     AI_API_TIMEOUT, AI_MAX_DATA_POINTS, DEFAULT_AI_PROVIDERS,
+    # 股票列表配置
+    STOCK_LIST_JSON_PATH, STOCK_LIST_ENABLED,
 )
 
 
@@ -55,7 +57,7 @@ SPEED_MODE_PRESETS = {
         "base_delay": 1.0,
         "max_delay": 5.0,
         "min_delay": 0.5,
-        "max_workers": 2,
+        "max_workers": 1,
         "ai_timeout": 45,
         "description": "安全模式：低并行、高延迟，避免 API 限流"
     }
@@ -187,6 +189,13 @@ class NewsConfig:
 
 
 @dataclass
+class StockListConfig:
+    """股票列表配置"""
+    json_path: str = STOCK_LIST_JSON_PATH
+    enabled: bool = STOCK_LIST_ENABLED
+
+
+@dataclass
 class AIProviderConfig:
     """单个 AI 提供商配置"""
     default_model: str = ""
@@ -243,6 +252,7 @@ class AppConfig:
     strategies: StrategiesConfig = None
     news: NewsConfig = None
     ai: AIConfig = None
+    stock_list: StockListConfig = None
     speed_mode: str = "balanced"
     
     def __post_init__(self):
@@ -254,6 +264,8 @@ class AppConfig:
             self.news = NewsConfig()
         if self.ai is None:
             self.ai = AIConfig()
+        if self.stock_list is None:
+            self.stock_list = StockListConfig()
     
     def apply_speed_mode(self, speed_mode: str = None):
         """应用速度模式预设"""
@@ -304,6 +316,7 @@ class ConfigManager:
         strategies_config = raw_config.get('strategies', {})
         news_config = raw_config.get('news', {})
         ai_config = raw_config.get('ai', {})
+        stock_list_config = raw_config.get('stock_list', {})
         
         data_download_period_config = data_config.get('data_download_period', {})
         vcp_config = strategies_config.get('vcp_pocket_pivot', {})
@@ -401,6 +414,10 @@ class ConfigManager:
                         available_models=gemini_config.get('available_models', DEFAULT_AI_PROVIDERS["gemini"]["available_models"])
                     )
                 )
+            ),
+            stock_list=StockListConfig(
+                json_path=stock_list_config.get('json_path', STOCK_LIST_JSON_PATH),
+                enabled=stock_list_config.get('enabled', STOCK_LIST_ENABLED)
             ),
             speed_mode=speed_mode
         )

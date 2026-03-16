@@ -2,7 +2,7 @@
 import argparse
 import os
 from datetime import datetime
-from src.core.services.analysis_service import run_analysis
+from src.core.services.analysis_service import run_analysis, run_analysis_from_json
 from src.config.settings import config_manager, SPEED_MODE_PRESETS
 
 # 尝试导入配置验证模块
@@ -28,6 +28,8 @@ def main():
     parser.add_argument('--speed', type=str, default=None, choices=['fast', 'balanced', 'safe'], 
                         help=f"速度模式: fast(快速), balanced(平衡,默認), safe(安全)")
     parser.add_argument('--skip-validation', action='store_true', help="跳過啟動時的配置驗證")
+    parser.add_argument('--stock-list', type=str, default=None, 
+                        help="從 JSON 文件讀取股票列表進行分析 (例如: /path/to/stock.json)")
     args = parser.parse_args()
     
     # 解析提供商列表（支持逗号分隔）
@@ -97,21 +99,45 @@ def main():
     # 显示当前速度配置
     config = config_manager.get_config()
     print(f"--- 速度配置: 並行={config.api.max_workers}, 延遲={config.api.base_delay}s ---")
+    
+    # 检查是否使用 JSON 股票列表模式
+    if args.stock_list:
+        # JSON 股票列表模式
+        if not os.path.exists(args.stock_list):
+            print(f"❌ JSON 文件不存在: {args.stock_list}")
+            return
+        
+        print(f"--- 使用 JSON 股票列表模式 ---")
+        print(f"--- JSON 文件: {args.stock_list} ---")
+        
+        # 生成报告文件名
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        output_filename = f"json_stocks_{today_str}"
+        
+        final_list = run_analysis_from_json(
+            json_path=args.stock_list,
+            market=args.market,
+            interval=args.interval,
+            model=args.model,
+            providers=providers,
+            output_filename=output_filename
+        )
+    else:
+        # 传统市场分析模式
+        # 生成报告文件名（不含扩展名，由 ReportWriter 处理）
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        output_filename = f"{args.market.lower()}_stocks_{today_str}"
 
-    # 生成报告文件名（不含扩展名，由 ReportWriter 处理）
-    today_str = datetime.now().strftime('%Y-%m-%d')
-    output_filename = f"{args.market.lower()}_stocks_{today_str}"
-
-    final_list = run_analysis(
-        args.market,
-        force_fast_mode=args.no_cache_update,
-        skip_strategies=args.skip_strategies,
-        symbol_filter=args.symbol,
-        interval=args.interval,
-        model=args.model,
-        providers=providers,
-        output_filename=output_filename
-    )
+        final_list = run_analysis(
+            args.market,
+            force_fast_mode=args.no_cache_update,
+            skip_strategies=args.skip_strategies,
+            symbol_filter=args.symbol,
+            interval=args.interval,
+            model=args.model,
+            providers=providers,
+            output_filename=output_filename
+        )
 
     print("\n--- 最終篩選結果 ---")
     if final_list:

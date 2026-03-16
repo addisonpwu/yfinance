@@ -1,5 +1,9 @@
 {
   "speed_mode": "safe",
+  "stock_list": {
+    "json_path": "/Users/addison/Dev/stock.json",
+    "enabled": true
+  },
   "api": {
     "base_delay": 0.1,
     "max_delay": 1.0,
