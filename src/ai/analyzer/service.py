@@ -5,6 +5,7 @@ AI 分析服务
 - iflow: 心流 AI
 - nvidia: NVIDIA NIM API
 - gemini: Google Gemini API
+- opencode: OpenCode API
 """
 
 from typing import Dict, List, Optional, Literal
@@ -23,9 +24,17 @@ except ImportError:
     HAS_GEMINI = False
     GeminiAIAnalyzer = None
 
+# 尝试导入 OpenCode 分析器
+try:
+    from src.ai.analyzer.opencode_analyzer import OpenCodeAIAnalyzer
+    HAS_OPENCODE = True
+except ImportError:
+    HAS_OPENCODE = False
+    OpenCodeAIAnalyzer = None
+
 
 # 支持的 AI 提供商类型
-ProviderType = Literal['iflow', 'nvidia', 'gemini']
+ProviderType = Literal['iflow', 'nvidia', 'gemini', 'opencode']
 
 
 class AIAnalysisService:
@@ -53,9 +62,9 @@ class AIAnalysisService:
         初始化 AI 分析服务
         
         Args:
-            provider: AI 提供商 ('iflow', 'nvidia' 或 'gemini')
+            provider: AI 提供商 ('iflow', 'nvidia', 'gemini' 或 'opencode')
             **kwargs: 传递给分析器的额外参数
-                - enable_cache: 是否启用缓存 (NVIDIA/Gemini)
+                - enable_cache: 是否启用缓存 (NVIDIA/Gemini/OpenCode)
                 - enable_streaming: 是否启用流式响应 (NVIDIA/Gemini)
         """
         self.provider = provider
@@ -77,6 +86,14 @@ class AIAnalysisService:
                 enable_streaming=kwargs.get('enable_streaming', False)
             )
             self.logger.info("使用 Gemini AI 分析器")
+        elif provider == 'opencode':
+            if not HAS_OPENCODE:
+                raise ImportError("OpenCode 分析器不可用，请安装 openai: pip install openai")
+            self.analyzer = OpenCodeAIAnalyzer(
+                enable_cache=kwargs.get('enable_cache', False),
+                enable_streaming=kwargs.get('enable_streaming', False)
+            )
+            self.logger.info("使用 OpenCode AI 分析器")
         else:
             self.analyzer = IFlowAIAnalyzer()
             self.logger.info("使用 iFlow AI 分析器")
@@ -148,6 +165,8 @@ class AIAnalysisService:
         providers = ['iflow', 'nvidia']
         if HAS_GEMINI:
             providers.append('gemini')
+        if HAS_OPENCODE:
+            providers.append('opencode')
         return providers
     
     def get_available_models(self, provider: ProviderType = None) -> List[str]:
@@ -170,6 +189,8 @@ class AIAnalysisService:
             return providers_config.iflow.available_models
         elif target_provider == 'gemini' and hasattr(providers_config, 'gemini') and providers_config.gemini:
             return providers_config.gemini.available_models
+        elif target_provider == 'opencode' and hasattr(providers_config, 'opencode') and providers_config.opencode:
+            return providers_config.opencode.available_models
         
         # 默认返回空列表
         return []

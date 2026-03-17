@@ -172,6 +172,10 @@
         "available_models": [
           "gemini-3-flash-preview"
         ]
+      },
+      "opencode": {
+        "default_model": "glm-5",
+        "available_models": ["glm-5"]
       }
     }
   }

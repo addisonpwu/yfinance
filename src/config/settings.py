@@ -212,6 +212,7 @@ class AIProvidersConfig:
     iflow: AIProviderConfig = None
     nvidia: AIProviderConfig = None
     gemini: AIProviderConfig = None
+    opencode: AIProviderConfig = None
     
     def __post_init__(self):
         if self.iflow is None:
@@ -228,6 +229,11 @@ class AIProvidersConfig:
             self.gemini = AIProviderConfig(
                 default_model=DEFAULT_AI_PROVIDERS["gemini"]["default_model"],
                 available_models=DEFAULT_AI_PROVIDERS["gemini"]["available_models"]
+            )
+        if self.opencode is None:
+            self.opencode = AIProviderConfig(
+                default_model=DEFAULT_AI_PROVIDERS["opencode"]["default_model"],
+                available_models=DEFAULT_AI_PROVIDERS["opencode"]["available_models"]
             )
 
 
@@ -326,6 +332,7 @@ class ConfigManager:
         iflow_config = providers_config.get('iflow', {})
         nvidia_config = providers_config.get('nvidia', {})
         gemini_config = providers_config.get('gemini', {})
+        opencode_config = providers_config.get('opencode', {})
         
         self._config = AppConfig(
             api=APIConfig(
@@ -412,6 +419,10 @@ class ConfigManager:
                     gemini=AIProviderConfig(
                         default_model=gemini_config.get('default_model', DEFAULT_AI_PROVIDERS["gemini"]["default_model"]),
                         available_models=gemini_config.get('available_models', DEFAULT_AI_PROVIDERS["gemini"]["available_models"])
+                    ),
+                    opencode=AIProviderConfig(
+                        default_model=opencode_config.get('default_model', DEFAULT_AI_PROVIDERS["opencode"]["default_model"]),
+                        available_models=opencode_config.get('available_models', DEFAULT_AI_PROVIDERS["opencode"]["available_models"])
                     )
                 )
             ),

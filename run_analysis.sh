@@ -24,7 +24,7 @@ echo "开始分析: $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
 echo "========================================" >> "$LOG_FILE"
 
 # 执行分析（港股 + 多AI提供商 + 多模型投票）
-python3 main.py --market HK --model all --provider iflow,nvidia >> "$LOG_FILE" 2>&1
+python3 main.py --market HK --stock-list /Users/addison/Dev/stock.json --model all --provider iflow,nvidia >> "$LOG_FILE" 2>&1
 
 # 记录结束时间
 echo "========================================" >> "$LOG_FILE"

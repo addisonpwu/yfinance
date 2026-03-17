@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--interval', type=str, default='1d', choices=['1d', '1h', '1m'], help="數據時段類型：1d（日線，默認）、1h（小時線）、1m（分鐘線）")
     parser.add_argument('--model', type=str, default=None, help="AI分析模型 (iFlow: deepseek-v3.2; NVIDIA: z-ai/glm5; Gemini: gemini-2.5-flash; 或 'all')")
     parser.add_argument('--provider', type=str, default='iflow', 
-                        help="AI 提供商 (iflow, nvidia, gemini，可用逗号分隔多选，如 'iflow,nvidia,gemini')")
+                        help="AI 提供商 (iflow, nvidia, gemini, opencode，可用逗号分隔多选，如 'iflow,nvidia,gemini')")
     parser.add_argument('--speed', type=str, default=None, choices=['fast', 'balanced', 'safe'], 
                         help=f"速度模式: fast(快速), balanced(平衡,默認), safe(安全)")
     parser.add_argument('--skip-validation', action='store_true', help="跳過啟動時的配置驗證")
@@ -34,7 +34,7 @@ def main():
     
     # 解析提供商列表（支持逗号分隔）
     providers = [p.strip().lower() for p in args.provider.split(',')]
-    valid_providers = ['iflow', 'nvidia', 'gemini']
+    valid_providers = ['iflow', 'nvidia', 'gemini', 'opencode']
     invalid_providers = [p for p in providers if p not in valid_providers]
     if invalid_providers:
         print(f"❌ 无效的 AI 提供商: {invalid_providers}，有效选项: {valid_providers}")
