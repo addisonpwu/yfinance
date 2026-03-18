@@ -91,7 +91,6 @@ def run_analysis(
     # --- 初始化报告和进度追踪 ---
     report_writer = ReportWriter(output_filename, market)
     report_writer.initialize()
-    print(f"--- JSON 报告: {report_writer.get_filename()} ---")
     print(f"--- HTML 报告: {report_writer.get_html_filename()} ---")
     
     progress_tracker = ProgressTracker(total_stocks)
@@ -168,7 +167,7 @@ def run_analysis(
     # --- 写入摘要列表 ---
     if qualified_stocks:
         report_writer.write_summary(qualified_stocks, market)
-        print(f"\n--- 完整报告已储存至 {report_writer.get_filename()} ---")
+        print(f"\n--- 完整报告已储存至 {report_writer.get_html_filename()} ---")
     
     return qualified_stocks
 
@@ -256,7 +255,6 @@ def run_analysis_from_json(
     # --- 初始化报告和进度追踪 ---
     report_writer = ReportWriter(output_filename, market)
     report_writer.initialize()
-    print(f"--- JSON 报告: {report_writer.get_filename()} ---")
     print(f"--- HTML 报告: {report_writer.get_html_filename()} ---")
     
     progress_tracker = ProgressTracker(total_stocks)
@@ -337,6 +335,6 @@ def run_analysis_from_json(
     # --- 写入摘要列表 ---
     if qualified_stocks:
         report_writer.write_summary(qualified_stocks, market)
-        print(f"\n--- 完整报告已储存至 {report_writer.get_filename()} ---")
+        print(f"\n--- 完整报告已储存至 {report_writer.get_html_filename()} ---")
     
     return qualified_stocks

@@ -61,9 +61,11 @@ class ReportWriter:
         'iflow': '#3b82f6',      # 蓝色
         'nvidia': '#10b981',     # 绿色
         'gemini': '#8b5cf6',     # 紫色
+        'opencode': '#f97316',   # 橙色
         'IFLOW': '#3b82f6',
         'NVIDIA': '#10b981',
-        'GEMINI': '#8b5cf6'
+        'GEMINI': '#8b5cf6',
+        'OPENCODE': '#f97316'
     }
     
     def __init__(self, filename: str = None, market: str = 'HK'):
@@ -249,36 +251,8 @@ class ReportWriter:
             # 标记为已完成，停止增量更新
             self._is_completed = True
             
-            # 生成 JSON 报告（只有股票代码）
-            self._generate_json_report(results, market)
-            
             # 生成最终版 HTML 报告（is_in_progress=False）
             self._generate_html_report(results, market, is_final=True)
-    
-    def _generate_json_report(self, results: List[Dict[str, Any]], market: str) -> None:
-        """生成 JSON 格式的股票代码列表"""
-        stocks = []
-        
-        for result in results:
-            symbol = result.get('symbol', '')
-            if symbol:
-                stocks.append(symbol)
-        
-        report_data = {
-            "market": market,
-            "date": self._start_time.strftime('%Y-%m-%d'),
-            "generated_at": self._start_time.strftime('%Y-%m-%d %H:%M:%S'),
-            "total_stocks": len(stocks),
-            "stocks": stocks
-        }
-        
-        json_filename = f"{self.base_filename}.json"
-        try:
-            with open(json_filename, 'w', encoding='utf-8') as f:
-                json.dump(report_data, f, ensure_ascii=False, indent=2)
-            print(f"\n📊 JSON 报告已生成: {json_filename}")
-        except Exception as e:
-            print(f"生成 JSON 报告时出错: {e}")
     
     def _generate_html_report(self, results: List[Dict[str, Any]], market: str, is_final: bool = False) -> None:
         """生成 HTML 格式的完整报告
@@ -475,6 +449,8 @@ class ReportWriter:
         .provider-nvidia .ai-provider-header {{ background: rgba(16, 185, 129, 0.15); color: #34d399; }}
         .provider-gemini {{ border-color: #8b5cf6; }}
         .provider-gemini .ai-provider-header {{ background: rgba(139, 92, 246, 0.15); color: #a78bfa; }}
+        .provider-opencode {{ border-color: #f97316; }}
+        .provider-opencode .ai-provider-header {{ background: rgba(249, 115, 22, 0.15); color: #fb923c; }}
         
         .toggle-btn {{
             transition: all 0.3s ease;
@@ -667,7 +643,6 @@ class ReportWriter:
         symbol = result.get('symbol', '')
         strategies = result.get('strategies', [])
         ai_analysis = result.get('ai_analysis')
-        news = result.get('news', [])
         technical_indicators = result.get('technical_indicators', {})
         
         # 格式化数据
@@ -743,11 +718,12 @@ class ReportWriter:
         strategy_details = result.get('strategy_details', [])
         scores_html = self._build_strategy_scores_html(strategy_details) if strategy_details else ''
         
+        # 构建新闻区域 HTML
+        news_list = result.get('news', [])
+        news_html = self._build_news_section_html(news_list) if news_list else ''
+        
         # 构建 AI 分析 HTML
         ai_html = self._build_ai_section_html_dark(ai_analysis, ai_id) if ai_analysis else ''
-        
-        # 构建新闻 HTML
-        news_html = self._build_news_section_html_dark(news) if news else ''
         
         return f'''
             <article class="stock-card rounded-2xl overflow-hidden" data-symbol="{symbol}">
@@ -842,9 +818,9 @@ class ReportWriter:
                         <!-- Right: AI Analysis -->
                         <div class="lg:col-span-2">
                             {ai_html}
-                            {news_html}
                         </div>
                     </div>
+                    {news_html}
                 </div>
             </article>'''
     
@@ -918,35 +894,113 @@ class ReportWriter:
                                 </div>
                             </div>'''
     
-    def _build_news_section_html_dark(self, news: list) -> str:
-        """构建新闻显示区域 - 深色主题"""
-        if not news:
+    def _build_news_section_html(self, news_list: List[Dict]) -> str:
+        """构建新闻显示区域 - 深色主题
+        
+        Args:
+            news_list: 新闻列表，每条新闻包含：
+                - title: 标题
+                - publishTime: 发布时间
+                - url: 链接
+                - type: 类型 (profit=盈利预告, rating=机构评级)
+                - agency: 机构
+                - rating: 评级
+                - profit: 盈利信息
+        
+        Returns:
+            新闻区域 HTML
+        """
+        if not news_list:
             return ''
         
         news_items = []
-        for item in news:  # 显示所有新闻
-            title = item.get('title', 'N/A')
-            link = item.get('link', '#')
-            published = item.get('published', '')
+        
+        for news in news_list[:5]:  # 最多显示5条
+            title = news.get('title', '')
+            publish_time = news.get('publishTime', '') or news.get('published', '')
+            url = news.get('url', '') or news.get('link', '')
+            news_type = news.get('type', '')
+            agency = news.get('agency', '')
+            rating = news.get('rating', '')
+            profit = news.get('profit', '')
             
-            news_items.append(f'''
-                                <div class="py-2 border-b border-terminal-border/50 last:border-0">
-                                    <a href="{link}" target="_blank" class="text-sm text-terminal-text hover:text-terminal-accent transition-colors">{title[:60]}{'...' if len(title) > 60 else ''}</a>
-                                    <div class="text-xs text-terminal-muted mt-1">{published}</div>
-                                </div>''')
+            # 格式化发布时间
+            time_display = publish_time
+            if 'T' in publish_time:
+                try:
+                    # 解析 ISO 格式时间
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(publish_time.replace('+08:00', '+08:00'))
+                    time_display = dt.strftime('%m-%d %H:%M')
+                except:
+                    time_display = publish_time[:16].replace('T', ' ')
+            
+            # 构建类型标签
+            type_badge = ''
+            if news_type == 'profit':
+                type_badge = '<span class="px-2 py-0.5 rounded text-xs bg-green-500/20 text-green-400 border border-green-500/30">✅ 盈利預告</span>'
+            elif news_type == 'rating':
+                type_badge = '<span class="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30">✅ 機構評級</span>'
+            
+            # 构建额外信息
+            extra_info = []
+            if agency:
+                extra_info.append(f'<span class="text-blue-400">{agency}</span>')
+            if rating:
+                extra_info.append(f'<span class="text-amber-400">{rating}</span>')
+            if profit:
+                extra_info.append(f'<span class="text-green-400">{profit}</span>')
+            extra_info_str = ' | '.join(extra_info) if extra_info else ''
+            
+            # 构建新闻条目
+            if url:
+                news_items.append(f'''
+                <a href="{url}" target="_blank" class="block p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 border border-gray-700/50 hover:border-gray-600 transition-all">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                {type_badge}
+                                <span class="text-xs text-gray-500">{time_display}</span>
+                            </div>
+                            <p class="text-sm text-gray-300 hover:text-white transition-colors">{title}</p>
+                            {f'<p class="text-xs text-gray-500 mt-1">{extra_info_str}</p>' if extra_info_str else ''}
+                        </div>
+                        <svg class="w-4 h-4 text-gray-500 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                    </div>
+                </a>''')
+            else:
+                news_items.append(f'''
+                <div class="block p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                {type_badge}
+                                <span class="text-xs text-gray-500">{time_display}</span>
+                            </div>
+                            <p class="text-sm text-gray-300">{title}</p>
+                            {f'<p class="text-xs text-gray-500 mt-1">{extra_info_str}</p>' if extra_info_str else ''}
+                        </div>
+                    </div>
+                </div>''')
+        
+        if not news_items:
+            return ''
         
         return f'''
-                            <div class="mt-4 p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
-                                <h4 class="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
-                                    </svg>
-                                    近期新聞 ({len(news)} 條)
-                                </h4>
-                                <div class="space-y-1">
-                                    {''.join(news_items)}
-                                </div>
-                            </div>'''
+                <!-- News Section -->
+                <div class="mt-6 pt-6 border-t border-terminal-border">
+                    <h4 class="text-sm font-semibold text-terminal-muted uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                        </svg>
+                        近期新聞 ({len(news_items)} 條)
+                    </h4>
+                    <div class="space-y-2">
+                        {''.join(news_items)}
+                    </div>
+                </div>'''
     
     def _build_ai_section_html_dark(self, ai_analysis: Dict[str, Any], ai_id: str) -> str:
         """构建可折叠的 AI 分析区域 - 深色主题，支持多提供商"""
@@ -957,7 +1011,7 @@ class ReportWriter:
         model = ai_analysis.get('model_used', 'N/A')
         
         # 检测是否为多提供商分析
-        is_multi_provider = '---' in summary and ('IFLOW' in summary.upper() or 'NVIDIA' in summary.upper() or 'GEMINI' in summary.upper())
+        is_multi_provider = '---' in summary and ('IFLOW' in summary.upper() or 'NVIDIA' in summary.upper() or 'GEMINI' in summary.upper() or 'OPENCODE' in summary.upper())
         
         if is_multi_provider:
             # 解析多提供商分析
@@ -1018,7 +1072,7 @@ class ReportWriter:
         
         # 只匹配 "--- PROVIDER 分析 ---" 格式（不匹配 "【PROVIDER ...】" 格式）
         # 这样可以避免错误分割 NVIDIA 多模型共识分析的内容
-        pattern = r'---\s*(IFLOW|NVIDIA|GEMINI)\s*分析\s*---'
+        pattern = r'---\s*(IFLOW|NVIDIA|GEMINI|OPENCODE)\s*分析\s*---'
         
         results = []
         
@@ -1171,23 +1225,6 @@ class ReportWriter:
         
         return ''.join(html_parts)
 
-    def get_filename(self) -> str:
-        """获取 JSON 输出文件名"""
-        return f"{self.base_filename}.json"
-    
     def get_html_filename(self) -> str:
         """获取 HTML 文件名"""
         return f"{self.base_filename}.html"
-    
-    def exists(self) -> bool:
-        """检查文件是否存在"""
-        return os.path.exists(f"{self.base_filename}.json")
-    
-    def read_content(self) -> str:
-        """读取 JSON 文件内容"""
-        try:
-            with open(f"{self.base_filename}.json", 'r', encoding='utf-8') as f:
-                return f.read()
-        except Exception as e:
-            print(f"读取报告文件时发生错误: {e}")
-            return ""

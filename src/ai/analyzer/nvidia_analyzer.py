@@ -698,7 +698,6 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         fundamentals = self._format_fundamentals(info)
         tech_indicators = self._get_technical_indicators(hist)
         hist_summary = self._get_hist_summary(hist)
-        news_section = self._format_news(stock_data.get('news', []))
         market_env = self._format_market_sentiment(market_sentiment) if market_sentiment else ''
         
         prompt = f"""你是一位专业的短期股票分析师（擅长1-4周内的短线交易）。请基于前期分析给出综合投资建议。
@@ -721,8 +720,6 @@ class NvidiaAIAnalyzer(AIAnalyzer):
 
 {market_env}
 
-{news_section}
-
 【前期分析结果】
 趋势判断: {trend_result}
 
@@ -741,7 +738,7 @@ class NvidiaAIAnalyzer(AIAnalyzer):
 - VIX 15-25: 正常波动市场，谨慎操作
 - VIX > 25: 高波动市场，降低仓位
 
-## 二、技术面分析（权重40%）
+## 二、技术面分析（权重50%）
 必须分析以下关键信号：
 1. RSI信号：RSI>70超买可能回调，RSI<30超卖可能反弹，RSI在40-60最为健康
 2. MACD信号：金叉（ DIF上穿DEA）是买入信号，死叉是卖出信号
@@ -749,13 +746,7 @@ class NvidiaAIAnalyzer(AIAnalyzer):
 4. 布林带信号：价格突破上轨可能回调，突破下轨可能反弹
 5. 量价配合：价涨量增健康，价涨量缩需警惕
 
-## 三、新闻影响分析（权重20%）
-分析新闻对短期走势的影响：
-- 正面新闻：业绩增长、产品发布、获得订单等 → 看多
-- 负面新闻：业绩下滑、诉讼、减持等 → 看空
-- 中性新闻：无实质影响 → 维持原有趋势
-
-## 四、风险评估（权重10%）
+## 三、风险评估（权重10%）
 必须给出：
 - 最大风险点
 - 建议止损价位（必须具体数值）
@@ -1074,43 +1065,6 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         
         return "\n".join(lines)
     
-    def _format_news(self, news_list: List[Dict]) -> str:
-        """格式化新闻数据 - 增强版，包含新闻时间排序和摘要"""
-        if not news_list:
-            return ""
-        
-        # 按发布时间排序（最新的在前）
-        sorted_news = sorted(
-            news_list, 
-            key=lambda x: x.get('published', ''), 
-            reverse=True
-        )[:5]  # 最多显示5条
-        
-        lines = ["【近期新闻】（按时间倒序）"]
-        
-        for i, item in enumerate(sorted_news, 1):
-            title = item.get('title', 'N/A')
-            published = item.get('published', '')
-            publisher = item.get('publisher', '')
-            summary = item.get('summary', '')
-            
-            lines.append(f"{i}. [{published}] {title}")
-            if publisher:
-                lines.append(f"   来源: {publisher}")
-            # 如果有摘要，添加简要内容
-            if summary and summary != title:
-                # 截取摘要前100字
-                summary_short = summary[:100] + "..." if len(summary) > 100 else summary
-                lines.append(f"   摘要: {summary_short}")
-        
-        # 添加分析指引
-        lines.append("")
-        lines.append("【新闻分析指引】")
-        lines.append("- 关注发布时间越近的新闻，影响力越大")
-        lines.append("- 业绩公告、产品发布、重大合同为利好")
-        lines.append("- 业绩亏损、诉讼、减持、监管处罚为利空")
-        
-        return "\n".join(lines)
     
     def _format_fundamentals(self, info: Dict) -> str:
         """格式化基本面信息"""
@@ -1245,15 +1199,6 @@ class NvidiaAIAnalyzer(AIAnalyzer):
         }
         info_hash = OptimizedCache.compute_data_hash(key_info)
         
-        news_hash = None
-        news = stock_data.get('news', [])
-        if news:
-            news_data = [
-                {'t': n.get('title', ''), 'p': n.get('published', '')}
-                for n in news[:5]
-            ]
-            news_hash = OptimizedCache.compute_data_hash(news_data)
-        
         return self.cache_service.generate_ai_cache_key(
             symbol=stock_data.get('symbol', ''),
             strategies=stock_data.get('strategies', []),
@@ -1261,6 +1206,5 @@ class NvidiaAIAnalyzer(AIAnalyzer):
             interval=interval,
             model=f"nvidia_{model}",
             hist_hash=hist_hash,
-            info_hash=info_hash,
-            news_hash=news_hash
+            info_hash=info_hash
         )

@@ -121,12 +121,13 @@ class OpenCodeAIAnalyzer:
             self.default_model = self.DEFAULT_MODEL
             self.available_models = self.AVAILABLE_MODELS
         
-        # 初始化 OpenAI 客户端
+        # 初始化 OpenAI 客户端（设置 5 分钟超时，避免 API 超时错误）
         self.client = None
         if HAS_OPENAI and self.api_key:
             self.client = OpenAI(
                 api_key=self.api_key,
-                base_url=self.API_URL
+                base_url=self.API_URL,
+                timeout=300.0  # 5 分钟超时
             )
             self.logger.info(f"OpenCode AI 分析器初始化成功，模型: {self.default_model}")
         else:
@@ -270,9 +271,6 @@ class OpenCodeAIAnalyzer:
         # 历史数据摘要
         hist_summary = self._get_hist_summary(hist)
         
-        # 格式化新闻
-        news_section = self._format_news(stock_data.get('news', []))
-        
         prompt = f"""你是一位专业的短期股票分析师（擅长1-4周内的短线交易）。请基于以下数据给出综合投资建议。
 
 {self.FEW_SHOT_EXAMPLES}
@@ -288,8 +286,6 @@ class OpenCodeAIAnalyzer:
 {fundamentals}
 
 {tech_indicators}
-
-{news_section}
 
 【历史数据分析】
 {hist_summary}
@@ -311,11 +307,6 @@ class OpenCodeAIAnalyzer:
 3. 均线信号：价格站上均线看多，跌破均线看空；多头排列（MA5>MA10>MA20）看多
 4. 布林带信号：价格突破上轨可能回调，突破下轨可能反弹
 5. 量价配合：价涨量增健康，价涨量缩需警惕
-
-## 三、新闻影响分析（权重20%）
-分析新闻对短期走势的影响：
-- 正面新闻：业绩增长、产品发布、获得订单等 → 看多
-- 负面新闻：业绩下滑、诉讼、减持等 → 看空
 - 中性新闻：无实质影响 → 维持原有趋势
 
 ## 四、风险评估（权重10%）
@@ -491,38 +482,6 @@ class OpenCodeAIAnalyzer:
         except Exception as e:
             self.logger.debug(f"获取历史摘要失败: {e}")
             return "数据解析失败"
-    
-    def _format_news(self, news_list: List[Dict]) -> str:
-        """格式化新闻数据"""
-        if not news_list:
-            return ""
-        
-        # 按发布时间排序（最新的在前）
-        sorted_news = sorted(
-            news_list, 
-            key=lambda x: x.get('published', ''), 
-            reverse=True
-        )[:5]  # 最多显示5条
-        
-        lines = ["【近期新闻】（按时间倒序）"]
-        
-        for i, item in enumerate(sorted_news, 1):
-            title = item.get('title', 'N/A')
-            published = item.get('published', '')
-            publisher = item.get('publisher', '')
-            
-            lines.append(f"{i}. [{published}] {title}")
-            if publisher:
-                lines.append(f"   来源: {publisher}")
-        
-        # 添加分析指引
-        lines.append("")
-        lines.append("【新闻分析指引】")
-        lines.append("- 关注发布时间越近的新闻，影响力越大")
-        lines.append("- 业绩公告、产品发布、重大合同为利好")
-        lines.append("- 业绩亏损、诉讼、减持、监管处罚为利空")
-        
-        return "\n".join(lines)
     
     def _extract_direction_and_confidence(self, text: str) -> Tuple[str, float]:
         """从分析结果中提取方向和置信度"""

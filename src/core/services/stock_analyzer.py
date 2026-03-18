@@ -12,9 +12,9 @@ import pandas as pd
 import time
 import random
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed, CancelledError, TimeoutError
 
 from src.data.loaders.yahoo_loader import YahooFinanceRepository, calculate_technical_indicators, optimize_dataframe_memory
-from src.data.loaders.news_service import NewsService
 from src.core.strategies.strategy import StrategyContext, StrategyEngine
 from src.core.strategies.loader import get_strategies
 from src.core.models.entities import StockAnalysisResult
@@ -131,7 +131,6 @@ class StockAnalyzer:
     
     def __init__(self, provider: str = 'iflow', providers: list = None):
         self.data_repo = YahooFinanceRepository()
-        self.news_service = NewsService()  # 统一新闻服务
         self.strategy_engine = StrategyEngine(get_strategies())
         
         # 支持多提供商：providers 参数优先，否则使用 provider 参数
@@ -188,6 +187,49 @@ class StockAnalyzer:
         with StockAnalyzer._rate_limit_lock:
             StockAnalyzer._consecutive_errors = min(StockAnalyzer._consecutive_errors + 1, 5)
     
+    def _analyze_with_provider(
+        self,
+        provider: str,
+        stock_data: Dict[str, Any],
+        hist: pd.DataFrame,
+        interval: str,
+        model: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        使用单个提供商进行 AI 分析
+        
+        Args:
+            provider: 提供商名称
+            stock_data: 股票数据字典
+            hist: 历史价格数据
+            interval: 数据时间间隔
+            model: AI 模型名称
+        
+        Returns:
+            分析结果字典或 None（失败时）
+        """
+        # P0: 应用速率限制，确保并行执行时不会绕过限制
+        self._apply_rate_limit()
+        try:
+            ai_service = self.ai_services.get(provider)
+            if not ai_service:
+                self.logger.warning(f"提供商 {provider} 服务未初始化")
+                return None
+            
+            result = ai_service.analyze_stock(stock_data, hist, interval=interval, model=model)
+            if result:
+                return {
+                    'provider': provider,
+                    'summary': result.summary,
+                    'model_used': result.model_used,
+                    'confidence': result.confidence,
+                    'detailed_analysis': result.detailed_analysis if hasattr(result, 'detailed_analysis') else None
+                }
+        except Exception as e:
+            self.logger.warning(f"提供商 {provider} 分析失败: {e}")
+        
+        return None
+    
     def analyze(
         self,
         symbol: str,
@@ -213,10 +255,6 @@ class StockAnalyzer:
             model: AI 模型名称
             providers: AI 提供商列表
             force_refresh: 是否强制刷新缓存获取最新数据
-            skip_strategies: 是否跳过策略筛选
-            interval: 数据时段类型
-            model: AI 模型
-            providers: AI 提供商列表（优先）或 None
         
         Returns:
             StockAnalysisResult 分析结果
@@ -227,10 +265,9 @@ class StockAnalyzer:
         self._apply_rate_limit()
         
         try:
-            # 获取股票数据（不包含新闻，新闻在策略筛选后获取）
+            # 获取股票数据
             hist = self.data_repo.get_historical_data(symbol, market, interval=interval, force_refresh=force_refresh)
             info = self.data_repo.get_financial_info(symbol)
-            news = []  # 新闻在策略筛选后才获取
             
             # 数据质量检查
             if hist.empty or len(hist) < 2 or info is None or (isinstance(info, dict) and len(info) == 0):
@@ -239,7 +276,6 @@ class StockAnalyzer:
                     exchange='',
                     strategies=[],
                     info={},
-                    news=[],
                     ai_analysis=None,
                     success=False,
                     technical_indicators=None,
@@ -257,7 +293,6 @@ class StockAnalyzer:
                             exchange='',
                             strategies=[],
                             info={},
-                            news=[],
                             ai_analysis=None,
                             success=False,
                             technical_indicators=None,
@@ -273,7 +308,6 @@ class StockAnalyzer:
                             exchange='',
                             strategies=[],
                             info={},
-                            news=[],
                             ai_analysis=None,
                             success=False,
                             technical_indicators=None,
@@ -288,7 +322,6 @@ class StockAnalyzer:
                         exchange='',
                         strategies=[],
                         info={},
-                        news=[],
                         ai_analysis=None,
                         success=False,
                         technical_indicators=None,
@@ -326,7 +359,7 @@ class StockAnalyzer:
                             'details': result.details
                         })
             
-            # 如果未通过任何策略且未跳过策略，返回失败（不获取新闻）
+            # 如果未通过任何策略且未跳过策略，返回失败
             if not passed_strategies and not skip_strategies:
                 return StockAnalysisResult(
                     symbol=symbol,
@@ -334,15 +367,11 @@ class StockAnalyzer:
                     strategies=[],
                     strategy_details=[],
                     info=info,
-                    news=[],  # 未通过策略，不获取新闻
                     ai_analysis=None,
                     success=False,
                     technical_indicators=None,
                     error="未通过任何策略"
                 )
-            
-            # 策略筛选通过后才获取新闻（使用 NewsService）
-            news = self.news_service.get_news(symbol, market)
             
             # AI 分析（支持多提供商）
             ai_analysis = None
@@ -351,35 +380,44 @@ class StockAnalyzer:
                     'symbol': symbol,
                     'strategies': passed_strategies,
                     'info': info,
-                    'market': market,
-                    'news': news  # 添加新闻数据
+                    'market': market
                 }
                 
-                # 如果有多个提供商，进行多提供商分析
+                # 如果有多个提供商，并行进行多提供商分析
                 if len(providers_to_use) > 1:
                     ai_results = []
-                    for p in providers_to_use:
-                        try:
-                            ai_service = self.ai_services.get(p)
-                            if ai_service:
-                                result = ai_service.analyze_stock(stock_data, hist, interval=interval, model=model)
+                    # 使用 ThreadPoolExecutor 并行执行（P2: 添加上限避免过多并发）
+                    max_workers = min(len(providers_to_use), 4)
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        # 提交所有提供商的分析任务
+                        future_to_provider = {
+                            executor.submit(
+                                self._analyze_with_provider,
+                                p, stock_data, hist, interval, model
+                            ): p for p in providers_to_use
+                        }
+                        
+                        # 收集结果（P1: 添加并发异常处理）
+                        for future in as_completed(future_to_provider):
+                            provider = future_to_provider[future]
+                            try:
+                                result = future.result()
                                 if result:
-                                    ai_results.append({
-                                        'provider': p,
-                                        'summary': result.summary,
-                                        'model_used': result.model_used,
-                                        'confidence': result.confidence,
-                                        'detailed_analysis': result.detailed_analysis if hasattr(result, 'detailed_analysis') else None
-                                    })
-                        except Exception as e:
-                            self.logger.warning(f"提供商 {p} 分析失败: {e}")
+                                    ai_results.append(result)
+                            except CancelledError:
+                                self.logger.warning(f"提供商 {provider} 任务被取消")
+                            except TimeoutError:
+                                self.logger.warning(f"提供商 {provider} 任务超时")
+                            except Exception as e:
+                                self.logger.error(f"提供商 {provider} 任务异常: {e}")
                     
                     if ai_results:
-                        # 合并多提供商结果
-                        combined_summary = f"【多提供商分析】\n\n"
+                        # 合并多提供商结果，使用正确格式 --- PROVIDER 分析 ---
+                        combined_summary = ""
                         total_confidence = 0
                         for r in ai_results:
-                            combined_summary += f"--- {r['provider'].upper()} 分析 ---\n"
+                            provider_name = r['provider'].upper()
+                            combined_summary += f"--- {provider_name} 分析 ---\n"
                             combined_summary += f"模型: {r['model_used']}\n"
                             combined_summary += f"置信度: {r['confidence']:.0%}\n"
                             combined_summary += f"{r['summary']}\n\n"
@@ -399,7 +437,8 @@ class StockAnalyzer:
                     if ai_result:
                         ai_analysis = {
                             'summary': ai_result.summary,
-                            'model_used': ai_result.model_used
+                            'model_used': ai_result.model_used,
+                            'confidence': ai_result.confidence if hasattr(ai_result, 'confidence') else 0.5
                         }
             except Exception as ai_e:
                 self.logger.error(f"AI 分析出错: {ai_e}")
@@ -413,7 +452,6 @@ class StockAnalyzer:
                 strategies=passed_strategies,
                 strategy_details=strategy_details,
                 info=info,
-                news=news,
                 ai_analysis=ai_analysis,
                 success=True,
                 technical_indicators=technical_indicators
@@ -427,7 +465,6 @@ class StockAnalyzer:
                 exchange='',
                 strategies=[],
                 info={},
-                news=[],
                 ai_analysis=None,
                 success=False,
                 technical_indicators=None,
@@ -441,8 +478,8 @@ class StockAnalyzer:
             'exchange': result.exchange,
             'strategies': result.strategies,
             'info': result.info,
-            'news': result.news,
             'ai_analysis': result.ai_analysis,
             'technical_indicators': result.technical_indicators,
-            'strategy_details': result.strategy_details
+            'strategy_details': result.strategy_details,
+            'news': result.news
         }

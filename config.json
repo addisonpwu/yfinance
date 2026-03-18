@@ -174,8 +174,8 @@
         ]
       },
       "opencode": {
-        "default_model": "glm-5",
-        "available_models": ["glm-5"]
+        "default_model": "kimi-k2.5",
+        "available_models": ["kimi-k2.5"]
       }
     }
   }
