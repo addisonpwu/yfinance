@@ -277,6 +277,7 @@ def run_analysis_from_json(
             market_return=market_return,
             is_market_healthy=is_market_healthy,
             skip_strategies=True,  # 跳过策略筛选，直接 AI 分析
+            skip_volume_check=True,  # 跳过成交量检查
             interval=interval,
             model=model,
             providers=providers,

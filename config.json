@@ -5,9 +5,9 @@
     "enabled": true
   },
   "api": {
-    "base_delay": 0.1,
-    "max_delay": 1.0,
-    "min_delay": 0.1,
+    "base_delay": 0.5,
+    "max_delay": 2.0,
+    "min_delay": 0.5,
     "retry_attempts": 3,
     "max_workers": 4
   },
@@ -162,9 +162,7 @@
         "available_models": [
           "meta/llama-3.3-70b-instruct",
           "stepfun-ai/step-3.5-flash",
-          "minimaxai/minimax-m2.5",
-          "mistralai/devstral-2-123b-instruct-2512",
-          "nvidia/nemotron-3-nano-30b-a3b"
+          "minimaxai/minimax-m2.5"
         ]
       },
       "gemini": {

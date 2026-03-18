@@ -167,6 +167,13 @@ class IFlowAIAnalyzer(AIAnalyzer):
     # AI 分析缓存子目录
     AI_CACHE_SUBDIR = "ai_analysis"
     
+    # 类级别速率限制（同一 provider 内的所有 API 调用共享）
+    _last_api_call_time: float = 0.0
+    _rate_limit_lock = None  # 延迟初始化，避免多进程问题
+    
+    # API 调用最小间隔（秒）
+    MIN_API_INTERVAL = 0.5
+    
     # Few-shot 学习案例（历史成功预测）
     FEW_SHOT_EXAMPLES = """
 【历史成功预测案例】
@@ -1688,6 +1695,20 @@ AI分析结果将用于实盘交易决策，请务必严谨客观。
             (API 返回的文本内容, 实际使用的模型名称) 的元组，如果调用失败返回 (None, None)
         """
         import time as time_module
+        import threading
+        
+        # 应用类级别速率限制
+        if IFlowAIAnalyzer._rate_limit_lock is None:
+            IFlowAIAnalyzer._rate_limit_lock = threading.Lock()
+        
+        with IFlowAIAnalyzer._rate_limit_lock:
+            now = time_module.time()
+            time_since_last = now - IFlowAIAnalyzer._last_api_call_time
+            if time_since_last < IFlowAIAnalyzer.MIN_API_INTERVAL:
+                sleep_time = IFlowAIAnalyzer.MIN_API_INTERVAL - time_since_last
+                time_module.sleep(sleep_time)
+            IFlowAIAnalyzer._last_api_call_time = time_module.time()
+        
         start_time = time_module.time()
         self.logger.info(f"[iFlow API] 开始调用，模型: {model_name}，提示词长度: {len(prompt)} 字符")
         

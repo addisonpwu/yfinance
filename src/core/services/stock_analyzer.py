@@ -237,6 +237,7 @@ class StockAnalyzer:
         market_return: float,
         is_market_healthy: bool,
         skip_strategies: bool = False,
+        skip_volume_check: bool = False,
         interval: str = '1d',
         model: str = 'deepseek-v3.2',
         providers: list = None,
@@ -251,6 +252,7 @@ class StockAnalyzer:
             market_return: 大盘回报率
             is_market_healthy: 市场是否健康
             skip_strategies: 是否跳过策略筛选
+            skip_volume_check: 是否跳过成交量检查
             interval: 数据时间间隔
             model: AI 模型名称
             providers: AI 提供商列表
@@ -283,7 +285,7 @@ class StockAnalyzer:
                 )
             
             # 数据预处理优化：基础筛选
-            if self.config.analysis.enable_data_preprocessing:
+            if self.config.analysis.enable_data_preprocessing and not skip_volume_check:
                 # 基础数据质量检查
                 if 'Volume' in hist.columns and not hist['Volume'].empty:
                     recent_volume = hist['Volume'].tail(5).mean()
