@@ -56,6 +56,39 @@ STOCH_RSI_SMOOTH_K = 3      # Stochastic RSI %K 平滑周期
 STOCH_RSI_SMOOTH_D = 3      # Stochastic RSI %D 平滑周期
 
 # ============================================
+# 新增技术指标参数 (2026-03-18) - PRD升级
+# ============================================
+
+# Ichimoku 雲圖參數
+ICHIMOKU_TENKAN_PERIOD = 9    # 轉換線週期
+ICHIMOKU_KIJUN_PERIOD = 26    # 基準線週期
+ICHIMOKU_SPAN_B_PERIOD = 52   # 遲行帶週期
+ICHIMOKU_DISPLACEMENT = 26    # 投射週期
+
+# 斐波那契回調位
+FIBONACCI_LEVELS = [0.236, 0.382, 0.5, 0.618, 0.786]  # 標準回調位
+FIBONACCI_EXTENSIONS = [1.236, 1.382, 1.618, 2.0]     # 擴展位
+FIBONACCI_LOOKBACK_PERIOD = 60                         # 默認回看天數
+
+# 背離信號檢測參數
+DIVERGENCE_LOOKBACK = 20     # 背離回看天數
+DIVERGENCE_MIN_CHANGE = 0.03 # 最小價格變化（3%）
+
+# 多時間框架參數
+MULTI_TIMEFRAME_ENABLED = True
+TIMEFRAMES = ['1d', '1w', '1m']  # 日線、週線、月線
+
+# VaR 風險計算參數
+VAR_CONFIDENCE_95 = 0.95     # 95% 置信度
+VAR_CONFIDENCE_99 = 0.99     # 99% 置信度
+VAR_HOLDING_PERIOD = 1       # 持有期（天）
+VAR_LOOKBACK_DAYS = 252      # 回看天數（一年）
+
+# 蒙特卡羅模擬參數
+MONTE_CARLO_SIMULATIONS = 1000  # 模擬路徑數
+MONTE_CARLO_DAYS = 30           # 模擬天數
+
+# ============================================
 # VIX 阈值（市场情绪）
 # ============================================
 VIX_LOW = 15.0          # < 15: 低波动/乐观
