@@ -14,7 +14,7 @@ from src.core.services.progress_tracker import ProgressTracker
 from src.core.services.report_writer import ReportWriter
 from src.core.strategies.loader import get_strategies
 from src.config.settings import config_manager
-from src.data.loaders.stock_list_loader import StockListLoader
+from src.data.loaders.stock_list_loader_enhanced import EnhancedStockListLoader
 
 
 def run_analysis(
