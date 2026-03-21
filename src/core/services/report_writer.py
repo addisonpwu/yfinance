@@ -208,9 +208,12 @@ class ReportWriter:
         tech_score = 0
         fund_score = 0
         total_score = 0
+        entry_price = 0.0
+        stop_loss = 0.0
+        take_profit = 0.0
         
         if not summary:
-            return direction, confidence, tech_score, fund_score, total_score, 0.0, 0.0, 0.0  # P0-1: 添加入场价、止损价、止盈价
+            return direction, confidence, tech_score, fund_score, total_score, entry_price, stop_loss, take_profit
         
         # 提取方向
         dir_match = re.search(r'方向:\s*(看涨|看跌|中性)', summary)
@@ -235,7 +238,7 @@ class ReportWriter:
         if total_match:
             total_score = float(total_match.group(1))
         
-        return direction, confidence, tech_score, fund_score, total_score, 0.0, 0.0, 0.0  # P0-1: 添加入场价、止损价、止盈价
+        return direction, confidence, tech_score, fund_score, total_score, entry_price, stop_loss, take_profit
     
     def write_summary(self, results: List[Dict[str, Any]], market: str) -> None:
         """
@@ -382,16 +385,16 @@ class ReportWriter:
                     }},
                     colors: {{
                         terminal: {{
-                            bg: '#0a0e1a',
-                            card: '#111827',
-                            border: '#1f2937',
-                            accent: '#3b82f6',
-                            success: '#10b981',
-                            warning: '#f59e0b',
-                            danger: '#ef4444',
-                            text: '#f3f4f6',
-                            muted: '#9ca3af',
-                            code: '#1e1e2e'
+                            bg: 'var(--color-bg-primary)',
+                            card: 'var(--color-bg-card)',
+                            border: 'var(--color-border-default)',
+                            accent: 'var(--color-accent-blue)',
+                            success: 'var(--color-bullish)',
+                            warning: 'var(--color-neutral)',
+                            danger: 'var(--color-bearish)',
+                            text: 'var(--color-text-primary)',
+                            muted: 'var(--color-text-muted)',
+                            code: 'var(--color-bg-code)'
                         }}
                     }}
                 }}
@@ -399,9 +402,84 @@ class ReportWriter:
         }}
     </script>
     <style>
+        /* CSS Variables - Centralized Color System */
+        :root {{
+            /* Core Background Colors */
+            --color-bg-primary: #0a0e1a;
+            --color-bg-card: #111827;
+            --color-bg-subtle: #0f172a;
+            --color-bg-code: #1e1e2e;
+            
+            /* Border Colors */
+            --color-border-default: #1f2937;
+            --color-border-subtle: #374151;
+            --color-border-highlight: #4b5563;
+            
+            /* Text Colors */
+            --color-text-primary: #f3f4f6;
+            --color-text-secondary: #d1d5db;
+            --color-text-muted: #9ca3af;
+            --color-text-disabled: #6b7280;
+            
+            /* Accent Colors */
+            --color-accent-blue: #3b82f6;
+            --color-accent-green: #10b981;
+            --color-accent-red: #ef4444;
+            --color-accent-amber: #f59e0b;
+            --color-accent-purple: #8b5cf6;
+            --color-accent-pink: #ec4899;
+            --color-accent-orange: #f97316;
+            
+            /* Semantic Colors */
+            --color-bullish: #10b981;
+            --color-bearish: #ef4444;
+            --color-neutral: #f59e0b;
+            
+            /* Provider Colors */
+            --color-provider-iflow: #3b82f6;
+            --color-provider-nvidia: #10b981;
+            --color-provider-gemini: #8b5cf6;
+            --color-provider-opencode: #f97316;
+            
+            /* Score Colors */
+            --color-score-high: #10b981;
+            --color-score-medium: #f59e0b;
+            --color-score-low: #ff6b6b;
+            
+            /* Trend Colors */
+            --color-trend-up: #10b981;
+            --color-trend-down: #ef4444;
+            --color-trend-flat: #9ca3af;
+            
+            /* Shadows */
+            --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-card-hover: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+            --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.3);
+            --shadow-glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
+            --shadow-glow-red: 0 0 20px rgba(255, 107, 107, 0.4);
+            --shadow-glow-amber: 0 0 20px rgba(245, 158, 11, 0.3);
+            
+            /* Transitions */
+            --transition-fast: 150ms ease;
+            --transition-normal: 300ms ease;
+            --transition-slow: 500ms ease;
+            
+            /* Border Radius */
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-2xl: 24px;
+            
+            /* Z-index Layers */
+            --z-header: 50;
+            --z-back-to-top: 40;
+            --z-modal: 60;
+        }}
+        
         body {{
-            background-color: #0a0e1a;
-            color: #f3f4f6;
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
         }}
         .gradient-border {{
             position: relative;
@@ -473,6 +551,15 @@ class ReportWriter:
         .score-ring {{
             transform: rotate(-90deg);
         }}
+        .score-ring-glow-low {{
+            filter: drop-shadow(0 0 8px var(--color-score-low));
+        }}
+        .score-ring-glow-medium {{
+            filter: drop-shadow(0 0 8px var(--color-score-medium));
+        }}
+        .score-ring-glow-high {{
+            filter: drop-shadow(0 0 8px var(--color-score-high));
+        }}
         .metric-badge {{
             display: inline-flex;
             align-items: center;
@@ -493,11 +580,64 @@ class ReportWriter:
         ::-webkit-scrollbar-thumb:hover {{ background: #4b5563; }}
         
         .section-title {{
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            background: linear-gradient(90deg, var(--color-accent-blue), var(--color-accent-purple));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             font-weight: 700;
         }}
+        
+        /* Back to Top Button */
+        .back-to-top {{
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: var(--radius-xl);
+            background: var(--color-accent-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all var(--transition-normal);
+            box-shadow: var(--shadow-card-hover);
+            z-index: var(--z-back-to-top);
+            border: none;
+        }}
+        .back-to-top.visible {{
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }}
+        .back-to-top:hover {{
+            background: var(--color-accent-blue);
+            filter: brightness(1.2);
+            transform: translateY(-2px);
+        }}
+        
+        /* Global Toggle Buttons */
+        .global-toggle-btn {{
+            padding: 6px 12px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 1px solid;
+        }}
+        .global-toggle-btn:hover {{
+            filter: brightness(1.2);
+            transform: translateY(-1px);
+        }}
+        
+        /* Trend Arrows */
+        .trend-up {{ color: var(--color-trend-up); }}
+        .trend-down {{ color: var(--color-trend-down); }}
+        .trend-flat {{ color: var(--color-trend-flat); }}
     </style>
 </head>
 <body class="antialiased min-h-screen">
@@ -831,56 +971,96 @@ class ReportWriter:
         
         items = []
         
-        # RSI
+        # RSI - P1: Add trend arrow
         if 'rsi' in indicators:
             rsi = indicators['rsi']
+            rsi_prev = indicators.get('rsi_prev', rsi)
             status = indicators.get('rsi_status', 'normal')
             status_text = '超買' if status == 'overbought' else '超賣' if status == 'oversold' else '正常'
+            # Determine trend arrow
+            if rsi > rsi_prev:
+                trend_arrow = '<span class="trend-up">↑</span>'
+            elif rsi < rsi_prev:
+                trend_arrow = '<span class="trend-down">↓</span>'
+            else:
+                trend_arrow = '<span class="trend-flat">→</span>'
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">RSI(14)</span>
-                <span class="font-mono">{rsi:.1f} {status_text} →</span>
+                <span class="font-mono">{rsi:.1f} {status_text} {trend_arrow}</span>
             </div>''')
         
-        # MACD
+        # MACD - P1: Add status with color
         if 'macd' in indicators:
             macd = indicators['macd']
+            macd_prev = indicators.get('macd_prev', macd)
             macd_status = indicators.get('macd_status', 'death_cross')
             status_text = '金叉' if macd_status == 'golden_cross' else '死叉'
             status_class = 'text-green-400' if macd_status == 'golden_cross' else 'text-red-400'
+            # Determine trend arrow
+            if macd > macd_prev:
+                trend_arrow = '<span class="trend-up">↑</span>'
+            elif macd < macd_prev:
+                trend_arrow = '<span class="trend-down">↓</span>'
+            else:
+                trend_arrow = '<span class="trend-flat">→</span>'
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">MACD</span>
-                <span class="font-mono {status_class}">{macd:.4f} {status_text}</span>
+                <span class="font-mono {status_class}">{macd:.4f} {status_text} {trend_arrow}</span>
             </div>''')
         
-        # 布林带位置
+        # 布林带 - P1: Add trend arrow
         if 'bb_position' in indicators:
             bb_pos = indicators['bb_position']
+            bb_prev = indicators.get('bb_position_prev', bb_pos)
             bb_status = indicators.get('bb_status', 'in_band')
             status_text = '上軌外' if bb_status == 'above_upper' else '下軌外' if bb_status == 'below_lower' else '帶內'
+            # Determine trend arrow
+            if bb_pos > bb_prev:
+                trend_arrow = '<span class="trend-up">↑</span>'
+            elif bb_pos < bb_prev:
+                trend_arrow = '<span class="trend-down">↓</span>'
+            else:
+                trend_arrow = '<span class="trend-flat">→</span>'
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">布林帶</span>
-                <span class="font-mono">{bb_pos:.2f} {status_text} →</span>
+                <span class="font-mono">{bb_pos:.2f} {status_text} {trend_arrow}</span>
             </div>''')
         
-        # 均线位置
+        # 均线位置 - P1: Add trend arrow
         if 'ma_score' in indicators:
             ma_score = indicators['ma_score']
+            ma_prev = indicators.get('ma_score_prev', ma_score)
+            # Determine trend arrow
+            if ma_score > ma_prev:
+                trend_arrow = '<span class="trend-up">↑</span>'
+            elif ma_score < ma_prev:
+                trend_arrow = '<span class="trend-down">↓</span>'
+            else:
+                trend_arrow = '<span class="trend-flat">→</span>'
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">均線位置</span>
-                <span class="font-mono">{ma_score}/5 →</span>
+                <span class="font-mono">{ma_score}/5 {trend_arrow}</span>
             </div>''')
         
-        # ATR
+        # ATR - P1: Add trend arrow
         if 'atr_pct' in indicators:
             atr_pct = indicators['atr_pct']
+            atr_prev = indicators.get('atr_pct_prev', atr_pct)
+            # Determine trend arrow
+            if atr_pct > atr_prev:
+                trend_arrow = '<span class="trend-up">↑</span>'
+            elif atr_pct < atr_prev:
+                trend_arrow = '<span class="trend-down">↓</span>'
+            else:
+                trend_arrow = '<span class="trend-flat">→</span>'
             items.append(f'''
             <div class="flex justify-between">
                 <span class="text-terminal-muted">ATR%</span>
-                <span class="font-mono">{atr_pct:.2f}% →</span>
+                <span class="font-mono">{atr_pct:.2f}% {trend_arrow}</span>
             </div>''')
         
         if not items:

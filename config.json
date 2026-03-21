@@ -155,13 +155,12 @@
     "providers": {
       "iflow": {
         "default_model": "deepseek-v3.2",
-        "available_models": ["kimi-k2", "deepseek-v3.2", "qwen3-max", "tstars2.0"]
+        "available_models": ["deepseek-v3.2", "qwen3-max"]
       },
       "nvidia": {
         "default_model": "meta/llama-3.3-70b-instruct",
         "available_models": [
           "meta/llama-3.3-70b-instruct",
-          "stepfun-ai/step-3.5-flash",
           "minimaxai/minimax-m2.5"
         ]
       },

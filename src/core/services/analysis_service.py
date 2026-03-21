@@ -215,7 +215,7 @@ def run_analysis_from_json(
     
     # --- 加载 JSON 文件 ---
     print(f"--- 从 JSON 文件加载股票列表: {json_path} ---")
-    loader = StockListLoader(json_path)
+    loader = EnhancedStockListLoader(json_path)
     stock_items = loader.load()
     stock_with_news = loader.get_stock_with_news()
     
