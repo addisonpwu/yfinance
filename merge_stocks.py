@@ -201,41 +201,149 @@ def create_news_key(news_item: Dict[str, Any]) -> str:
     return f"fallback:{hash(frozenset(news_item.items()))}"
 
 
+def safe_publish_time(news: Dict[str, Any]) -> int:
+    """
+    Safely extract publishTime as numeric value for sorting.
+    
+    Handles:
+    - Integer timestamps: 1710234567
+    - ISO strings: "2026-03-24T10:30:00+08:00"
+    - Missing/invalid: returns 0
+    
+    Args:
+        news: News item dictionary
+    
+    Returns:
+        Numeric timestamp for sorting (higher = newer)
+    """
+    pt = news.get('publishTime', 0)
+    
+    if pt is None:
+        return 0
+    
+    # Already numeric
+    if isinstance(pt, (int, float)):
+        return int(pt)
+    
+    # String - try to parse
+    if isinstance(pt, str):
+        try:
+            # Try integer first
+            return int(pt)
+        except ValueError:
+            pass
+        
+        try:
+            # Try ISO format parsing
+            from datetime import datetime
+            # Handle timezone format
+            pt_clean = pt.replace('+08:00', '').replace('Z', '').replace('T', ' ')
+            dt = datetime.fromisoformat(pt_clean)
+            return int(dt.timestamp())
+        except:
+            pass
+        
+        # Fallback: try to extract digits
+        import re
+        digits = re.sub(r'\D', '', pt)
+        if digits and len(digits) >= 10:
+            return int(digits[:13]) if len(digits) >= 13 else int(digits)
+    
+    return 0
+
+
 def deduplicate_news(news_list: List[Dict[str, Any]], max_news: int) -> List[Dict[str, Any]]:
     """
     Deduplicate news items and sort by publish time.
-    
+
     Args:
         news_list: List of news items (may contain duplicates)
         max_news: Maximum number of news items to keep
-        
+
     Returns:
         Deduplicated and sorted news list
     """
     seen_keys: Set[str] = set()
     unique_news: List[Dict[str, Any]] = []
-    
+
     for news in news_list:
         key = create_news_key(news)
-        
+
         if key not in seen_keys:
             seen_keys.add(key)
             unique_news.append(news)
         else:
             logger.debug(f"Duplicate news filtered: {key[:50]}...")
-    
+
     # Sort by publishTime (descending - newest first)
+    # Use safe conversion to handle mixed int/string formats
     unique_news.sort(
-        key=lambda x: x.get('publishTime', 0),
+        key=safe_publish_time,
         reverse=True
     )
-    
+
     # Limit to max_news
     if len(unique_news) > max_news:
         logger.info(f"Trimmed news from {len(unique_news)} to {max_news} items")
         unique_news = unique_news[:max_news]
-    
+
     return unique_news
+
+
+def normalize_stock_code(stock_code: str) -> Optional[str]:
+    """
+    Normalize HK stock code to standard format.
+    
+    Rules:
+    - Must end with .HK
+    - Numeric part must be 4-5 digits
+    - Remove leading zeros from 5-digit codes
+    
+    Args:
+        stock_code: Raw stock code string
+    
+    Returns:
+        Normalized stock code or None if invalid
+    
+    Examples:
+        01941.HK → 1941.HK
+        00117.HK → 0117.HK
+        0700.HK → 0700.HK
+        1941.HK → 1941.HK
+        AAPL → None (not HK)
+        123.HK → None (only 3 digits)
+    """
+    if not stock_code or not isinstance(stock_code, str):
+        return None
+    
+    # Check if ends with .HK
+    if not stock_code.upper().endswith('.HK'):
+        return None
+    
+    # Extract numeric part
+    numeric_part = stock_code[:-3].upper()
+    
+    # Must be numeric only
+    if not numeric_part.isdigit():
+        return None
+    
+    # Must be 4-5 digits
+    if len(numeric_part) < 4 or len(numeric_part) > 5:
+        logger.debug(f"Invalid stock code length: {stock_code} ({len(numeric_part)} digits)")
+        return None
+    
+    # Normalize: 5 digits → remove leading zero, 4 digits → keep as is
+    if len(numeric_part) == 5:
+        normalized = numeric_part[1:]  # Remove leading zero
+    else:
+        normalized = numeric_part  # Keep 4 digits as is
+    
+    result = f"{normalized}.HK"
+    
+    if normalized != numeric_part:
+        logger.debug(f"Normalized stock code: {stock_code} → {result}")
+    
+    return result
 
 
 def merge_stocks(
@@ -245,69 +353,90 @@ def merge_stocks(
 ) -> Dict[str, Any]:
     """
     Merge multiple stock data dictionaries into one.
-    
+
     Args:
         stock_data_list: List of stock data dictionaries
         max_news: Maximum news items per stock
         verbose: Enable verbose logging
-        
+
     Returns:
         Merged stock data dictionary
     """
     merged_stocks: Dict[str, Dict[str, Any]] = {}
     total_news_before = 0
     total_news_after = 0
-    
+    skipped_invalid_format = 0
+    skipped_normalized = 0
+
     for stock_data in stock_data_list:
         stocks = stock_data.get('stocks', [])
-        
+
         for stock in stocks:
             stock_code = stock.get('stockCode')
-            
+
             if not stock_code:
                 logger.warning("Skipping stock without stockCode")
+                skipped_invalid_format += 1
                 continue
             
-            if stock_code in merged_stocks:
+            # Normalize and validate stock code
+            normalized_code = normalize_stock_code(stock_code)
+            
+            if not normalized_code:
+                logger.warning(f"Skipping stock with invalid code format: {stock_code} (must be 4-5 digits + .HK)")
+                skipped_invalid_format += 1
+                continue
+            
+            # Track if code was normalized
+            if normalized_code != stock_code.upper():
+                skipped_normalized += 1
+            
+            # Use normalized code for merging
+            if normalized_code in merged_stocks:
                 # Merge existing stock
-                existing = merged_stocks[stock_code]
+                existing = merged_stocks[normalized_code]
                 existing_news = existing.get('news', [])
                 new_news = stock.get('news', [])
-                
+
                 total_news_before += len(existing_news) + len(new_news)
-                
+
                 # Merge and deduplicate news
                 combined_news = existing_news + new_news
                 deduped_news = deduplicate_news(combined_news, max_news)
-                
+
                 existing['news'] = deduped_news
                 total_news_after += len(deduped_news)
-                
+
                 if verbose:
-                    logger.info(f"Merged {stock_code}: {len(existing_news)} + {len(new_news)} -> {len(deduped_news)} news")
+                    logger.info(f"Merged {normalized_code}: {len(existing_news)} + {len(new_news)} -> {len(deduped_news)} news")
             else:
-                # New stock
+                # New stock - update stockCode to normalized version
                 stock_news = stock.get('news', [])
                 total_news_before += len(stock_news)
-                
+
                 deduped_news = deduplicate_news(stock_news, max_news)
                 stock['news'] = deduped_news
+                stock['stockCode'] = normalized_code  # Update to normalized code
                 total_news_after += len(deduped_news)
-                
-                merged_stocks[stock_code] = stock
-                
+
+                merged_stocks[normalized_code] = stock
+
                 if verbose:
-                    logger.info(f"Added {stock_code}: {len(stock_news)} -> {len(deduped_news)} news")
-    
+                    logger.info(f"Added {normalized_code}: {len(stock_news)} -> {len(deduped_news)} news")
+
     # Convert back to list
     merged_list = list(merged_stocks.values())
-    
+
     # Sort by stockCode for consistent output
     merged_list.sort(key=lambda x: x.get('stockCode', ''))
-    
+
     logger.info(f"Merged {len(merged_list)} unique stocks")
     logger.info(f"News deduplication: {total_news_before} -> {total_news_after} items")
-    
+    if skipped_invalid_format > 0:
+        logger.warning(f"Skipped {skipped_invalid_format} stocks with invalid code format")
+    if skipped_normalized > 0:
+        logger.info(f"Normalized {skipped_normalized} stock codes")
+
     return {
         'stocks': merged_list,
         'metadata': {
@@ -316,7 +445,9 @@ def merge_stocks(
             'totalStocks': len(merged_list),
             'totalNewsBefore': total_news_before,
             'totalNewsAfter': total_news_after,
-            'maxNewsPerStock': max_news
+            'maxNewsPerStock': max_news,
+            'skippedInvalidFormat': skipped_invalid_format,
+            'normalizedCodes': skipped_normalized
         }
     }
 
@@ -489,7 +620,7 @@ def print_summary(
 ) -> None:
     """
     Print summary of merge operation.
-    
+
     Args:
         source_files: List of processed source files
         merged_data: Merged stock data
@@ -498,7 +629,7 @@ def print_summary(
         args: Command line arguments
     """
     metadata = merged_data.get('metadata', {})
-    
+
     print("\n" + "=" * 60)
     print("📊 STOCK MERGE SUMMARY")
     print("=" * 60)
@@ -508,13 +639,22 @@ def print_summary(
     print(f"News items (after):     {metadata.get('totalNewsAfter', 0)}")
     print(f"News deduplication:     {metadata.get('totalNewsBefore', 0) - metadata.get('totalNewsAfter', 0)} removed")
     print(f"Max news per stock:     {metadata.get('maxNewsPerStock', 20)}")
+    
+    # Show validation stats
+    skipped = metadata.get('skippedInvalidFormat', 0)
+    normalized = metadata.get('normalizedCodes', 0)
+    if skipped > 0:
+        print(f"⚠️  Invalid format skipped: {skipped}")
+    if normalized > 0:
+        print(f"✅ Codes normalized:       {normalized}")
+    
     print(f"Backup created:         {'Yes' if backup_path else 'No'}")
     print(f"Source files deleted:   {deleted_count}")
     print(f"Output file:            {args.output_file}")
-    
+
     if args.dry_run:
         print("\n⚠️  DRY-RUN MODE - No changes were made")
-    
+
     print("=" * 60 + "\n")
 
 

@@ -1,0 +1,107 @@
+{
+  "crawl_time": "2026-03-23T21:40:00+08:00",
+  "source": "Yahoo Finance HK",
+  "news_count": 5,
+  "news": [
+    {
+      "id": "hk-news-20260323-001",
+      "title": "老鋪黃金全年純利48.68億元人民幣升230.5% 末期息11.95元人民幣",
+      "stock_code": "6181.HK",
+      "stock_name": "老鋪黃金",
+      "category": "盈利預告",
+      "category_detail": "正面盈利預告",
+      "publish_time": "2026-03-23T17:10:00+08:00",
+      "source_name": "AASTOCKS",
+      "url": "https://hk.finance.yahoo.com/news/老鋪黃金-06181-hk-全年純利48-083052103.html",
+      "summary": "老鋪黃金(6181.HK)公布截至去年12月底止全年業績，營業額273.03億元人民幣，按年升221%。純利48.68億元，按年升230.5%；每股盈利28.35元。派末期息11.95元。毛利率約37.6%，第三次調價後毛利率重回40%以上。",
+      "key_metrics": {
+        "revenue": "273.03億元人民幣",
+        "revenue_yoy": "+221%",
+        "net_profit": "48.68億元人民幣",
+        "net_profit_yoy": "+230.5%",
+        "eps": "28.35元人民幣",
+        "dividend": "11.95元人民幣"
+      }
+    },
+    {
+      "id": "hk-news-20260323-002",
+      "title": "嘉里建設(00683)去年盈利升16% 息95仙",
+      "stock_code": "0683.HK",
+      "stock_name": "嘉里建設",
+      "category": "盈利預告",
+      "category_detail": "正面盈利預告",
+      "publish_time": "2026-03-23T13:51:00+08:00",
+      "source_name": "Fortune Insight",
+      "url": "https://hk.finance.yahoo.com/news/財經-嘉里建設-00683-去年盈利升16-息95仙-055104610.html",
+      "summary": "嘉里建設(00683)公布截至2025年12月底止年度業績，股東應佔溢利9.38億元，按年增加16.09%；每股盈利0.65元；末期息維持派0.95元。基礎溢利按年減少22.05%至20.08億元，收入195.68億元，按年升0.35%。",
+      "key_metrics": {
+        "net_profit": "9.38億元",
+        "net_profit_yoy": "+16.09%",
+        "eps": "0.65元",
+        "dividend": "0.95元",
+        "underlying_profit": "20.08億元",
+        "underlying_profit_yoy": "-22.05%"
+      }
+    },
+    {
+      "id": "hk-news-20260323-003",
+      "title": "康師傅去年多賺21% 連特別息派79.84分",
+      "stock_code": "0322.HK",
+      "stock_name": "康師傅",
+      "category": "盈利預告",
+      "category_detail": "正面盈利預告",
+      "publish_time": "2026-03-23T17:23:00+08:00",
+      "source_name": "Fortune Insight",
+      "url": "https://hk.finance.yahoo.com/news/財經-康師傅去年多賺21-連特別息派79-84分-092350590.html",
+      "summary": "康師傅(00322)公布截至去年12月底止年度股東應佔溢利45.01億元人民幣，按年增長20.52%，每股盈利79.86分。派末期息39.92分及特別末期股息39.92分，合共派79.84分。期內收益790.68億元，毛利率34.8%，上升1.7個百分點。",
+      "key_metrics": {
+        "net_profit": "45.01億元人民幣",
+        "net_profit_yoy": "+20.52%",
+        "eps": "79.86分人民幣",
+        "dividend": "79.84分人民幣（含特別息）",
+        "revenue": "790.68億元人民幣",
+        "revenue_yoy": "-1.96%",
+        "gross_margin": "34.8%"
+      }
+    },
+    {
+      "id": "hk-news-20260323-004",
+      "title": "恆地全年基礎盈利跌38%至約61億 末期息減至76仙",
+      "stock_code": "0012.HK",
+      "stock_name": "恒基地產",
+      "category": "盈利預告",
+      "category_detail": "負面盈利預告",
+      "publish_time": "2026-03-23T20:01:00+08:00",
+      "source_name": "AASTOCKS",
+      "url": "https://hk.finance.yahoo.com/news/藍籌-恆地-00012-hk-全年基礎盈利跌38-100011691.html",
+      "summary": "恒基地產(0012.HK)公布截至去年12月底止全年業績，收入257.41億元，按年升1.9%。純利56.53億元，按年跌10.2%；每股盈利1.17元。派末期息0.76元，全年合共派發股息1.26元。基礎盈利為60.63億元，按年跌38%。",
+      "key_metrics": {
+        "revenue": "257.41億元",
+        "revenue_yoy": "+1.9%",
+        "net_profit": "56.53億元",
+        "net_profit_yoy": "-10.2%",
+        "eps": "1.17元",
+        "dividend": "0.76元",
+        "underlying_profit": "60.63億元",
+        "underlying_profit_yoy": "-38%"
+      }
+    },
+    {
+      "id": "hk-news-20260323-005",
+      "title": "中金：瑞聲(02018.HK)去年業績符預期 惟手機需求承壓下調目標價至47元",
+      "stock_code": "2018.HK",
+      "stock_name": "瑞聲科技",
+      "category": "機構評級",
+      "category_detail": "目標價調整",
+      "publish_time": "2026-03-23T11:00:00+08:00",
+      "source_name": "AASTOCKS",
+      "url": "https://hk.finance.yahoo.com/news/大行-中金-瑞聲-02018-hk-去年業績符預期-惟手機需求承壓下調目標價至47元",
+      "summary": "中金發表報告指，瑞聲(02018.HK)去年業績符合預期，但手機需求承壓，下調目標價至47元。機構對股票給予評級調整建議。",
+      "key_metrics": {
+        "institution": "中金",
+        "target_price": "47元",
+        "rating_action": "下調目標價"
+      }
+    }
+  ]
+}

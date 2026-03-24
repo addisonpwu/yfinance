@@ -21,6 +21,8 @@
 - **信号评分器**：多维度信号综合评分系统
 - **配置验证**：Pydantic 配置验证，环境变量安全管理
 - **复权数据处理**：自动处理除权除息，确保价格连续性
+- **报告合并**：自动合并每小时报告，支持备份管理和源文件清理
+- **股票代码验证**：自动验证港股代码格式，5 位数去掉前导零
 
 ---
 
@@ -944,6 +946,150 @@ python3 main.py --market HK --provider gemini --model all
 | `--symbol` | 指定单一股票代码 |
 | `--interval` | 数据时段 (1d/1h/1m) |
 | `--speed` | 速度模式 (fast/balanced/safe) |
+
+---
+
+## 合并股票报告脚本
+
+系统提供 `merge_stocks.py` 脚本，用于将每小时生成的 `stock_XXX.json` 文件合并到主文件 `stock.json` 中。
+
+### 基本命令
+
+```bash
+# 基本合并（默认合并 reports/ 目录下所有 stock_*.json）
+python3 merge_stocks.py
+
+# 详细模式（显示详细日志）
+python3 merge_stocks.py --verbose
+
+# 模拟运行（不实际修改文件，用于测试）
+python3 merge_stocks.py --dry-run --verbose
+
+# 保留源文件（不删除 stock_*.json）
+python3 merge_stocks.py --keep-source
+
+# 自定义新闻限制（每只股票最多保留 10 条新闻）
+python3 merge_stocks.py --max-news 10
+
+# 自定义备份数量（保留最近 3 个备份）
+python3 merge_stocks.py --max-backups 3
+
+# 跳过备份
+python3 merge_stocks.py --no-backup
+
+# 自定义输入输出路径
+python3 merge_stocks.py --input-dir ./reports --output-file ./merged/stock.json
+```
+
+### CLI 参数说明
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `--input-dir` | str | `reports/` | 输入目录路径 |
+| `--output-file` | str | `reports/stock.json` | 输出文件路径 |
+| `--max-news` | int | `20` | 每只股票最大新闻数量（1-100） |
+| `--max-backups` | int | `5` | 保留的最大备份数量（0-30） |
+| `--dry-run` | bool | `False` | 仅显示操作，不实际执行 |
+| `--verbose` | bool | `False` | 详细输出模式 |
+| `--keep-source` | bool | `False` | 保留源文件（不删除） |
+| `--no-backup` | bool | `False` | 跳过备份步骤 |
+| `--help` | bool | - | 显示帮助信息 |
+
+### 工作流程
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    完整工作流程                              │
+├─────────────────────────────────────────────────────────────┤
+│  1. 发现所有 stock_*.json 文件                              │
+│  2. 读取并合并所有文件到 master data                        │
+│  3. 写入 stock.json (主文件)                                │
+│  4. 备份 stock.json → stock.json.backup.YYYY-MM-DD_HH-MM-SS │
+│  5. 清理旧备份 (保留最近 5 个)                               │
+│  6. 删除已处理的 stock_XXX.json 文件                        │
+│  7. 输出合并报告                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 合并规则
+
+1. **股票代码验证与标准化**:
+   - 仅接受港股代码（格式：4-5 位数字 + .HK）
+   - 5 位数代码自动去掉前导零（例：01941.HK → 1941.HK）
+   - 4 位数代码保持不变（例：0700.HK → 0700.HK）
+   - 无效格式代码直接跳过（例：AAPL, 123.HK）
+
+2. **股票合并**: 按 `stockCode` 唯一键合并，相同股票合并新闻数组
+
+3. **新闻去重**: 
+   - 优先按 URL 完全匹配去重
+   - 无 URL 时按 `title + agency` 组合去重
+   - 使用 MD5 哈希确保确定性
+
+4. **新闻排序**: 按 `publishTime` 降序排列（最新在前）
+
+5. **新闻限制**: 每只股票最多保留 N 条新闻（默认 20 条）
+
+### 备份机制
+
+- **备份时机**: 合并完成后立即备份
+- **备份命名**: `stock.json.backup.YYYY-MM-DD_HH-MM-SS`
+- **备份保留**: 默认保留最近 5 个，超出自动删除最旧
+- **备份位置**: 与 `stock.json` 同目录
+
+### 清理机制
+
+- **清理时机**: 合并成功写入后
+- **清理目标**: 所有已成功合并的 `stock_XXX.json` 文件
+- **安全保护**: 
+  - 仅在主文件写入成功后才清理
+  - 支持 `--keep-source` 保留源文件
+  - 支持 `--dry-run` 模拟测试
+
+### 输出示例
+
+```
+================================================================================
+                         Stock JSON Merge Report
+================================================================================
+
+[DISCOVERY]
+  Input Directory:  reports/
+  Files Found:      15
+  Total Size:       2.4 MB
+  Skipped:          3 (stock.json, stock.json.backup.*, *.tmp)
+
+[MERGE]
+  Files Processed:  15
+  Symbols Merged:   15
+  Duplicates:       0
+  Merge Time:       0.23s
+
+[WRITE]
+  Output File:      reports/stock.json
+  File Size:        2.4 MB
+  Write Status:     ✓ SUCCESS
+
+[BACKUP]
+  Backup Created:   stock.json.backup.2026-03-21_14-30-45
+  Backup Size:      2.4 MB
+  Old Backups Deleted: 1
+    - stock.json.backup.2026-03-20_10-15-30
+  Remaining Backups:  5
+
+[CLEANUP]
+  Cleanup Mode:     ENABLED
+  Files Deleted:    15
+  Space Freed:      2.4 MB
+  Failed Deletions: 0
+
+[SUMMARY]
+  Status:           ✓ COMPLETED
+  Exit Code:        0
+  Duration:         0.45s
+
+================================================================================
+```
 
 ---
 

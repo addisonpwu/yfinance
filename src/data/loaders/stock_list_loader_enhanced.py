@@ -171,8 +171,18 @@ class EnhancedStockListLoader:
         
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        
-        return self._parse_data(data, filter_negative_news)
+
+        # Handle both formats:
+        # 1. {"stocks": [...]} - from merge_stocks.py
+        # 2. [...] - direct array
+        if isinstance(data, dict) and 'stocks' in data:
+            stocks_data = data['stocks']
+        elif isinstance(data, list):
+            stocks_data = data
+        else:
+            raise ValueError(f"Invalid JSON format: expected dict with 'stocks' key or list, got {type(data)}")
+
+        return self._parse_data(stocks_data, filter_negative_news)
     
     def _parse_data(self, data: List[Dict[str, Any]], filter_negative_news: bool = True) -> List[StockListItem]:
         """解析 JSON 數據"""

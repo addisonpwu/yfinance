@@ -1,0 +1,80 @@
+{
+  "crawl_time": "2026-03-24T05:19:00+08:00",
+  "source": "Yahoo Finance HK",
+  "source_url": "https://hk.finance.yahoo.com/topic/latest-news",
+  "news_count": 11,
+  "news": [
+    {
+      "title": "《業績》亞信科技(01675.HK)全年純利1.14億人民幣跌79.1% 末期息派5.4港仙",
+      "type": "earnings",
+      "stock_codes": ["01675.HK"],
+      "url": "https://hk.finance.yahoo.com/news/亞信科技-01675-hk-全年純利1-114億人民幣跌79-1-末期息派5-4港仙"
+    },
+    {
+      "title": "《業績》銀諾醫藥(02591.HK)全年虧損擴至3.41億人民幣",
+      "type": "earnings",
+      "stock_codes": ["02591.HK"],
+      "url": "https://hk.finance.yahoo.com/news/銀諾醫藥-02591-hk-全年虧損擴至3-41億人民幣"
+    },
+    {
+      "title": "《業績》企展控股(01808.HK)全年純利1.52億人民幣增109.2% 不派息",
+      "type": "earnings",
+      "stock_codes": ["01808.HK"],
+      "url": "https://hk.finance.yahoo.com/news/企展控股-01808-hk-全年純利1-52億人民幣增109-2-不派息"
+    },
+    {
+      "title": "老鋪首季料賺38億 達去年80% 金價升帶旺銷售 2025盈利飆2.3倍",
+      "type": "earnings",
+      "stock_codes": ["06181.HK"],
+      "url": "https://hk.finance.yahoo.com/news/老鋪黃金-6181-hk-首季料賺38億-達去年80-金價升帶旺銷售"
+    },
+    {
+      "title": "恒地基礎盈利跌38% Henderson出租率95%",
+      "type": "earnings",
+      "stock_codes": ["00012.HK"],
+      "url": "https://hk.finance.yahoo.com/news/恒地-0012-hk-基礎盈利跌38-末期息減至76仙"
+    },
+    {
+      "title": "摩根士丹利上調GE Vernova目標價,電氣化需求推動渦輪機定價走強",
+      "type": "rating",
+      "stock_codes": ["GEV"],
+      "url": "https://hk.finance.yahoo.com/news/摩根士丹利上調ge-vernova目標價"
+    },
+    {
+      "title": "高盛將美國經濟衰退可能性上調至30%",
+      "type": "rating",
+      "stock_codes": ["GS"],
+      "url": "https://hk.finance.yahoo.com/news/高盛將美國經濟衰退可能性上調至30"
+    },
+    {
+      "title": "港今年增長預測 恒生上調至3.1%",
+      "type": "rating",
+      "stock_codes": ["00011.HK"],
+      "url": "https://hk.finance.yahoo.com/news/恒生上調港今年經濟增長預測至3-1"
+    },
+    {
+      "title": "美銀因出口管制起訴案下調超微電腦目標價",
+      "type": "rating",
+      "stock_codes": ["AMD", "SMCI"],
+      "url": "https://hk.finance.yahoo.com/news/美銀下調超微電腦目標價"
+    },
+    {
+      "title": "蘋果變現新招！地圖導入廣告 強化服務營收布局",
+      "type": "earnings",
+      "stock_codes": ["AAPL"],
+      "url": "https://hk.finance.yahoo.com/news/蘋果地圖導入廣告強化服務營收"
+    },
+    {
+      "title": "H按息跌抵封頂位 供樓有望紓壓 1個月HIBOR降至1.95厘 逾半年首見",
+      "type": "earnings",
+      "stock_codes": [],
+      "url": "https://hk.finance.yahoo.com/news/h-按息跌至1-95厘"
+    }
+  ],
+  "validation": {
+    "json_valid": true,
+    "hk_codes_format_valid": true,
+    "earnings_count": 7,
+    "rating_count": 4
+  }
+}
