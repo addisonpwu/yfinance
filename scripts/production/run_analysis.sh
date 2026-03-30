@@ -24,7 +24,7 @@ echo "开始分析: $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
 echo "========================================" >> "$LOG_FILE"
 
 # 整合所有json
-python3 merge_stocks.py
+python3 "$PROJECT_DIR/scripts/production/merge_stocks.py"
 
 # 执行分析（港股 + 多AI提供商 + 多模型投票）
 python3 main.py --market HK --stock-list /Users/addison/Dev/yfinance/reports/stock.json --model all --provider iflow,nvidia,opencode >> "$LOG_FILE" 2>&1
