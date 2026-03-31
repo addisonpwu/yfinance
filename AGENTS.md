@@ -23,6 +23,7 @@
 - **复权数据处理**：自动处理除权除息，确保价格连续性
 - **报告合并**：自动合并每小时报告，支持备份管理和源文件清理
 - **股票代码验证**：自动验证港股代码格式，5 位数去掉前导零
+- **数据库支持**：PostgreSQL + SQLAlchemy 2.0 + FastAPI，支持股票和新闻持久化
 
 ---
 
@@ -534,6 +535,24 @@ yfinace/
 │   │       ├── hk_loader.py
 │   │       ├── us_loader.py
 │   │       └── yahoo_loader.py
+│   ├── db/                 # 数据库层
+│   │   ├── database.py     # 异步数据库引擎和会话管理
+│   │   └── models/         # ORM 模型
+│   │       ├── stock.py          # Stock 模型
+│   │       ├── news.py           # News 模型
+│   │       └── stock_news_rel.py # 关联表模型
+│   ├── repositories/       # 数据访问层
+│   │   ├── base.py         # 基础 Repository 类
+│   │   ├── stock_repo.py    # StockRepository
+│   │   └── news_repo.py     # NewsRepository
+│   ├── api/                # REST API 层
+│   │   ├── main.py         # FastAPI 应用入口
+│   │   ├── routes/         # API 路由
+│   │   │   ├── stocks.py    # 股票端点
+│   │   │   └── news.py     # 新闻端点
+│   │   └── schemas/         # Pydantic 模式
+│   │       ├── stock.py     # 股票 Schema
+│   │       └── news.py      # 新闻 Schema
 │   ├── risk/               # 风险管理
 │   │   └── position_sizer.py
 │   ├── strategies/         # 策略模块
@@ -546,6 +565,10 @@ yfinace/
 │   └── utils/              # 工具模块
 │       ├── exceptions.py
 │       └── logger.py
+├── docker-compose.yml      # Docker 编排配置
+├── Dockerfile              # FastAPI 容器镜像
+├── scripts/
+│   └── init_db.sql        # 数据库初始化脚本
 ├── data_cache/             # 数据缓存目录
 │   ├── ai_analysis/
 │   ├── HK/
@@ -1129,11 +1152,19 @@ lxml
 openpyxl
 playwright
 tenacity
-pydantic>=2.0       # 配置验证（可选）
-python-dotenv>=1.0  # 环境变量管理（可选）
+pydantic>=2.0       # 配置验证
+python-dotenv>=1.0  # 环境变量管理
 feedparser>=6.0.0   # 新闻获取
 openai>=1.0.0       # NVIDIA NIM API
 google-genai>=0.3.0 # Google Gemini API
+
+# 数据库与异步框架
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+sqlalchemy[asyncio]>=2.0.0
+asyncpg>=0.28.0           # PostgreSQL async driver
+greenlet>=2.0.0            # SQLAlchemy async dependency
+pydantic-settings>=2.0.0   # Settings management
 ```
 
 ---
@@ -1787,7 +1818,197 @@ if is_high_risk_environment():
 
 ---
 
+## 数据库层详细说明
+
+### 概述
+
+系统提供完整的数据库支持，通过 PostgreSQL + SQLAlchemy 2.0 + FastAPI 实现股票和新闻数据的持久化存储。
+
+### 技术栈
+
+| 组件 | 技术 |
+|------|------|
+| 数据库 | PostgreSQL 15-alpine |
+| ORM | SQLAlchemy 2.0+ (异步) |
+| API | FastAPI 0.100+ |
+| 驱动 | asyncpg (异步 PostgreSQL) |
+| 容器 | Docker Compose 3.8+ |
+
+### 数据模型
+
+#### Stock 模型
+
+```
+stocks 表:
+- id: Integer (Primary Key)
+- symbol: String(20) - Unique, Not Null
+- name: String(255) - Not Null
+- market: String(10) - Not Null (US/HK)
+- created_at: DateTime
+- updated_at: DateTime
+```
+
+#### News 模型
+
+```
+news 表:
+- id: Integer (Primary Key)
+- stock_id: Integer (FK → stocks.id, CASCADE) - Not Null
+- title: Text - Not Null
+- publish_time: DateTime - Not Null
+- url: String(512) - Unique, Not Null
+- created_at: DateTime
+
+关系: News → Stock (多对一，一条新闻属于一个股票)
+```
+
+### API 端点
+
+#### 股票端点
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| POST | `/api/v1/stocks/` | 创建股票 |
+| GET | `/api/v1/stocks/` | 查询股票列表 |
+| GET | `/api/v1/stocks/{symbol}` | 查询单个股票 |
+| PUT | `/api/v1/stocks/{symbol}` | 更新股票 |
+| DELETE | `/api/v1/stocks/{symbol}` | 删除股票 |
+
+#### 新闻端点
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| POST | `/api/v1/news/` | 创建新闻 (需提供 stock_symbol) |
+| GET | `/api/v1/news/` | 查询新闻列表 (可按 stock_symbol 筛选) |
+| GET | `/api/v1/news/{id}` | 查询单个新闻 |
+| DELETE | `/api/v1/news/{id}` | 删除新闻 |
+
+#### 健康检查
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| GET | `/health` | 健康检查 |
+
+### 快速开始
+
+```bash
+# 1. 安装依赖
+pip install -r requirements.txt
+
+# 2. 启动服务
+docker-compose up -d
+
+# 3. 访问 API 文档
+open http://localhost:8000/docs
+```
+
+### Docker 配置
+
+#### docker-compose.yml
+
+```yaml
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: stock_password
+      POSTGRES_DB: stock_analysis
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      
+  api:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: stock_password
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+```
+
+### Repository 使用示例
+
+```python
+from src.db.database import get_session
+from src.repositories.stock_repo import StockRepository
+from src.api.schemas.stock import StockCreate
+
+async def create_stock():
+    async with get_session() as session:
+        repo = StockRepository(session)
+        
+        # 创建股票
+        stock = await repo.create(StockCreate(
+            symbol="0700.HK",
+            name="腾讯控股",
+            market="HK"
+        ))
+        
+        # 查询股票
+        stock = await repo.get_by_symbol("0700.HK")
+        
+        # 列出所有港股
+        stocks = await repo.list(market="HK")
+        
+        return stock
+```
+
+### 环境变量
+
+```bash
+# 数据库配置
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=stock_analysis
+DB_USER=postgres
+DB_PASSWORD=stock_password
+```
+
+---
+
 ## 近期更新日志
+
+### 2026-03-31
+- 🔄 数据库架构优化
+  - **移除 `stock_news_rel` 关联表**，简化为一对多关系
+  - News 表新增 `stock_id` 外键字段，直接关联 Stock
+  - 创建新闻时需指定 `stock_symbol`
+  - 查询新闻时可按 `stock_symbol` 筛选
+  - 移除 `/api/v1/news/{id}/stocks/{symbol}` 关联端点
+- 📝 更新 AGENTS.md 和 docs/api-skill.md 文档
+
+### 2026-03-31 (上午)
+- ✨ 新增数据库层 (PostgreSQL + SQLAlchemy 2.0 + FastAPI)
+  - 数据库: PostgreSQL 15-alpine
+  - ORM: SQLAlchemy 2.0+ (异步, `Mapped[]` 语法)
+  - API: FastAPI 0.100+
+  - 容器化: Docker Compose 3.8+
+- ✨ ORM 模型
+  - Stock 模型 (`stocks` 表)
+  - News 模型 (`news` 表)
+- ✨ Repository 层
+  - BaseRepository 基础类 (通用 CRUD)
+  - StockRepository (股票增删查改)
+  - NewsRepository (新闻增删查)
+- ✨ REST API 端点
+  - 股票端点 (POST/GET/PUT/DELETE)
+  - 新闻端点 (POST/GET/DELETE)
+  - 健康检查端点 (`/health`)
+- ✨ Docker 配置
+  - `docker-compose.yml` (PostgreSQL + FastAPI + pgAdmin)
+  - `Dockerfile` (多阶段构建)
+  - `scripts/init_db.sql` (数据库初始化)
+  - `pgadmin_servers.json` (pgAdmin 自动连接配置)
+- ✨ 异常层次结构扩展
+  - `DatabaseException` 及子类
+  - `StockNotFoundException`, `NewsNotFoundException`
+  - `DuplicateRecordException`
+- 📝 更新 AGENTS.md 文档
 
 ### 2026-03-11
 - ✨ iFlow 分析器添加详细日志

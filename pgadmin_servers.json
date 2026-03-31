@@ -1,0 +1,14 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "Stock Analysis DB",
+            "Group": "Servers",
+            "Host": "db",
+            "Port": 5432,
+            "MaintenanceDB": "stock_analysis",
+            "Username": "postgres",
+            "SSLMode": "prefer",
+            "PassFile": "/pgadmin4/pgpass"
+        }
+    }
+}

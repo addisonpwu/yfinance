@@ -1,0 +1,89 @@
+# Stock Analysis Database API - Docker Compose
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: stock_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: stock_password
+      POSTGRES_DB: stock_analysis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d stock_analysis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - stock_network
+    restart: unless-stopped
+
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stock_api
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: stock_analysis
+      DB_USER: postgres
+      DB_PASSWORD: stock_password
+      DOCKER_ENV: "true"
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - stock_network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  # pgAdmin 4 - PostgreSQL Management Tool
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: stock_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: pgadmin@stock.dev
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin_servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - stock_network
+    restart: unless-stopped
+
+# Named volumes
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# Network
+networks:
+  stock_network:
+    driver: bridge

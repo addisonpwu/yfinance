@@ -17,6 +17,14 @@ python-dotenv>=1.0.0
 openai>=1.0.0          # NVIDIA NIM API
 google-genai>=0.3.0    # Google Gemini API
 
+# 数据库与异步框架
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+sqlalchemy[asyncio]>=2.0.0
+asyncpg>=0.28.0           # PostgreSQL async driver
+greenlet>=2.0.0            # SQLAlchemy async dependency
+pydantic-settings>=2.0.0   # Settings management
+
 # 可选：PDF 报告生成
 # weasyprint>=60.0  # 需要 pip install weasyprint
 # pdfkit>=1.0.0     # 需要 wkhtmltopdf 安装
