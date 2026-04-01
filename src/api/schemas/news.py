@@ -2,9 +2,10 @@
 News Pydantic Schemas for API Request/Response validation
 """
 
+import re
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from src.config.constants import NEWS_URL_MAX_LENGTH
 
 
@@ -22,7 +23,15 @@ class NewsBase(BaseModel):
 class NewsCreate(NewsBase):
     """Schema for creating a news entry"""
 
-    pass
+    @field_validator("stock_symbol")
+    @classmethod
+    def validate_stock_symbol(cls, v: str, info) -> str:
+        pattern = r"^\d{4}\.HK$"
+        if not re.match(pattern, v):
+            raise ValueError(
+                "股票代码格式错误: 必须为4位数字+.HK (例如: 0700.HK, 1234.HK)"
+            )
+        return v
 
 
 class NewsUpdate(BaseModel):
