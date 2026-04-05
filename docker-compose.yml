@@ -76,6 +76,21 @@ services:
       - stock_network
     restart: unless-stopped
 
+  # Frontend - React Dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: stock_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - stock_network
+    restart: unless-stopped
+
 # Named volumes
 volumes:
   postgres_data:
