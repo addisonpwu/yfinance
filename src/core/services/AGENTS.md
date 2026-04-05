@@ -1,47 +1,49 @@
-# Core Services - AGENTS.md
+# Core Services
 
-## OVERVIEW
-Core business services orchestrating the stock analysis pipeline and report generation. Services handle data coordination, strategy execution, AI analysis integration, and thread-safe output generation.
+**Generated:** 2026-04-05 | **Commit:** 9f0acb5 | **Branch:** master
 
-## KEY FILES
+## Overview
+核心业务服务层，编排股票分析管道和报告生成。服务处理数据协调、策略执行、AI 分析集成和线程安全输出。
 
-**analysis_service.py**: Main orchestrator with `run_analysis()` entry point. Coordinates MarketDataService, CacheVersionManager, StockAnalyzer, and ReportWriter. Handles parallel execution via ThreadPoolExecutor.
+## Key Files
 
-**stock_analyzer.py**: Individual stock analysis with rate limiting via `_rate_limit_request()`. Integrates with YahooFinanceRepository, StrategyEngine, and AIAnalysisService (multi-provider support). Returns `StockAnalysisResult` entities.
+**analysis_service.py**: 主编排器，`run_analysis()` 入口点。协调 MarketDataService、CacheVersionManager、StockAnalyzer 和 ReportWriter。通过 ThreadPoolExecutor 处理并行执行。
 
-**report_writer.py**: Thread-safe HTML/JSON/TXT report generation using `threading.RLock()`. Supports incremental writes with `_min_update_interval` debouncing. Atomic file writes via temp file + rename. Regex parsing in `_parse_multi_provider_summary()` for multi-provider AI output.
+**stock_analyzer.py**: 单只股票分析，通过 `_rate_limit_request()` 速率限制。集成 YahooFinanceRepository、StrategyEngine 和 AIAnalysisService (多提供商支持)。返回 `StockAnalysisResult` 实体。
 
-**chart_renderer.py**: Candlestick visualization using Lightweight Charts. Generates responsive HTML with MA, BB, MACD, RSI overlays and volume bars.
+**report_writer.py**: 线程安全的 HTML/JSON/TXT 报告生成，使用 `threading.RLock()`。支持 `_min_update_interval` 防抖的增量写入。通过临时文件 + `os.rename()` 原子写入。`_parse_multi_provider_summary()` 中的正则解析多提供商 AI 输出。
 
-**cache_version_manager.py**: Cache versioning via `version.txt` files per market. `check_version()` determines if sync is needed based on date + interval type.
+**chart_renderer.py**: 使用 Lightweight Charts 的 K 线可视化。生成响应式 HTML，包含 MA、BB、MACD、RSI 叠加和成交量柱状图。
 
-**market_data_service.py**: Stock list retrieval and market health assessment. Fetches ^GSPC for US, ^HSI for HK. Returns `MarketData` dataclass with trend direction.
+**cache_version_manager.py**: 通过 `version.txt` 文件进行缓存版本控制。`check_version()` 根据日期和间隔类型确定是否需要同步。
 
-**progress_tracker.py**: ETA calculation and progress bar rendering. Used during parallel stock analysis.
+**market_data_service.py**: 股票列表检索和市场健康评估。获取 ^GSPC (美股) 或 ^HSI (港股)。返回包含趋势方向的 `MarketData` 数据类。
 
-## CONVENTIONS
+**progress_tracker.py**: ETA 计算和进度条渲染。在并行股票分析期间使用。
 
-- Thread safety: Use `threading.RLock()` for report writer state
-- Atomic writes: Write to temp file, then `os.rename()`
-- Incremental writes: `_incremental_update_html_unlocked()` with `_min_update_interval = 0.3s` debouncing
-- Rate limiting: `_rate_limit_request()` with `base_delay=0.4s` and exponential backoff
-- Multi-provider: `providers` list with parallel execution via `ThreadPoolExecutor`
-- Regex patterns: `_parse_multi_provider_summary()` matches `--- PROVIDER 分析 ---` format only
-- Version check: `CacheVersionManager.check_version()` before any data fetch
+## Conventions
 
-## ANTI-PATTERNS
+- 线程安全: 报告写入器使用 `threading.RLock()`
+- 原子写入: 写入临时文件，然后 `os.rename()`
+- 增量写入: `_incremental_update_html_unlocked()` 使用 `_min_update_interval = 0.3s` 防抖
+- 速率限制: `_rate_limit_request()` 使用 `base_delay=0.4s` 和指数退避
+- 多提供商: `providers` 列表通过 `ThreadPoolExecutor` 并行执行
+- 正则模式: `_parse_multi_provider_summary()` 仅匹配 `--- PROVIDER 分析 ---` 格式
+- 版本检查: 任何数据获取前调用 `CacheVersionManager.check_version()`
 
-- Never write directly to report file - use `ReportWriter.write_stock_result()`
-- Don't skip rate limiting in stock_analyzer - always use `_rate_limit_request()`
-- Never cache without version check - use `CacheVersionManager.is_sync_needed`
-- Don't modify `_results` without holding `self._lock`
-- Never disable `force_refresh` check when `is_sync_needed=True`
-- Don't parse multi-provider output without the `---` delimiter regex
+## Anti-Patterns
 
-## DEPENDENCIES
+- **Never** 直接写入报告文件 - 使用 `ReportWriter.write_stock_result()`
+- **Never** 跳过股票分析器中的速率限制 - 始终使用 `_rate_limit_request()`
+- **Never** 无版本检查缓存 - 使用 `CacheVersionManager.is_sync_needed`
+- **Never** 不持有 `self._lock` 修改 `_results`
+- **Never** 当 `is_sync_needed=True` 时禁用 `force_refresh` 检查
+- **Never** 不使用 `---` 分隔符正则解析多提供商输出
 
-Services import from:
+## Dependencies
+
+服务导入自:
 - `src.data.loaders` (yahoo_loader, stock_list_loader)
-- `src.ai.analyzer` (service.py for multi-provider AI)
+- `src.ai.analyzer` (service.py 多提供商 AI)
 - `src.core.strategies` (StrategyEngine, loader)
-- `src.core.models` (entities.py for dataclasses)
+- `src.core.models` (entities.py 数据类)

@@ -142,7 +142,25 @@ async def init_db():
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_migrate_schema)
     logger.info("Database tables created successfully")
+
+
+def _migrate_schema(sync_conn):
+    """
+    Run schema migrations for existing tables.
+    Adds missing columns without dropping data.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(sync_conn)
+
+    if "news" in inspector.get_table_names():
+        columns = {col["name"] for col in inspector.get_columns("news")}
+
+        if "content" not in columns:
+            sync_conn.execute(text("ALTER TABLE news ADD COLUMN content TEXT"))
+            logger.info("Migration: Added 'content' column to news table")
 
 
 async def close_db():

@@ -60,6 +60,7 @@ class NewsRepository(BaseRepository[News]):
         news = News(
             stock_id=stock_id,
             title=news_create.title,
+            content=news_create.content,
             publish_time=news_create.publish_time,
             url=news_create.url,
         )

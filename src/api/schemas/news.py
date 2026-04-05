@@ -14,6 +14,7 @@ class NewsBase(BaseModel):
 
     stock_symbol: str = Field(..., max_length=20, description="股票代码")
     title: str = Field(..., description="新闻标题")
+    content: Optional[str] = Field(None, description="新闻内容/摘要")
     publish_time: datetime = Field(..., description="发布时间")
     url: str = Field(..., max_length=NEWS_URL_MAX_LENGTH, description="新闻链接")
 
@@ -39,6 +40,7 @@ class NewsUpdate(BaseModel):
 
     stock_symbol: Optional[str] = Field(None, max_length=20, description="股票代码")
     title: Optional[str] = Field(None, description="新闻标题")
+    content: Optional[str] = Field(None, description="新闻内容/摘要")
     publish_time: Optional[datetime] = Field(None, description="发布时间")
 
 
@@ -49,6 +51,7 @@ class NewsResponse(BaseModel):
     stock_id: int
     stock_symbol: str
     title: str
+    content: Optional[str] = None
     publish_time: datetime
     url: str
     created_at: datetime

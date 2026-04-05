@@ -3,7 +3,7 @@ News ORM Model
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from sqlalchemy import String, Text, DateTime, Integer, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.db.database import Base
@@ -18,7 +18,7 @@ class News(Base):
     News ORM Model
 
     Table: news
-    Fields: id, stock_id, title, publish_time, url, created_at
+    Fields: id, stock_id, title, content, publish_time, url, created_at
     Relationships: Many-to-One with Stock (a news belongs to onestock)
     """
 
@@ -38,6 +38,9 @@ class News(Base):
 
     # Fields
     title: Mapped[str] = mapped_column(Text, nullable=False, comment="新闻标题")
+    content: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="新闻内容/摘要"
+    )
     publish_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True, comment="发布时间"
     )

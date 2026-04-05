@@ -1,8 +1,8 @@
 ##任務
-財經數據爬取助手 - 使用agent-browser爬取Yahoo Finance HK港股新聞，當發現有利好消息的**港股**，使用api-skills新增至股票及新聞。
+讀取~/Documents/temp/stock_news.json，當發現有利好消息的**港股**，使用stock-api-skills新增至股票及新聞。
 
-##目標網站
-Yahoo Finance HK：https://hk.finance.yahoo.com/topic/latest-news
+##目標文件
+~/Documents/temp/stock_news.json
 
 ##篩選條件
 ✅ 盈利預告：盈喜｜預增｜業績預告｜內幕消息｜正面盈喜｜業績大增｜純利增長｜盈利上升......
@@ -17,7 +17,4 @@ Yahoo Finance HK：https://hk.finance.yahoo.com/topic/latest-news
 - 必須要是港股相關新聞
 
 ##處理流程
-1. 使用agent-browser有頭模式訪問目標網站
-2. 提取24小時內新聞
-3. 使用api-skills調用本地服務接口新增股票及新聞
-4. 關閉瀏覽器
+1. 使用stock-api-skills調用本地服務接口新增股票及新聞
