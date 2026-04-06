@@ -1,8 +1,10 @@
 ##任務
-讀取~/Documents/temp/stock_news.json，當發現有利好消息的**港股**，使用~/.qclaw/skills/stock-api-skill新增至股票及新聞。
+讀取~/Documents/temp中stock_news.json、aastocks_news.json、eastmoney_hk_news.json，當發現有利好消息的**港股**，使用~/.qclaw/skills/stock-api-skill新增至股票及新聞。
 
 ##目標文件
 ~/Documents/temp/stock_news.json
+~/Documents/temp/aastocks_news.json
+~/Documents/temp/eastmoney_hk_news.json
 
 ##篩選條件
 ✅ 正需消息：盈喜｜預增｜業績預告｜內幕消息｜正面盈喜｜業績大增｜純利增長｜盈利上升......
@@ -18,4 +20,4 @@
 
 ##處理流程
 1. 使用stock-api-skill調用本地服務接口新增股票及新聞
-2. **把執行任務時生成的檔案移除**
+2. **把執行任務時生成的檔案移除（stock_news.json、aastocks_news.json、eastmoney_hk_news.json不要刪除）**
