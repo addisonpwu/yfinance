@@ -77,13 +77,19 @@ async def list_stocks(
     - **skip**: Number of records to skip (pagination)
     - **limit**: Maximum number of records to return
     """
-    stocks_with_count = await repo.list(market=market, skip=skip, limit=limit)
+    stocks_with_counts = await repo.list(market=market, skip=skip, limit=limit)
     total = await repo.count()
 
     return StockListResponse(
         items=[
-            StockResponse.model_validate({**s.__dict__, "news_count": count})
-            for s, count in stocks_with_count
+            StockResponse.model_validate(
+                {
+                    **s.__dict__,
+                    "positive_news_count": pos_count,
+                    "negative_news_count": neg_count,
+                }
+            )
+            for s, pos_count, neg_count in stocks_with_counts
         ],
         total=total,
         skip=skip,

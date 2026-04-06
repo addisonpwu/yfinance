@@ -70,22 +70,22 @@ class StockRepository(BaseRepository[Stock]):
         market: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Tuple[Stock, int]]:
+    ) -> List[Tuple[Stock, int, int]]:
         """
-        List stocks with optional market filter and news count
-
-        Args:
-            market: Filter by market (US/HK), None for all markets
-            skip: Number of records to skip
-            limit: Maximum number of records to return
+        List stocks with optional market filter and news counts by sentiment
 
         Returns:
-            List of (Stock, news_count) tuples
+            List of (Stock, positive_news_count, negative_news_count) tuples
         """
         try:
-            news_count = func.count(News.id).label("news_count")
+            positive_count = (
+                func.count(News.id).filter(News.sentiment == 1).label("positive_count")
+            )
+            negative_count = (
+                func.count(News.id).filter(News.sentiment == 0).label("negative_count")
+            )
             query = (
-                select(Stock, news_count)
+                select(Stock, positive_count, negative_count)
                 .outerjoin(News, Stock.id == News.stock_id)
                 .group_by(Stock.id)
                 .order_by(Stock.symbol)
@@ -97,7 +97,7 @@ class StockRepository(BaseRepository[Stock]):
             query = query.offset(skip).limit(limit)
 
             result = await self.session.execute(query)
-            return [(row[0], row[1]) for row in result.all()]
+            return [(row[0], row[1], row[2]) for row in result.all()]
         except Exception as e:
             self.logger.error(f"Error listing stocks: {e}")
             raise
