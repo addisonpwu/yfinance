@@ -20,8 +20,6 @@ export function StockTable({
   loading,
   selectedSymbol,
   onSelect,
-  onMarketChange,
-  currentMarket,
   page,
   pageSize,
   onPageChange,
@@ -41,162 +39,179 @@ export function StockTable({
   const totalPages = Math.ceil(total / pageSize)
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const days = Math.floor(hours / 24)
+
+    if (hours < 1) return '刚刚'
+    if (hours < 24) return `${hours}h ago`
+    if (days < 7) return `${days}d ago`
+    return date.toLocaleDateString('zh-CN', {
+      month: 'short',
+      day: 'numeric',
     })
   }
 
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col gap-3">
+        {[...Array(8)].map((_, i) => (
+          <div
+            key={i}
+            className="loading-skeleton h-16 w-full"
+            style={{ animationDelay: `${i * 0.1}s` }}
+          ></div>
+        ))}
+      </div>
+    )
+  }
+
   return (
-    <div className="card flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-surface-100">
-          股票列表
-          <span className="ml-2 text-sm font-normal text-surface-400">
-            ({total} 支股票)
-          </span>
-        </h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onMarketChange(null)}
-            className={`btn text-sm ${
-              !currentMarket
-                ? 'btn-primary'
-                : 'btn-secondary'
-            }`}
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="mb-4">
+        <div className="relative">
+          <svg
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            全部
-          </button>
-          <button
-            onClick={() => onMarketChange('HK')}
-            className={`btn text-sm ${
-              currentMarket === 'HK'
-                ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                : 'btn-secondary'
-            }`}
-          >
-            港股
-          </button>
-          <button
-            onClick={() => onMarketChange('US')}
-            className={`btn text-sm ${
-              currentMarket === 'US'
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                : 'btn-secondary'
-            }`}
-          >
-            美股
-          </button>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <input
+            type="text"
+            placeholder="搜索股票代码或名称..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input-field pl-11"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="搜索股票代码或名称..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="input"
-        />
-      </div>
-
-      <div className="flex-1 overflow-auto">
-        <table className="table">
-          <thead className="sticky top-0 bg-surface-900">
-            <tr>
-              <th>代码</th>
-              <th>名称</th>
-              <th>市场</th>
-              <th>更新时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="text-center py-8 text-surface-400">
-                  <div className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    加载中...
+      <div className="flex-1 overflow-auto -mx-2 px-2">
+        {filteredStocks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-dark-400">
+            <svg className="w-12 h-12 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm">暂无匹配的股票</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredStocks.map((stock, index) => (
+              <div
+                key={stock.id}
+                onClick={() =>
+                  onSelect(selectedSymbol === stock.symbol ? null : stock.symbol)
+                }
+                className={`table-row rounded-xl p-4 cursor-pointer ${
+                  selectedSymbol === stock.symbol ? 'selected' : ''
+                }`}
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono text-sm font-bold ${
+                      stock.market === 'HK' 
+                        ? 'bg-purple-500/20 text-purple-400' 
+                        : 'bg-cyan-500/20 text-cyan-400'
+                    }`}>
+                      {stock.symbol.slice(0, 2)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold text-white">
+                          {stock.symbol}
+                        </span>
+                        <span className={`market-badge ${stock.market.toLowerCase()}`}>
+                          {stock.market}
+                        </span>
+                      </div>
+                      <p className="text-sm text-dark-300 mt-0.5">
+                        {stock.name}
+                      </p>
+                    </div>
                   </div>
-                </td>
-              </tr>
-            ) : filteredStocks.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="text-center py-8 text-surface-400">
-                  暂无数据
-                </td>
-              </tr>
-            ) : (
-              filteredStocks.map(stock => (
-                <tr
-                  key={stock.id}
-                  onClick={() =>
-                    onSelect(selectedSymbol === stock.symbol ? null : stock.symbol)
-                  }
-                  className={`cursor-pointer ${
-                    selectedSymbol === stock.symbol
-                      ? 'bg-primary-600/20 border-l-2 border-l-primary-500'
-                      : ''
-                  }`}
-                >
-                  <td className="font-mono font-medium text-surface-100">
-                    {stock.symbol}
-                  </td>
-                  <td className="text-surface-200">{stock.name}</td>
-                  <td>
-                    <span
-                      className={stock.market === 'HK' ? 'badge-hk' : 'badge-us'}
-                    >
-                      {stock.market}
-                    </span>
-                  </td>
-                  <td className="text-surface-400 text-xs">
-                    {formatTime(stock.updated_at)}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  <div className="text-right">
+                    <div className="text-xs text-dark-400 font-mono">
+                      {formatTime(stock.updated_at)}
+                    </div>
+                    {selectedSymbol === stock.symbol && (
+                      <div className="flex items-center gap-1 text-brand-400 text-xs mt-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        查看新闻
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-surface-800">
-          <div className="text-sm text-surface-400">
-            第 {page + 1} / {totalPages} 页
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+          <div className="text-xs text-dark-400">
+            显示 {page * pageSize + 1}-{Math.min((page + 1) * pageSize, total)} / {total}
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => onPageChange(page - 1)}
               disabled={page === 0}
-              className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-ghost text-xs disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              上一页
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
+            <div className="flex items-center gap-1">
+              {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                const pageNum = Math.max(0, Math.min(page - 2, totalPages - 5)) + i
+                if (pageNum >= totalPages) return null
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => onPageChange(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                      page === pageNum
+                        ? 'bg-brand-500 text-white'
+                        : 'text-dark-400 hover:bg-white/5'
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                )
+              })}
+            </div>
             <button
               onClick={() => onPageChange(page + 1)}
               disabled={page >= totalPages - 1}
-              className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-ghost text-xs disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              下一页
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
         </div>

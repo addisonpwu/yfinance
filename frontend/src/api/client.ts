@@ -1,6 +1,6 @@
 import type { Stock, StockListResponse, News, NewsListResponse } from '../types/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const API_BASE = import.meta.env.DEV ? 'http://localhost:8000' : ''
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {

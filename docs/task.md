@@ -1,5 +1,5 @@
 ##任務
-讀取~/Documents/temp/stock_news.json，當發現有利好消息的**港股**，使用stock-api-skills新增至股票及新聞。
+讀取~/Documents/temp/stock_news.json，當發現有利好消息的**港股**，使用~/.qclaw/skills/stock-api-skill新增至股票及新聞。
 
 ##目標文件
 ~/Documents/temp/stock_news.json
@@ -17,4 +17,5 @@
 - 必須要是港股相關新聞
 
 ##處理流程
-1. 使用stock-api-skills調用本地服務接口新增股票及新聞
+1. 使用stock-api-skill調用本地服務接口新增股票及新聞
+2. **把執行任務時生成的檔案移除**
