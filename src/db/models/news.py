@@ -18,7 +18,7 @@ class News(Base):
     News ORM Model
 
     Table: news
-    Fields: id, stock_id, title, content, publish_time, url, created_at
+    Fields: id, stock_id, title, content, sentiment, publish_time, url, created_at
     Relationships: Many-to-One with Stock (a news belongs to onestock)
     """
 
@@ -40,6 +40,9 @@ class News(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False, comment="新闻标题")
     content: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, comment="新闻内容/摘要"
+    )
+    sentiment: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="情感倾向: 1=正面, 0=负面"
     )
     publish_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True, comment="发布时间"

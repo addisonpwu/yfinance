@@ -61,6 +61,7 @@ class NewsRepository(BaseRepository[News]):
             stock_id=stock_id,
             title=news_create.title,
             content=news_create.content,
+            sentiment=news_create.sentiment,
             publish_time=news_create.publish_time,
             url=news_create.url,
         )

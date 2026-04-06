@@ -162,6 +162,10 @@ def _migrate_schema(sync_conn):
             sync_conn.execute(text("ALTER TABLE news ADD COLUMN content TEXT"))
             logger.info("Migration: Added 'content' column to news table")
 
+        if "sentiment" not in columns:
+            sync_conn.execute(text("ALTER TABLE news ADD COLUMN sentiment INTEGER"))
+            logger.info("Migration: Added 'sentiment' column to news table")
+
 
 async def close_db():
     """

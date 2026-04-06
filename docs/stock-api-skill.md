@@ -27,6 +27,7 @@
 | `stock_symbol` | string(20) | ✅ | 關聯的股票代碼，**必須為4位數字+.HK** (例: `0700.HK`, `1234.HK`) |
 | `title` | text | ✅ | 新聞標題 |
 | `content` | text | ✅ | 新聞內容/摘要 |
+| `sentiment` | integer | ✅ | 情感傾向: `1`=正面, `0`=負面 |
 | `publish_time` | datetime | ✅ | 發布時間 |
 | `url` | string(512) | ✅ | 新聞連結，唯一鍵 |
 | `id` | integer | - | 主鍵 (自動生成) |
@@ -138,6 +139,7 @@ Content-Type: application/json
   "stock_symbol": "0700.HK",
   "title": "騰訊發布2026年Q1財報",
   "content": "騰訊今日發布2026年第一季度財報...",
+  "sentiment": 1,
   "publish_time": "2026-03-31T10:30:00+08:00",
   "url": "https://example.com/news/001"
 }
@@ -149,6 +151,7 @@ Content-Type: application/json
 | `stock_symbol` | string | ✅ | 關聯的股票代碼 (必須已存在) |
 | `title` | string | ✅ | 新聞標題 |
 | `content` | string | ✅ | 新聞內容/摘要 |
+| `sentiment` | integer | ✅ | 情感傾向: `1`=正面, `0`=負面 |
 | `publish_time` | datetime | ✅ | 發布時間 (ISO 8601) |
 | `url` | string | ✅ | 新聞連結 (唯一) |
 
@@ -160,6 +163,7 @@ Content-Type: application/json
   "stock_symbol": "0700.HK",
   "title": "騰訊發布2026年Q1財報",
   "content": "騰訊今日發布2026年第一季度財報...",
+  "sentiment": 1,
   "publish_time": "2026-03-31T10:30:00+08:00",
   "url": "https://example.com/news/001",
   "created_at": "2026-03-31T15:00:00Z"
@@ -197,6 +201,7 @@ GET /api/v1/news/?skip=0&limit=100&stock_symbol=0700.HK&start_time=2026-03-01&en
       "stock_symbol": "0700.HK",
       "title": "騰訊發布2026年Q1財報",
       "content": "騰訊今日發布2026年第一季度財報...",
+      "sentiment": 1,
       "publish_time": "2026-03-31T10:30:00+08:00",
       "url": "https://example.com/news/001",
       "created_at": "2026-03-31T15:00:00Z"
@@ -278,7 +283,7 @@ curl http://localhost:8000/api/v1/stocks/0700.HK
 # 創建新聞 (需要指定 stock_symbol)
 curl -X POST http://localhost:8000/api/v1/news/ \
   -H "Content-Type: application/json" \
-  -d '{"stock_symbol": "0700.HK", "title": "騰訊發布財報", "content": "騰訊今日發布財報，營收增長...", "publish_time": "2026-03-31T10:30:00+08:00", "url": "https://example.com/news/001"}'
+  -d '{"stock_symbol": "0700.HK", "title": "騰訊發布財報", "content": "騰訊今日發布財報，營收增長...", "sentiment": 1, "publish_time": "2026-03-31T10:30:00+08:00", "url": "https://example.com/news/001"}'
 
 # 查詢特定股票的新聞
 curl "http://localhost:8000/api/v1/news/?stock_symbol=0700.HK"
