@@ -6,6 +6,10 @@ from src.db.models.news import News
 from src.repositories.base import BaseRepository
 from src.utils.exceptions import NewsNotFoundException, DuplicateRecordException
 from src.api.schemas.news import NewsCreate
+from src.utils.logger import LoggerManager
+
+
+logger = LoggerManager.get_logger("repository.news")
 
 
 class NewsRepository(BaseRepository[News]):
@@ -14,6 +18,10 @@ class NewsRepository(BaseRepository[News]):
 
     async def get_by_url(self, url: str) -> Optional[News]:
         result = await self.session.execute(select(News).where(News.url == url))
+        return result.scalar_one_or_none()
+
+    async def get_by_title(self, title: str) -> Optional[News]:
+        result = await self.session.execute(select(News).where(News.title == title))
         return result.scalar_one_or_none()
 
     async def get_by_id_or_raise(self, news_id: int) -> News:
@@ -51,19 +59,35 @@ class NewsRepository(BaseRepository[News]):
         return list(result.scalars().all())
 
     async def create_news(self, news_create: NewsCreate, stock_id: int) -> News:
-        existing = await self.get_by_url(news_create.url)
-        if existing:
-            raise DuplicateRecordException(
-                f"News with URL '{news_create.url}' already exists"
+        try:
+            existing = await self.get_by_url(news_create.url)
+            if existing:
+                raise DuplicateRecordException(
+                    f"News with URL '{news_create.url}' already exists"
+                )
+
+            existing = await self.get_by_title(news_create.title)
+            if existing:
+                raise DuplicateRecordException(
+                    f"News with title '{news_create.title}' already exists"
+                )
+
+            news = News(
+                stock_id=stock_id,
+                title=news_create.title,
+                content=news_create.content,
+                sentiment=news_create.sentiment,
+                publish_time=news_create.publish_time,
+                url=news_create.url,
             )
 
-        news = News(
-            stock_id=stock_id,
-            title=news_create.title,
-            content=news_create.content,
-            sentiment=news_create.sentiment,
-            publish_time=news_create.publish_time,
-            url=news_create.url,
-        )
-
-        return await super().create(news)
+            self.session.add(news)
+            await self.session.flush()
+            await self.session.refresh(news)
+            logger.info(f"Created News with id {news.id}")
+            return news
+        except DuplicateRecordException:
+            raise
+        except Exception as e:
+            logger.error(f"Error creating news: {e}")
+            raise

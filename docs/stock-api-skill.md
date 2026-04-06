@@ -172,7 +172,21 @@ Content-Type: application/json
 
 **錯誤**:
 - `404 Not Found`: 股票不存在
-- `409 Conflict`: URL 已存在
+- `409 Conflict`: URL 或標題已存在
+
+**409 Conflict 示例 (標題重複)**:
+```json
+{
+  "detail": "News with title '騰訊發布2026年Q1財報' already exists"
+}
+```
+
+**409 Conflict 示例 (URL 重複)**:
+```json
+{
+  "detail": "News with URL 'https://example.com/news/001' already exists"
+}
+```
 
 ---
 
@@ -295,7 +309,7 @@ curl "http://localhost:8000/api/v1/news/?stock_symbol=0700.HK"
 
 1. **股票代碼格式**: 港股使用 `4位數字.HK` (例: `0700.HK`, `1234.HK`)
 2. **時間格式**: ISO 8601 格式 (例: `2026-03-31T10:30:00+08:00`)
-3. **唯一性**: `symbol` 和 `url` 字段必須唯一
+3. **唯一性**: `symbol`、`url` 和 `title` 字段必須唯一
 4. **新聞關聯**: 創建新聞時必須指定 `stock_symbol`，股票必須已存在
 5. **級聯刪除**: 刪除股票時會自動刪除相關的新聞
 6. **分頁**: 默認 `limit=100`，最大建議不超過 1000
