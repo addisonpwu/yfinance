@@ -56,6 +56,7 @@ class StockResponse(StockBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    news_count: int = 0
 
 
 class StockListResponse(BaseModel):

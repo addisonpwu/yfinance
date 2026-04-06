@@ -5,6 +5,7 @@ export interface Stock {
   market: 'US' | 'HK'
   created_at: string
   updated_at: string
+  news_count: number
 }
 
 export interface StockListResponse {

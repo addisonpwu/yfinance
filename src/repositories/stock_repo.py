@@ -2,10 +2,12 @@
 Stock Repository Implementation
 """
 
-from typing import Optional, List
-from sqlalchemy import select
+from typing import Optional, List, Tuple
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from src.db.models.stock import Stock
+from src.db.models.news import News
 from src.repositories.base import BaseRepository
 from src.utils.exceptions import StockNotFoundException, DuplicateRecordException
 from src.api.schemas.stock import StockCreate, StockUpdate
@@ -68,9 +70,9 @@ class StockRepository(BaseRepository[Stock]):
         market: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Stock]:
+    ) -> List[Tuple[Stock, int]]:
         """
-        List stocks with optional market filter
+        List stocks with optional market filter and news count
 
         Args:
             market: Filter by market (US/HK), None for all markets
@@ -78,10 +80,16 @@ class StockRepository(BaseRepository[Stock]):
             limit: Maximum number of records to return
 
         Returns:
-            List of Stock instances
+            List of (Stock, news_count) tuples
         """
         try:
-            query = select(Stock).order_by(Stock.symbol)
+            news_count = func.count(News.id).label("news_count")
+            query = (
+                select(Stock, news_count)
+                .outerjoin(News, Stock.id == News.stock_id)
+                .group_by(Stock.id)
+                .order_by(Stock.symbol)
+            )
 
             if market:
                 query = query.where(Stock.market == market)
@@ -89,7 +97,7 @@ class StockRepository(BaseRepository[Stock]):
             query = query.offset(skip).limit(limit)
 
             result = await self.session.execute(query)
-            return list(result.scalars().all())
+            return [(row[0], row[1]) for row in result.all()]
         except Exception as e:
             self.logger.error(f"Error listing stocks: {e}")
             raise
