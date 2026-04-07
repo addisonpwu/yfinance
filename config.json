@@ -158,10 +158,11 @@
         "available_models": ["deepseek-v3.2", "qwen3-max"]
       },
       "nvidia": {
-        "default_model": "meta/llama-3.3-70b-instruct",
+        "default_model": "google/gemma-4-31b-it",
         "available_models": [
           "meta/llama-3.3-70b-instruct",
-          "minimaxai/minimax-m2.5"
+          "minimaxai/minimax-m2.5",
+          "google/gemma-4-31b-it"
         ]
       },
       "gemini": {

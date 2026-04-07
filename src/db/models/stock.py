@@ -15,6 +15,7 @@ from src.config.constants import (
 
 if TYPE_CHECKING:
     from src.db.models.news import News
+    from src.db.models.ai_analysis import AIAnalysis
 
 
 class Stock(Base):
@@ -68,6 +69,13 @@ class Stock(Base):
     # Stock -> News (one-to-many)
     news: Mapped[list["News"]] = relationship(
         "News",
+        back_populates="stock",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    ai_analyses: Mapped[list["AIAnalysis"]] = relationship(
+        "AIAnalysis",
         back_populates="stock",
         cascade="all, delete-orphan",
         lazy="selectin",

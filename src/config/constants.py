@@ -129,12 +129,11 @@ DEFAULT_AI_PROVIDERS = {
         ],
     },
     "nvidia": {
-        "default_model": "z-ai/glm5",
+        "default_model": "google/gemma-4-31b-it",
         "available_models": [
-            "z-ai/glm5",
-            "deepseek-ai/deepseek-v3.2",
-            "qwen/qwen3.5-397b-a17b",
-            "moonshotai/kimi-k2.5",
+            "meta/llama-3.3-70b-instruct",
+            "minimaxai/minimax-m2.5",
+            "google/gemma-4-31b-it"
         ],
     },
     "gemini": {
@@ -467,6 +466,31 @@ OBV_BOLL_BOLL_DEEP_MULTIPLIER = 1.0  # 深度超卖系数
 OBV_BOLL_BOLL_MID_MULTIPLIER = 0.72  # 中度超卖系数
 OBV_BOLL_BOLL_LIGHT_MULTIPLIER = 0.4  # 轻度超卖系数
 OBV_BOLL_BOLL_SQUEEZE_BONUS = 3.0  # 带宽压缩加分
+
+# ============================================
+# AI 分析配置
+# ============================================
+AI_ANALYSIS_AUTO_SAVE_DEFAULT = True
+AI_ANALYSIS_RETENTION_DAYS_DEFAULT = 30
+AI_ANALYSIS_RETENTION_MAX_RECORDS_DEFAULT = 30
+AI_ANALYSIS_SUMMARY_MAX_LENGTH = 2000
+AI_ANALYSIS_PROVIDER_MAX_LENGTH = 20
+AI_ANALYSIS_MODEL_MAX_LENGTH = 100
+AI_ANALYSIS_INTERVAL_MAX_LENGTH = 5
+
+
+from enum import Enum
+
+
+class Recommendation(str, Enum):
+    """AI 分析推薦方向"""
+
+    STRONG_BUY = "strong_buy"
+    BUY = "buy"
+    HOLD = "hold"
+    SELL = "sell"
+    STRONG_SELL = "strong_sell"
+
 
 # ============================================
 # 数据库配置

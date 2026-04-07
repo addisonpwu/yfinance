@@ -4,7 +4,7 @@ Database engine and session management for async SQLAlchemy
 
 import os
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -87,8 +87,8 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 
 
 # Global engine and session factory (lazy initialization)
-_engine: AsyncEngine | None = None
-_session_factory: async_sessionmaker[AsyncSession] | None = None
+_engine: Optional[AsyncEngine] = None
+_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
 
 def get_engine() -> AsyncEngine:
@@ -139,11 +139,40 @@ async def init_db():
     Initialize database (create tables if not exist)
     Call this on application startup
     """
+    # Import all models to register them with Base.metadata
+    from src.db.models import Stock, News, AIAnalysis
+
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_migrate_schema)
     logger.info("Database tables created successfully")
+
+
+def init_db_sync():
+    """
+    Synchronous wrapper for init_db() - for CLI usage
+    """
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(init_db())
+    finally:
+        loop.close()
+
+
+def init_db_sync():
+    """
+    Synchronous wrapper for init_db() - for CLI usage
+    """
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(init_db())
+    finally:
+        loop.close()
 
 
 def _migrate_schema(sync_conn):

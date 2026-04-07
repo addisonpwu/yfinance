@@ -36,8 +36,8 @@ yfinance/
 │   │   └── external/       # 外部数据源 (宏观指标)
 │   ├── backtest/           # 回测引擎 + 指标计算
 │   ├── risk/               # 仓位管理 + VaR
-│   ├── db/                 # PostgreSQL ORM (Stock, News)
-│   ├── repositories/       # 数据访问层 (StockRepo, NewsRepo)
+│   ├── db/                 # PostgreSQL ORM (Stock, News, AIAnalysis)
+│   ├── repositories/       # 数据访问层 (StockRepo, NewsRepo, AIAnalysisRepo)
 │   ├── api/                # FastAPI REST API
 │   ├── config/             # 配置管理 (constants → settings → validator)
 │   └── utils/              # 通用工具 (异常/日志)
@@ -59,6 +59,8 @@ yfinance/
 | 添加新数据源 | `src/data/loaders/` | 继承 YahooFinanceRepository 模式 |
 | 数据库修改 | `src/db/models/` | SQLAlchemy 2.0 Async |
 | API 端点 | `src/api/routes/` | FastAPI 路由 |
+| AI 分析持久化 | `src/core/services/ai_analysis_persister.py` | 分析结果自动存储 |
+| AI 分析 API | `src/api/routes/ai_analyses.py` | RESTful 接口 |
 | 回测策略 | `src/backtest/engine.py` | BacktestEngine |
 
 ---
@@ -90,6 +92,13 @@ yfinance/
 - 线程安全: `threading.RLock()`
 - 原子写入: 先写临时文件，再 `os.rename()`
 
+### AI 分析持久化
+- 分析完成后自动通过 `AIAnalysisPersister` 写入数据库
+- 每个 provider 的分析结果作为独立记录存储
+- 自动清理旧记录（默认保留最新 30 条）
+- Stock 不存在时自动创建
+- 使用 `asyncio.new_event_loop()` 桥接同步→异步调用
+
 ---
 
 ## ANTI-PATTERNS (FORBIDDEN)
@@ -114,6 +123,11 @@ yfinance/
 - **Never** 直接写入报告文件 - 使用 `ReportWriter.write_stock_result()`
 - **Never** 修改 `_results` 而不持有 `self._lock`
 
+### AI 分析持久化
+- **Never** 在 StockAnalyzer 外直接调用 Persister - 使用 `AIAnalysisPersister`
+- **Never** 绕过 auto_save 配置强制写入 - 通过配置控制
+- **Never** 手动管理 analyzed_at 时间戳 - 使用 `datetime.now()`
+
 ---
 
 ## COMMANDS
@@ -136,6 +150,12 @@ python3 merge_stocks.py --verbose
 
 # 数据库 API
 uvicorn src.api.main:app --reload
+
+# 查询 AI 分析记录
+curl http://localhost:8000/api/v1/ai-analyses/0001.HK/latest
+
+# 查询 AI 分析记录
+curl http://localhost:8000/api/v1/ai-analyses/0001.HK/latest
 ```
 
 ---
@@ -155,7 +175,7 @@ uvicorn src.api.main:app --reload
 - ✅ pytest 已在 pyproject.toml dev 依赖中声明
 
 ### 项目规模
-- 文件: 126 个
-- Python 代码: ~18,900 行
+- 文件: 130 个
+- Python 代码: ~19,800 行
 - 大文件 (>500 LOC): 13 个
 - 最大深度: 5 层

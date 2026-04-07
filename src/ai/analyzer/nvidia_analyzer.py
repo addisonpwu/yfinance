@@ -52,7 +52,7 @@ class NvidiaAIAnalyzer(AIAnalyzer):
     NVIDIA_API_BASE_URL = "https://integrate.api.nvidia.com/v1"
     
     # 默认模型（将在 __init__ 中从配置读取）
-    DEFAULT_MODEL = "z-ai/glm5"
+    DEFAULT_MODEL = "google/gemma-4-31b-it"
     
     # 可用的 NVIDIA 模型列表（将在 __init__ 中从配置读取）
     AVAILABLE_MODELS = []
