@@ -17,7 +17,6 @@ from src.core.strategies.loader import get_strategies
 from src.config.settings import config_manager
 from src.data.loaders.stock_list_loader_enhanced import EnhancedStockListLoader
 from src.db.database import init_db as _init_db
-from src.db.database import init_db as _init_db
 
 
 def run_analysis(

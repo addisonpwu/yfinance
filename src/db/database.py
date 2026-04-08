@@ -162,19 +162,6 @@ def init_db_sync():
         loop.close()
 
 
-def init_db_sync():
-    """
-    Synchronous wrapper for init_db() - for CLI usage
-    """
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(init_db())
-    finally:
-        loop.close()
-
-
 def _migrate_schema(sync_conn):
     """
     Run schema migrations for existing tables.
