@@ -3,7 +3,7 @@ AI Analysis API Routes
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.database import get_session
@@ -14,8 +14,11 @@ from src.api.schemas.ai_analysis import (
     AIAnalysisResponse,
     AIAnalysisListResponse,
     AIAnalysisBulkCreate,
+    AIAnalysisTriggerRequest,
+    AnalysisTaskStatus,
 )
 from src.api.schemas.stock import StockCreate
+from src.api.services.analysis_trigger_service import get_analysis_trigger_service
 from src.config.constants import AI_ANALYSIS_RETENTION_MAX_RECORDS_DEFAULT
 from src.utils.logger import LoggerManager
 
@@ -323,3 +326,68 @@ async def get_latest_analysis(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get latest analysis: {str(e)}",
         )
+
+
+@router.post(
+    "/{symbol}/trigger",
+    response_model=Dict,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger NVIDIA multi-model analysis",
+    description="Trigger a background NVIDIA multi-model analysis task for a stock",
+)
+async def trigger_analysis(
+    symbol: str,
+    request: AIAnalysisTriggerRequest,
+):
+    """
+    Trigger a background NVIDIA multi-model analysis task.
+
+    - **symbol**: Stock symbol (e.g., AAPL, 3988.HK)
+    - **interval**: Data interval (1d/1h/1m), default 1d
+    - **force**: Force refresh cached data, default False
+    - **market**: Market code (HK/US), default HK
+
+    Returns immediately with a task_id for polling.
+    """
+    service = get_analysis_trigger_service()
+    try:
+        result = await service.trigger_analysis(
+            symbol=symbol,
+            market=request.market,
+            interval=request.interval,
+            force_refresh=request.force,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Error triggering analysis for {symbol}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to trigger analysis: {str(e)}",
+        )
+
+
+@router.get(
+    "/tasks/{task_id}",
+    response_model=AnalysisTaskStatus,
+    summary="Get analysis task status",
+    description="Get the current status of a background analysis task",
+)
+async def get_task_status(task_id: str):
+    """
+    Get the status of a background analysis task by task_id.
+
+    - **task_id**: The task ID returned from the trigger endpoint
+    """
+    service = get_analysis_trigger_service()
+    task = service.get_task(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task not found: {task_id}",
+        )
+    return task

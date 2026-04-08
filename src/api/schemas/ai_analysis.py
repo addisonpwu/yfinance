@@ -72,6 +72,29 @@ class AIAnalysisListResponse(BaseModel):
 class AIAnalysisTriggerRequest(BaseModel):
     interval: str = Field(default="1d")
     force: bool = Field(default=False)
+    market: str = Field(default="HK")
+
+
+class ModelProgress(BaseModel):
+    model_name: str
+    status: str  # pending, running, completed, failed
+    confidence: Optional[float] = None
+    direction: Optional[str] = None
+
+
+class AnalysisTaskStatus(BaseModel):
+    task_id: str
+    symbol: str
+    market: str
+    interval: str
+    status: str
+    current_model: Optional[str] = None
+    current_step: str = ""
+    progress: Dict = {}
+    results: List[Dict] = []
+    error: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
 
 
 class AIAnalysisBulkCreate(BaseModel):

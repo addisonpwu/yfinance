@@ -2,9 +2,40 @@
 
 這是一個基於 Python 的股票篩選專案，採用模組化設計，旨在根據多種可擴充的、經過專業交易邏輯強化的策略，從美國和香港股市中找出符合特定條件的股票。
 
+專案提供 **CLI 命令列** 和 **React 前端儀表盤** 兩種操作方式，並支持 Docker 一鍵部署全棧環境。
+
+## 快速開始
+
+### Docker 部署（推薦）
+
+```bash
+# 1. 配置 .env 文件（API 密鑰等）
+cp .env.example .env
+# 編輯 .env 填入 API 密鑰
+
+# 2. 啟動全部服務
+docker compose up -d --build
+
+# 3. 訪問前端
+# http://localhost:3000
+```
+
+### CLI 模式
+
+```bash
+# 安裝依賴
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# 篩選港股
+python3 main.py --market HK
+```
+
 ## 專案架構
 
 專案已重構成模組化架構，將數據獲取、策略定義和分析引擎完全分離，以實現最大的靈活性和可擴充性。
+
+### CLI 模式
 
 -   `main.py`: 專案的主入口，負責解析參數、調度分析並輸出結果。
 -   `data_loader/`: 負責從不同來源獲取股票代碼列表（美股從 statementdog.com，港股從 hkex.com.hk）。
@@ -15,17 +46,32 @@
 -   `risk/`: 風險管理模組，包含動態倉位計算和風險評估。
 -   `data_cache/`: 用於緩存股票數據，提升重複運行效率。
 
+### Docker 全棧架構
+
+```
+docker-compose.yml
+├── db (PostgreSQL 15)       → localhost:5432
+├── api (FastAPI)             → localhost:8000
+├── pgadmin (pgAdmin 4)       → localhost:5050
+└── frontend (React + Nginx)  → localhost:3000
+```
+
+-   `src/api/`: FastAPI REST API 端點（股票 CRUD、新聞、AI 分析）
+-   `src/api/services/`: 異步分析觸發服務（後台 NVIDIA 多模型分析）
+-   `frontend/`: React 19 + TypeScript + Tailwind CSS 4 前端儀表盤
+
 ## 主要功能
 
 -   **模組化設計**：輕鬆添加新策略，而無需修改核心程式碼。
 -   **雙市場支援**：透過命令列參數即可切換美國 (`US`) 和香港 (`HK`) 市場。
 -   **動態策略加載**：分析引擎會自動偵測並執行 `strategies` 文件夾中的所有策略。
 -   **高效數據緩存**: 引入了智能數據緩存機制，大幅提升二次運行的速度。
-
 -   **新聞情感分析**: 自動抓取並分析入選股票的最新新聞情感，提供市場情緒參考。
 -   **豐富的結果輸出**：
     -   **詳細報告**：程式會生成一份詳細報告檔案 (`..._details.txt`)，其中包含每支入選股票的基本面資訊（市值、市盈率等）和最新新聞情感分析，方便進行深度分析。
     -   **簡潔摘要**：同時，一個簡潔的摘要列表也會被儲存到對應市場的 `.txt` 檔案中，方便直接複製貼上至其他軟體使用。
+-   **React 前端儀表盤**：深色主題雙面板布局（股票 + 新聞），支持市場過濾、搜索、分頁。
+-   **一鍵 AI 分析**：前端每隻股票旁設有 🤖 按鈕，點擊即可觸發 NVIDIA 多模型異步分析，實時追蹤進度並查看共識結果。
 
 
 ## 數據緩存與性能
@@ -175,8 +221,35 @@ python3 main.py --market HK --provider gemini --model all
 | 提供商 | API | 默認模型 | 特色 |
 |--------|-----|----------|------|
 | **iFlow** | 心流開放平台 | deepseek-v3.2 | 多模型支持，穩定快速 |
-| **NVIDIA** | NVIDIA NIM | z-ai/glm5 | 支持 reasoning_content |
+| **NVIDIA** | NVIDIA NIM | google/gemma-4-31b-it | 支持 reasoning_content，多模型投票 |
 | **Gemini** | Google Gemini | gemini-2.5-flash | 100萬 token 上下文 |
+
+### CLI 使用方式
+
+```bash
+# 單一提供商
+python3 main.py --market HK --provider nvidia --model google/gemma-4-31b-it
+
+# 多提供商並行分析
+python3 main.py --market HK --provider iflow,nvidia,gemini
+
+# 多模型投票共識（NVIDIA 所有可用模型）
+python3 main.py --market HK --provider nvidia --model all
+
+# 跳過策略篩選，直接 AI 分析
+python3 main.py --market HK --symbol 3988.HK --provider nvidia --model all --skip-strategies
+```
+
+### 前端一鍵分析
+
+前端每隻股票旁設有 🤖 按鈕，點擊後：
+
+1. **確認對話框** — 顯示將使用的模型列表和注意事項
+2. **觸發異步任務** — `POST /api/v1/ai-analyses/{symbol}/trigger`
+3. **實時進度追蹤** — 每 2 秒輪詢任務狀態，顯示各模型分析進度
+4. **結果展示** — 共識方向 + 平均置信度 + 各模型詳情（可展開）
+
+分析結果自動存入數據庫，可通過 API 查詢歷史記錄。
 
 ### 功能特色
 - **智能分析引擎**: 使用三大 AI 提供商的 API 進行全面技術分析

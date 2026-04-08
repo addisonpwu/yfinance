@@ -1,4 +1,7 @@
-import type { Stock, StockListResponse, News, NewsListResponse } from '../types/api'
+import type {
+  Stock, StockListResponse, News, NewsListResponse,
+  AIAnalysis, AIAnalysisListResponse, AnalysisTriggerResponse, AnalysisTaskStatus,
+} from '../types/api'
 
 const API_BASE = import.meta.env.DEV ? 'http://localhost:8000' : ''
 
@@ -76,5 +79,30 @@ export const newsApi = {
     return fetchApi<void>(`/api/v1/news/${id}`, {
       method: 'DELETE',
     })
+  },
+}
+
+export const aiAnalysisApi = {
+  trigger: (symbol: string, market: string, interval = '1d', force = false) => {
+    return fetchApi<AnalysisTriggerResponse>(`/api/v1/ai-analyses/${symbol}/trigger`, {
+      method: 'POST',
+      body: JSON.stringify({ interval, force, market }),
+    })
+  },
+
+  getTaskStatus: (taskId: string) => {
+    return fetchApi<AnalysisTaskStatus>(`/api/v1/ai-analyses/tasks/${taskId}`)
+  },
+
+  getLatest: (symbol: string, provider?: string, interval?: string) => {
+    const params = new URLSearchParams()
+    if (provider) params.set('provider', provider)
+    if (interval) params.set('interval', interval)
+    const query = params.toString()
+    return fetchApi<AIAnalysis>(`/api/v1/ai-analyses/${symbol}/latest${query ? `?${query}` : ''}`)
+  },
+
+  getHistory: (symbol: string, skip = 0, limit = 30) => {
+    return fetchApi<AIAnalysisListResponse>(`/api/v1/ai-analyses/${symbol}?skip=${skip}&limit=${limit}`)
   },
 }

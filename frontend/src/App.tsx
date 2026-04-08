@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { stockApi, newsApi } from './api/client'
+import { useAnalysisTask } from './hooks/useAnalysisTask'
+import { AnalysisTriggerButton } from './components/AnalysisTriggerButton'
+import { AnalysisProgressPanel } from './components/AnalysisProgressPanel'
+import { AnalysisResultViewer } from './components/AnalysisResultViewer'
 import type { Stock, News } from './types/api'
 
 const PAGE_SIZE = 20
@@ -17,6 +21,10 @@ function App() {
   const [stockPage, setStockPage] = useState(0)
   const [newsPage, setNewsPage] = useState(0)
   const [search, setSearch] = useState('')
+
+  const { activeTask, isRunning, isCompleted, triggerAnalysis } = useAnalysisTask()
+  const [showAnalysisPanel, setShowAnalysisPanel] = useState(false)
+  const [showResults, setShowResults] = useState(false)
 
   const fetchStocks = useCallback(async () => {
     setLoadingStocks(true)
@@ -63,6 +71,26 @@ function App() {
   const handleMarketChange = (market: string | null) => {
     setCurrentMarket(market)
     setStockPage(0)
+  }
+
+  const handleTriggerAnalysis = (symbol: string, market: string) => {
+    triggerAnalysis(symbol, market).then((result) => {
+      setShowAnalysisPanel(true)
+      setShowResults(false)
+      if (result.existing) {
+        // Task already running, just show panel
+      }
+    }).catch((err) => {
+      console.error('Failed to trigger analysis:', err)
+      alert(`觸發分析失敗: ${err.message}`)
+    })
+  }
+
+  const handleReanalyze = () => {
+    if (activeTask) {
+      triggerAnalysis(activeTask.symbol, activeTask.market).catch(console.error)
+      setShowResults(false)
+    }
   }
 
   const filteredStocks = search
@@ -177,9 +205,16 @@ function App() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
+                        <AnalysisTriggerButton
+                          symbol={stock.symbol}
+                          market={stock.market}
+                          onTrigger={handleTriggerAnalysis}
+                          disabled={false}
+                          isRunning={isRunning && activeTask?.symbol === stock.symbol}
+                        />
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
                           gap: '0.25rem',
                           fontSize: '0.625rem',
                           color: stock.positive_news_count > 0 ? '#22c55e' : 'var(--color-text-dim)'
@@ -189,9 +224,9 @@ function App() {
                           </svg>
                           {stock.positive_news_count}
                         </div>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
                           gap: '0.25rem',
                           fontSize: '0.625rem',
                           color: stock.negative_news_count > 0 ? '#ef4444' : 'var(--color-text-dim)'
@@ -306,6 +341,27 @@ function App() {
             </div>
           </div>
         </div>
+
+        {/* Analysis Panel Overlay */}
+        {showAnalysisPanel && activeTask && (
+          <div className="analysis-overlay" onClick={() => { setShowAnalysisPanel(false); setShowResults(false); }}>
+            <div className="analysis-panel-wrapper" onClick={(e) => e.stopPropagation()}>
+              {showResults && isCompleted ? (
+                <AnalysisResultViewer
+                  task={activeTask}
+                  onClose={() => { setShowAnalysisPanel(false); setShowResults(false); }}
+                  onReanalyze={handleReanalyze}
+                />
+              ) : (
+                <AnalysisProgressPanel
+                  task={activeTask}
+                  onClose={() => { setShowAnalysisPanel(false); setShowResults(false); }}
+                  onViewResults={() => setShowResults(true)}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         <footer className="footer">
           <div className="container">

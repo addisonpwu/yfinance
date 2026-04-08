@@ -1,0 +1,122 @@
+{
+  "task_execution_time": "2026-04-08T15:31:00Z",
+  "summary": {
+    "total_hk_stock_news_processed": 18,
+    "positive_news_added": 18,
+    "negative_news_added": 0,
+    "stocks_created": 6,
+    "news_created": 15
+  },
+  "news_details": [
+    {
+      "stock_symbol": "1989.HK",
+      "stock_name": "廣合科技",
+      "title": "廣合科技(1989)料首季度淨利潤增加",
+      "sentiment": "positive",
+      "reason": "盈喜"
+    },
+    {
+      "stock_symbol": "2579.HK",
+      "stock_name": "中偉新材",
+      "title": "中偉新材(2579)料首季度淨利潤增逾72.32%",
+      "sentiment": "positive",
+      "reason": "盈喜"
+    },
+    {
+      "stock_symbol": "6990.HK",
+      "stock_name": "科倫博泰生物",
+      "title": "科倫博泰生物(6990)H股全流通獲聯交所授出上市批准",
+      "sentiment": "positive",
+      "reason": "正面消息"
+    },
+    {
+      "stock_symbol": "2600.HK",
+      "stock_name": "中國鋁業",
+      "title": "中國鋁業(2600)料首季度淨利潤增逾50%",
+      "sentiment": "positive",
+      "reason": "盈喜"
+    },
+    {
+      "stock_symbol": "1478.HK",
+      "stock_name": "丘鈦科技",
+      "title": "丘鈦科技(1478)3月手機攝像頭模組銷量按年升33.8%",
+      "sentiment": "positive",
+      "reason": "銷售增長"
+    },
+    {
+      "stock_symbol": "0175.HK",
+      "stock_name": "吉利汽車",
+      "title": "花旗升吉利汽車目標價至27元 評級「買入」",
+      "sentiment": "positive",
+      "reason": "評級上調至買入"
+    },
+    {
+      "stock_symbol": "0175.HK",
+      "stock_name": "吉利汽車",
+      "title": "大摩引述吉利稱海外銷量與利潤率增長為核心策略",
+      "sentiment": "positive",
+      "reason": "正面評級"
+    },
+    {
+      "stock_symbol": "1211.HK",
+      "stock_name": "比亞迪",
+      "title": "里昂：比亞迪、吉利出口量進一步提升",
+      "sentiment": "positive",
+      "reason": "出口增長"
+    },
+    {
+      "stock_symbol": "9698.HK",
+      "stock_name": "萬國數據",
+      "title": "高盛：雲端與數據中心列中國互聯網首選子產業 推薦萬國數據",
+      "sentiment": "positive",
+      "reason": "大行推薦"
+    },
+    {
+      "stock_symbol": "3896.HK",
+      "stock_name": "金山雲",
+      "title": "高盛：雲端與數據中心列中國互聯網首選子產業 推薦金山雲",
+      "sentiment": "positive",
+      "reason": "大行推薦"
+    },
+    {
+      "stock_symbol": "0700.HK",
+      "stock_name": "騰訊控股",
+      "title": "南向資金淨買入騰訊控股26.97億港元",
+      "sentiment": "positive",
+      "reason": "資金流入"
+    },
+    {
+      "stock_symbol": "1810.HK",
+      "stock_name": "小米集團",
+      "title": "南向資金淨買入小米集團23.29億港元",
+      "sentiment": "positive",
+      "reason": "資金流入"
+    },
+    {
+      "stock_symbol": "2800.HK",
+      "stock_name": "盈富基金",
+      "title": "港股通盈富基金淨流入85.46億港元",
+      "sentiment": "positive",
+      "reason": "資金流入"
+    },
+    {
+      "stock_symbol": "0939.HK",
+      "stock_name": "建設銀行",
+      "title": "摩通對內銀股投資評級及目標價 建設銀行目標價10.9元",
+      "sentiment": "positive",
+      "reason": "評級增持"
+    },
+    {
+      "stock_symbol": "3988.HK",
+      "stock_name": "中國銀行",
+      "title": "摩通對內銀股投資評級及目標價 中國銀行目標價5.5元",
+      "sentiment": "positive",
+      "reason": "評級增持"
+    }
+  ],
+  "input_files": [
+    "/Users/addison/Documents/temp/stock_news.json",
+    "/Users/addison/Documents/temp/aastocks_news.json",
+    "/Users/addison/Documents/temp/eastmoney_hk_news.json"
+  ]
+}
