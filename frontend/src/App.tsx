@@ -161,13 +161,23 @@ function App() {
                   <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
-              <span className="logo-text">Stock Analysis</span>
+              <div>
+                <span className="logo-text">Stock<span>Analysis</span></span>
+                <div className="status-badge">
+                  <span className="status-dot"></span>
+                  <span>System Online</span>
+                  <span style={{ color: '#404040' }}>|</span>
+                  <span>{stockTotal} Assets</span>
+                </div>
+              </div>
             </div>
-            <div className="status-badge">
-              <span className="status-dot"></span>
-              <span>API Connected</span>
-              <span>·</span>
-              <span>{stockTotal} stocks</span>
+            <div className="status-badge" style={{ fontSize: '0.6875rem', background: '#1a1a1a', padding: '0.375rem 0.75rem', borderRadius: '9999px', border: '1px solid #242424' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+              </svg>
+              <span>PostgreSQL + FastAPI</span>
             </div>
           </div>
         </div>
@@ -179,24 +189,26 @@ function App() {
             <div className="card">
               <div className="card-header">
                 <span className="card-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2">
                     <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   Stocks
                 </span>
                 {selectedSymbol && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>
-                    Selected: {selectedSymbol}
+                  <span style={{ fontSize: '0.6875rem', color: '#f97316', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {selectedSymbol}
                   </span>
                 )}
               </div>
               <div className="card-body">
-                <input
-                  className="search-input"
-                  placeholder="Search stocks..."
-                  value={search}
-                  onChange={e => handleSearchChange(e.target.value)}
-                />
+                <div className="search-wrapper">
+                  <input
+                    className="search-input"
+                    placeholder="Search ticker..."
+                    value={search}
+                    onChange={e => handleSearchChange(e.target.value)}
+                  />
+                </div>
 
                 <div className="filter-group">
                   <button
@@ -219,16 +231,16 @@ function App() {
                   </button>
                 </div>
 
-                <div className="filter-group" style={{ marginTop: '0.75rem' }}>
+                <div className="filter-group" style={{ marginTop: 0 }}>
                   <button
                     className={`filter-btn ${sortBy === 'positive_news' ? 'active' : ''}`}
                     onClick={() => handleSortChange('positive_news')}
                     title="Sort by positive news"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
                       <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
                     </svg>
-                    正面
+                    Positive
                     {sortBy === 'positive_news' && (
                       <span style={{ marginLeft: '0.25rem' }}>
                         {sortOrder === 'desc' ? '↓' : '↑'}
@@ -240,10 +252,10 @@ function App() {
                     onClick={() => handleSortChange('negative_news')}
                     title="Sort by negative news"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
                       <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
                     </svg>
-                    負面
+                    Negative
                     {sortBy === 'negative_news' && (
                       <span style={{ marginLeft: '0.25rem' }}>
                         {sortOrder === 'desc' ? '↓' : '↑'}
@@ -255,10 +267,10 @@ function App() {
                     onClick={() => handleSortChange('created_at')}
                     title="Sort by creation time"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
                       <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    創建時間
+                    Time
                     {sortBy === 'created_at' && (
                       <span style={{ marginLeft: '0.25rem' }}>
                         {sortOrder === 'desc' ? '↓' : '↑'}
@@ -285,7 +297,7 @@ function App() {
                       className={`stock-item ${selectedSymbol === stock.symbol ? 'selected' : ''}`}
                       onClick={() => handleSelectStock(stock.symbol)}
                     >
-                      <div className="stock-info">
+                      <div className="stock-info" style={{ flex: 1 }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span className="stock-symbol">{stock.symbol}</span>
@@ -294,7 +306,7 @@ function App() {
                           <div className="stock-name">{stock.name}</div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <AnalysisTriggerButton
                           symbol={stock.symbol}
                           market={stock.market}
@@ -306,10 +318,11 @@ function App() {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.25rem',
-                          fontSize: '0.625rem',
-                          color: stock.positive_news_count > 0 ? '#22c55e' : 'var(--color-text-dim)'
+                          fontSize: '0.6875rem',
+                          color: '#22c55e',
+                          fontFamily: 'JetBrains Mono, monospace'
                         }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
                           </svg>
                           {stock.positive_news_count}
@@ -318,10 +331,11 @@ function App() {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.25rem',
-                          fontSize: '0.625rem',
-                          color: stock.negative_news_count > 0 ? '#ef4444' : 'var(--color-text-dim)'
+                          fontSize: '0.6875rem',
+                          color: '#ef4444',
+                          fontFamily: 'JetBrains Mono, monospace'
                         }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
                           </svg>
                           {stock.negative_news_count}
@@ -361,14 +375,31 @@ function App() {
             {/* AI Analysis Panel */}
             <div className="card ai-analysis-card">
               <div className="card-header">
-                <span className="card-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  AI Analysis
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #ea580c, #facc15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                      <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="card-title" style={{ marginBottom: 0 }}>
+                      AI Analysis
+                    </span>
+                    <span style={{ fontSize: '0.625rem', color: '#525252' }}>
+                      {selectedSymbol ? 'Analysis complete' : 'Ready to analyze'}
+                    </span>
+                  </div>
+                </div>
                 {selectedSymbol && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-dim)' }}>
+                  <span style={{ fontSize: '0.6875rem', color: '#f97316', fontFamily: 'JetBrains Mono, monospace' }}>
                     {aiAnalyses.length} items
                   </span>
                 )}
@@ -383,13 +414,20 @@ function App() {
             <div className="card">
               <div className="card-header">
                 <span className="card-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
                     <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
-                  News
+                  News Feed
                 </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-dim)' }}>
-                  {newsTotal} items
+                <span style={{
+                  fontSize: '0.6875rem',
+                  color: '#525252',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  background: '#1a1a1a',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '4px'
+                }}>
+                  {newsTotal}
                 </span>
               </div>
               <div className="card-body">
@@ -420,7 +458,7 @@ function App() {
                         <span className="news-symbol">{item.stock_symbol}</span>
                         <span className="news-time">{formatTime(item.publish_time)}</span>
                       </div>
-                      <div className="news-title">{item.title}</div>
+                      <h4 className="news-title">{item.title}</h4>
                       {item.content && <div className="news-content">{item.content}</div>}
                     </a>
                   ))
