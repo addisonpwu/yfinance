@@ -26,11 +26,19 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 }
 
 export const stockApi = {
-  list: (params?: { market?: string; skip?: number; limit?: number }) => {
+  list: (params?: {
+    market?: string;
+    skip?: number;
+    limit?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }) => {
     const searchParams = new URLSearchParams()
     if (params?.market) searchParams.set('market', params.market)
     if (params?.skip) searchParams.set('skip', String(params.skip))
     if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.sort_by) searchParams.set('sort_by', params.sort_by)
+    if (params?.sort_order) searchParams.set('sort_order', params.sort_order)
     const query = searchParams.toString()
     return fetchApi<StockListResponse>(`/api/v1/stocks/${query ? `?${query}` : ''}`)
   },

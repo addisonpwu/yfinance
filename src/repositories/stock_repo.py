@@ -70,9 +70,18 @@ class StockRepository(BaseRepository[Stock]):
         market: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
+        sort_by: Optional[str] = None,
+        sort_order: str = "desc",
     ) -> List[Tuple[Stock, int, int]]:
         """
-        List stocks with optional market filter and news counts by sentiment
+        List stocks with optional market filter, news counts, and sorting
+
+        Args:
+            market: Filter by market (US or HK), optional
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            sort_by: Sort field (positive_news, negative_news, created_at), optional
+            sort_order: Sort order (asc or desc), default is desc
 
         Returns:
             List of (Stock, positive_news_count, negative_news_count) tuples
@@ -88,11 +97,26 @@ class StockRepository(BaseRepository[Stock]):
                 select(Stock, positive_count, negative_count)
                 .outerjoin(News, Stock.id == News.stock_id)
                 .group_by(Stock.id)
-                .order_by(Stock.symbol)
             )
 
             if market:
                 query = query.where(Stock.market == market)
+
+            # Apply sorting
+            if sort_by == "positive_news":
+                order_expr = positive_count
+            elif sort_by == "negative_news":
+                order_expr = negative_count
+            elif sort_by == "created_at":
+                order_expr = Stock.created_at
+            else:
+                # Default sorting by symbol
+                order_expr = Stock.symbol
+
+            if sort_order == "asc":
+                query = query.order_by(order_expr.asc())
+            else:
+                query = query.order_by(order_expr.desc())
 
             query = query.offset(skip).limit(limit)
 

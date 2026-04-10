@@ -21,6 +21,8 @@ function App() {
   const [stockPage, setStockPage] = useState(0)
   const [newsPage, setNewsPage] = useState(0)
   const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState<string | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   const { activeTask, isRunning, isCompleted, triggerAnalysis } = useAnalysisTask()
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false)
@@ -33,6 +35,8 @@ function App() {
         market: currentMarket || undefined,
         skip: stockPage * PAGE_SIZE,
         limit: PAGE_SIZE,
+        sort_by: sortBy || undefined,
+        sort_order: sortOrder,
       })
       setStocks(data.items)
       setStockTotal(data.total)
@@ -41,7 +45,7 @@ function App() {
     } finally {
       setLoadingStocks(false)
     }
-  }, [currentMarket, stockPage])
+  }, [currentMarket, stockPage, sortBy, sortOrder])
 
   const fetchNews = useCallback(async () => {
     setLoadingNews(true)
@@ -70,6 +74,18 @@ function App() {
 
   const handleMarketChange = (market: string | null) => {
     setCurrentMarket(market)
+    setStockPage(0)
+  }
+
+  const handleSortChange = (sortField: string) => {
+    if (sortBy === sortField) {
+      // Toggle sort order if same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      // New sort field, default to descending
+      setSortBy(sortField)
+      setSortOrder('desc')
+    }
     setStockPage(0)
   }
 
@@ -174,6 +190,54 @@ function App() {
                     onClick={() => handleMarketChange('US')}
                   >
                     US
+                  </button>
+                </div>
+
+                <div className="filter-group" style={{ marginTop: '0.75rem' }}>
+                  <button
+                    className={`filter-btn ${sortBy === 'positive_news' ? 'active' : ''}`}
+                    onClick={() => handleSortChange('positive_news')}
+                    title="Sort by positive news"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
+                      <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
+                    </svg>
+                    正面
+                    {sortBy === 'positive_news' && (
+                      <span style={{ marginLeft: '0.25rem' }}>
+                        {sortOrder === 'desc' ? '↓' : '↑'}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    className={`filter-btn ${sortBy === 'negative_news' ? 'active' : ''}`}
+                    onClick={() => handleSortChange('negative_news')}
+                    title="Sort by negative news"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
+                      <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
+                    </svg>
+                    負面
+                    {sortBy === 'negative_news' && (
+                      <span style={{ marginLeft: '0.25rem' }}>
+                        {sortOrder === 'desc' ? '↓' : '↑'}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    className={`filter-btn ${sortBy === 'created_at' ? 'active' : ''}`}
+                    onClick={() => handleSortChange('created_at')}
+                    title="Sort by creation time"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
+                      <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    創建時間
+                    {sortBy === 'created_at' && (
+                      <span style={{ marginLeft: '0.25rem' }}>
+                        {sortOrder === 'desc' ? '↓' : '↑'}
+                      </span>
+                    )}
                   </button>
                 </div>
 
