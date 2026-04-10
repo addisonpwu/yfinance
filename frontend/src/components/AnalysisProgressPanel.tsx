@@ -43,6 +43,9 @@ export function AnalysisProgressPanel({ task, onClose, onViewResults }: Analysis
                       {result.direction} | {Math.round(result.confidence * 100)}%
                     </span>
                   )}
+                  <span className="model-saved" style={{ fontSize: '0.625rem', color: '#22c55e', marginLeft: 'auto' }}>
+                    已保存 ✓
+                  </span>
                 </div>
               )
             })}

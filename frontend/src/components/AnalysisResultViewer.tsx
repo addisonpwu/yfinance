@@ -5,9 +5,10 @@ interface AnalysisResultViewerProps {
   task: AnalysisTaskStatus
   onClose: () => void
   onReanalyze: () => void
+  onViewHistory?: () => void
 }
 
-export function AnalysisResultViewer({ task, onClose, onReanalyze }: AnalysisResultViewerProps) {
+export function AnalysisResultViewer({ task, onClose, onReanalyze, onViewHistory }: AnalysisResultViewerProps) {
   const [expandedModel, setExpandedModel] = useState<string | null>(null)
 
   const results = task.results
@@ -59,6 +60,9 @@ export function AnalysisResultViewer({ task, onClose, onReanalyze }: AnalysisRes
         <span className="consensus-votes">
           ({results.length} 個模型: 看漲 {bullish} / 中性 {neutral} / 看跌 {bearish})
         </span>
+        <span className="saved-badge" style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#22c55e' }}>
+          ✓ 已保存至數據庫
+        </span>
       </div>
 
       <div className="results-list">
@@ -87,6 +91,9 @@ export function AnalysisResultViewer({ task, onClose, onReanalyze }: AnalysisRes
 
       <div className="panel-actions">
         <button className="btn-reanalyze" onClick={onReanalyze}>重新分析</button>
+        {onViewHistory && (
+          <button className="btn-history" onClick={onViewHistory}>查看歷史記錄</button>
+        )}
         <button className="btn-close" onClick={onClose}>關閉</button>
       </div>
     </div>

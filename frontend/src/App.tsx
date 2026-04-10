@@ -1,20 +1,23 @@
 import { useState, useEffect, useCallback } from 'react'
-import { stockApi, newsApi } from './api/client'
+import { stockApi, newsApi, aiAnalysisApi } from './api/client'
 import { useAnalysisTask } from './hooks/useAnalysisTask'
 import { AnalysisTriggerButton } from './components/AnalysisTriggerButton'
 import { AnalysisProgressPanel } from './components/AnalysisProgressPanel'
 import { AnalysisResultViewer } from './components/AnalysisResultViewer'
-import type { Stock, News } from './types/api'
+import { AIAnalysisViewer } from './components/AIAnalysisViewer'
+import type { Stock, News, AIAnalysis } from './types/api'
 
 const PAGE_SIZE = 20
 
 function App() {
   const [stocks, setStocks] = useState<Stock[]>([])
   const [news, setNews] = useState<News[]>([])
+  const [aiAnalyses, setAiAnalyses] = useState<AIAnalysis[]>([])
   const [stockTotal, setStockTotal] = useState(0)
   const [newsTotal, setNewsTotal] = useState(0)
   const [loadingStocks, setLoadingStocks] = useState(true)
   const [loadingNews, setLoadingNews] = useState(true)
+  const [loadingAiAnalyses, setLoadingAiAnalyses] = useState(false)
 
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
   const [currentMarket, setCurrentMarket] = useState<string | null>(null)
@@ -65,8 +68,26 @@ function App() {
     }
   }, [selectedSymbol, newsPage])
 
+  const fetchAiAnalyses = useCallback(async () => {
+    if (!selectedSymbol) {
+      setAiAnalyses([])
+      return
+    }
+    setLoadingAiAnalyses(true)
+    try {
+      const data = await aiAnalysisApi.getHistory(selectedSymbol, 0, 20)
+      setAiAnalyses(data.items)
+    } catch (err) {
+      console.error('Failed to fetch AI analyses:', err)
+      setAiAnalyses([])
+    } finally {
+      setLoadingAiAnalyses(false)
+    }
+  }, [selectedSymbol])
+
   useEffect(() => { fetchStocks() }, [fetchStocks])
   useEffect(() => { fetchNews() }, [fetchNews])
+  useEffect(() => { fetchAiAnalyses() }, [fetchAiAnalyses])
 
   const handleSelectStock = (symbol: string) => {
     setSelectedSymbol(selectedSymbol === symbol ? null : symbol)
@@ -110,8 +131,11 @@ function App() {
 
   const handleReanalyze = () => {
     if (activeTask) {
-      triggerAnalysis(activeTask.symbol, activeTask.market).catch(console.error)
-      setShowResults(false)
+      triggerAnalysis(activeTask.symbol, activeTask.market).then(() => {
+        setShowResults(false)
+        // Refresh AI analyses after re-trigger
+        setTimeout(() => fetchAiAnalyses(), 2000)
+      }).catch(console.error)
     }
   }
 
@@ -334,6 +358,28 @@ function App() {
               </div>
             </div>
 
+            {/* AI Analysis Panel */}
+            <div className="card ai-analysis-card">
+              <div className="card-header">
+                <span className="card-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  AI Analysis
+                </span>
+                {selectedSymbol && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-dim)' }}>
+                    {aiAnalyses.length} items
+                  </span>
+                )}
+              </div>
+              <AIAnalysisViewer
+                analyses={aiAnalyses}
+                loading={loadingAiAnalyses}
+                selectedSymbol={selectedSymbol}
+              />
+            </div>
+
             <div className="card">
               <div className="card-header">
                 <span className="card-title">
@@ -417,6 +463,12 @@ function App() {
                   task={activeTask}
                   onClose={() => { setShowAnalysisPanel(false); setShowResults(false); }}
                   onReanalyze={handleReanalyze}
+                  onViewHistory={() => {
+                    // Close the analysis panel and refresh AI analyses
+                    setShowAnalysisPanel(false)
+                    setShowResults(false)
+                    fetchAiAnalyses()
+                  }}
                 />
               ) : (
                 <AnalysisProgressPanel
