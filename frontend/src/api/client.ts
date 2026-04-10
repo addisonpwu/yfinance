@@ -32,6 +32,7 @@ export const stockApi = {
     limit?: number;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
+    search?: string;
   }) => {
     const searchParams = new URLSearchParams()
     if (params?.market) searchParams.set('market', params.market)
@@ -39,6 +40,7 @@ export const stockApi = {
     if (params?.limit) searchParams.set('limit', String(params.limit))
     if (params?.sort_by) searchParams.set('sort_by', params.sort_by)
     if (params?.sort_order) searchParams.set('sort_order', params.sort_order)
+    if (params?.search) searchParams.set('search', params.search)
     const query = searchParams.toString()
     return fetchApi<StockListResponse>(`/api/v1/stocks/${query ? `?${query}` : ''}`)
   },

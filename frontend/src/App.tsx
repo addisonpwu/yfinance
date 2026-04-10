@@ -37,6 +37,7 @@ function App() {
         limit: PAGE_SIZE,
         sort_by: sortBy || undefined,
         sort_order: sortOrder,
+        search: search || undefined,
       })
       setStocks(data.items)
       setStockTotal(data.total)
@@ -45,7 +46,7 @@ function App() {
     } finally {
       setLoadingStocks(false)
     }
-  }, [currentMarket, stockPage, sortBy, sortOrder])
+  }, [currentMarket, stockPage, sortBy, sortOrder, search])
 
   const fetchNews = useCallback(async () => {
     setLoadingNews(true)
@@ -89,6 +90,11 @@ function App() {
     setStockPage(0)
   }
 
+  const handleSearchChange = (value: string) => {
+    setSearch(value)
+    setStockPage(0)
+  }
+
   const handleTriggerAnalysis = (symbol: string, market: string) => {
     triggerAnalysis(symbol, market).then((result) => {
       setShowAnalysisPanel(true)
@@ -108,10 +114,6 @@ function App() {
       setShowResults(false)
     }
   }
-
-  const filteredStocks = search
-    ? stocks.filter(s => s.symbol.toLowerCase().includes(search.toLowerCase()) || s.name.includes(search))
-    : stocks
 
   const stockPages = Math.ceil(stockTotal / PAGE_SIZE)
   const newsPages = Math.ceil(newsTotal / 20)
@@ -169,7 +171,7 @@ function App() {
                   className="search-input"
                   placeholder="Search stocks..."
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={e => handleSearchChange(e.target.value)}
                 />
 
                 <div className="filter-group">
@@ -243,7 +245,7 @@ function App() {
 
                 {loadingStocks ? (
                   [...Array(6)].map((_, i) => <div key={i} className="skeleton" />)
-                ) : filteredStocks.length === 0 ? (
+                ) : stocks.length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-icon">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -253,7 +255,7 @@ function App() {
                     <p style={{ fontSize: '0.875rem' }}>No stocks found</p>
                   </div>
                 ) : (
-                  filteredStocks.map(stock => (
+                  stocks.map(stock => (
                     <div
                       key={stock.id}
                       className={`stock-item ${selectedSymbol === stock.symbol ? 'selected' : ''}`}

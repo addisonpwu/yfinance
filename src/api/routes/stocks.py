@@ -62,10 +62,14 @@ async def create_stock(
     "/",
     response_model=StockListResponse,
     summary="List stocks",
-    description="List all stocks with pagination, optional market filter, and sorting",
+    description="List all stocks with pagination, optional market filter, search, and sorting",
 )
 async def list_stocks(
     market: Optional[str] = None,
+    search: Optional[str] = Query(
+        default=None,
+        description="Search by symbol or name (case-insensitive)",
+    ),
     sort_by: Optional[Literal["positive_news", "negative_news", "created_at"]] = Query(
         default=None,
         description="Sort field: positive_news, negative_news, or created_at",
@@ -82,15 +86,16 @@ async def list_stocks(
     List stocks with optional filters and sorting
 
     - **market**: Filter by market (US or HK), optional
+    - **search**: Search by symbol or name (case-insensitive), optional
     - **sort_by**: Sort field (positive_news, negative_news, created_at), optional
     - **sort_order**: Sort order (asc or desc), default is desc
     - **skip**: Number of records to skip (pagination)
     - **limit**: Maximum number of records to return
     """
     stocks_with_counts = await repo.list(
-        market=market, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order
+        market=market, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, search=search
     )
-    total = await repo.count()
+    total = await repo.count(market=market, search=search)
 
     return StockListResponse(
         items=[

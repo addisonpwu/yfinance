@@ -72,9 +72,10 @@ class StockRepository(BaseRepository[Stock]):
         limit: int = 100,
         sort_by: Optional[str] = None,
         sort_order: str = "desc",
+        search: Optional[str] = None,
     ) -> List[Tuple[Stock, int, int]]:
         """
-        List stocks with optional market filter, news counts, and sorting
+        List stocks with optional market filter, news counts, sorting, and search
 
         Args:
             market: Filter by market (US or HK), optional
@@ -82,6 +83,7 @@ class StockRepository(BaseRepository[Stock]):
             limit: Maximum number of records to return
             sort_by: Sort field (positive_news, negative_news, created_at), optional
             sort_order: Sort order (asc or desc), default is desc
+            search: Search by symbol or name (case-insensitive), optional
 
         Returns:
             List of (Stock, positive_news_count, negative_news_count) tuples
@@ -98,6 +100,14 @@ class StockRepository(BaseRepository[Stock]):
                 .outerjoin(News, Stock.id == News.stock_id)
                 .group_by(Stock.id)
             )
+
+            # Apply search filter
+            if search:
+                search_pattern = f"%{search.upper()}%"
+                query = query.where(
+                    (Stock.symbol.ilike(search_pattern)) |
+                    (Stock.name.ilike(search_pattern))
+                )
 
             if market:
                 query = query.where(Stock.market == market)
@@ -124,6 +134,40 @@ class StockRepository(BaseRepository[Stock]):
             return [(row[0], row[1], row[2]) for row in result.all()]
         except Exception as e:
             self.logger.error(f"Error listing stocks: {e}")
+            raise
+
+    async def count(
+        self,
+        market: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> int:
+        """
+        Count stocks with optional filters
+
+        Args:
+            market: Filter by market (US or HK), optional
+            search: Search by symbol or name (case-insensitive), optional
+
+        Returns:
+            Total count of matching stocks
+        """
+        try:
+            query = select(func.count()).select_from(Stock)
+
+            if search:
+                search_pattern = f"%{search.upper()}%"
+                query = query.where(
+                    (Stock.symbol.ilike(search_pattern)) |
+                    (Stock.name.ilike(search_pattern))
+                )
+
+            if market:
+                query = query.where(Stock.market == market)
+
+            result = await self.session.execute(query)
+            return result.scalar_one()
+        except Exception as e:
+            self.logger.error(f"Error counting stocks: {e}")
             raise
 
     async def create(self, stock_create: StockCreate) -> Stock:
