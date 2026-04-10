@@ -116,35 +116,67 @@ class AIAnalysisRepository(BaseRepository[AIAnalysis]):
         stock_id: int,
     ) -> List[AIAnalysis]:
         """
-        Create multiple AI analysis records
+        Create or update multiple AI analysis records (upsert by provider + model + stock + interval)
+
+        For each analysis, if a record with the same provider, model_used, stock_id, and interval
+        exists, it will be updated. Otherwise, a new record is created.
 
         Args:
             analyses_data: List of AIAnalysisCreate schemas
             stock_id: Stock ID to associate with
 
         Returns:
-            List of created AIAnalysis records
+            List of created or updated AIAnalysis records
         """
         try:
             analyses = []
             for data in analyses_data:
-                analysis = AIAnalysis(
-                    stock_id=stock_id,
-                    provider=data.provider,
-                    model_used=data.model_used,
-                    interval=data.interval,
-                    summary=data.summary,
-                    confidence=data.confidence,
-                    recommendation=data.recommendation,
-                    entry_price=data.entry_price,
-                    exit_price=data.exit_price,
-                    stop_loss=data.stop_loss,
-                    detailed_analysis=data.detailed_analysis,
-                    error=data.error,
-                    analyzed_at=data.analyzed_at,
+                # Check for existing record
+                existing_query = (
+                    select(AIAnalysis)
+                    .where(
+                        AIAnalysis.stock_id == stock_id,
+                        AIAnalysis.provider == data.provider,
+                        AIAnalysis.model_used == data.model_used,
+                        AIAnalysis.interval == data.interval,
+                    )
+                    .order_by(AIAnalysis.analyzed_at.desc())
+                    .limit(1)
                 )
-                self.session.add(analysis)
-                analyses.append(analysis)
+                result = await self.session.execute(existing_query)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    # Update existing record
+                    existing.summary = data.summary
+                    existing.confidence = data.confidence
+                    existing.recommendation = data.recommendation
+                    existing.entry_price = data.entry_price
+                    existing.exit_price = data.exit_price
+                    existing.stop_loss = data.stop_loss
+                    existing.detailed_analysis = data.detailed_analysis
+                    existing.error = data.error
+                    existing.analyzed_at = data.analyzed_at or datetime.now()
+                    analyses.append(existing)
+                else:
+                    # Create new record
+                    analysis = AIAnalysis(
+                        stock_id=stock_id,
+                        provider=data.provider,
+                        model_used=data.model_used,
+                        interval=data.interval,
+                        summary=data.summary,
+                        confidence=data.confidence,
+                        recommendation=data.recommendation,
+                        entry_price=data.entry_price,
+                        exit_price=data.exit_price,
+                        stop_loss=data.stop_loss,
+                        detailed_analysis=data.detailed_analysis,
+                        error=data.error,
+                        analyzed_at=data.analyzed_at or datetime.now(),
+                    )
+                    self.session.add(analysis)
+                    analyses.append(analysis)
 
             await self.session.flush()
 
@@ -152,50 +184,102 @@ class AIAnalysisRepository(BaseRepository[AIAnalysis]):
                 await self.session.refresh(analysis)
 
             self.logger.info(
-                f"Created {len(analyses)} AI analyses for stock {stock_id}"
+                f"Upserted {len(analyses)} AI analyses for stock {stock_id}"
             )
             return analyses
         except Exception as e:
-            self.logger.error(f"Error bulk creating analyses for stock {stock_id}: {e}")
+            self.logger.error(
+                f"Error bulk upserting analyses for stock {stock_id}: {e}"
+            )
             raise
 
     async def create(
         self, analysis_data: AIAnalysisCreate, stock_id: int
     ) -> AIAnalysis:
         """
-        Create single AI analysis record
+        Create or update AI analysis record (upsert by provider + model + stock + interval)
+
+        If a record with the same provider, model_used, stock_id, and interval exists,
+        it will be updated with the new data. Otherwise, a new record is created.
 
         Args:
             analysis_data: AIAnalysisCreate schema
             stock_id: Stock ID to associate with
 
         Returns:
-            Created AIAnalysis record
+            Created or updated AIAnalysis record
         """
         try:
-            analysis = AIAnalysis(
-                stock_id=stock_id,
-                provider=analysis_data.provider,
-                model_used=analysis_data.model_used,
-                interval=analysis_data.interval,
-                summary=analysis_data.summary,
-                confidence=analysis_data.confidence,
-                recommendation=analysis_data.recommendation,
-                entry_price=analysis_data.entry_price,
-                exit_price=analysis_data.exit_price,
-                stop_loss=analysis_data.stop_loss,
-                detailed_analysis=analysis_data.detailed_analysis,
-                error=analysis_data.error,
-                analyzed_at=analysis_data.analyzed_at,
+            # Check for existing record with same provider + model + stock + interval
+            existing_query = (
+                select(AIAnalysis)
+                .where(
+                    AIAnalysis.stock_id == stock_id,
+                    AIAnalysis.provider == analysis_data.provider,
+                    AIAnalysis.model_used == analysis_data.model_used,
+                    AIAnalysis.interval == analysis_data.interval,
+                )
+                .order_by(AIAnalysis.analyzed_at.desc())
+                .limit(1)
             )
-            self.session.add(analysis)
-            await self.session.flush()
-            await self.session.refresh(analysis)
-            self.logger.info(f"Created AI analysis {analysis.id} for stock {stock_id}")
-            return analysis
+            result = await self.session.execute(existing_query)
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                # Update existing record
+                existing.summary = analysis_data.summary
+                existing.confidence = analysis_data.confidence
+                existing.recommendation = analysis_data.recommendation
+                existing.entry_price = analysis_data.entry_price
+                existing.exit_price = analysis_data.exit_price
+                existing.stop_loss = analysis_data.stop_loss
+                existing.detailed_analysis = analysis_data.detailed_analysis
+                existing.error = analysis_data.error
+                existing.analyzed_at = analysis_data.analyzed_at or datetime.now()
+
+                await self.session.flush()
+                await self.session.refresh(existing)
+                self.logger.info(
+                    f"Updated AI analysis {existing.id} for stock {stock_id} "
+                    f"({analysis_data.provider}/{analysis_data.model_used})"
+                )
+                return existing
+            else:
+                # Create new record
+                analysis = AIAnalysis(
+                    stock_id=stock_id,
+                    provider=analysis_data.provider,
+                    model_used=analysis_data.model_used,
+                    interval=analysis_data.interval,
+                    summary=analysis_data.summary,
+                    confidence=analysis_data.confidence,
+                    recommendation=analysis_data.recommendation,
+                    entry_price=analysis_data.entry_price,
+                    exit_price=analysis_data.exit_price,
+                    stop_loss=analysis_data.stop_loss,
+                    detailed_analysis=analysis_data.detailed_analysis,
+                    error=analysis_data.error,
+                    analyzed_at=analysis_data.analyzed_at or datetime.now(),
+                )
+                self.session.add(analysis)
+                await self.session.flush()
+                await self.session.refresh(analysis)
+                self.logger.info(
+                    f"Created AI analysis {analysis.id} for stock {stock_id} "
+                    f"({analysis_data.provider}/{analysis_data.model_used})"
+                )
+                return analysis
         except Exception as e:
-            self.logger.error(f"Error creating analysis for stock {stock_id}: {e}")
+            self.logger.error(f"Error upserting analysis for stock {stock_id}: {e}")
             raise
+
+    async def upsert_by_model(
+        self, analysis_data: AIAnalysisCreate, stock_id: int
+    ) -> AIAnalysis:
+        """
+        Alias for create() - upsert by provider + model_used + stock_id + interval
+        """
+        return await self.create(analysis_data, stock_id)
 
     async def cleanup_old_records(
         self,

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { AIAnalysis } from '../types/api'
 
 interface AIAnalysisViewerProps {
@@ -7,6 +8,8 @@ interface AIAnalysisViewerProps {
 }
 
 export function AIAnalysisViewer({ analyses, loading, selectedSymbol }: AIAnalysisViewerProps) {
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+
   const formatTime = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime()
     const hours = Math.floor(diff / 3600000)
@@ -29,6 +32,10 @@ export function AIAnalysisViewer({ analyses, loading, selectedSymbol }: AIAnalys
     if (upper.includes('BUY') || upper.includes('買入')) return 'BUY'
     if (upper.includes('SELL') || upper.includes('賣出')) return 'SELL'
     return 'HOLD'
+  }
+
+  const toggleExpand = (id: number) => {
+    setExpandedId(expandedId === id ? null : id)
   }
 
   if (loading) {
@@ -73,36 +80,45 @@ export function AIAnalysisViewer({ analyses, loading, selectedSymbol }: AIAnalys
 
   return (
     <div className="ai-analysis-body">
-      {analyses.map((analysis) => (
-        <div key={analysis.id} className="ai-summary-card">
-          <div className="ai-summary-header">
-            <span className="ai-model-name">{analysis.model_used?.split('/').pop() || analysis.provider}</span>
-            <span className={`ai-badge ${getRecommendationClass(analysis.recommendation)}`}>
-              {getRecommendationText(analysis.recommendation)}
-            </span>
-          </div>
-          <div className="ai-confidence">
-            置信度: {Math.round((analysis.confidence || 0) * 100)}% · {analysis.provider}
-          </div>
-          {analysis.summary && (
-            <div className="ai-summary-text" style={{ marginTop: '0.5rem' }}>
-              {analysis.summary}
-            </div>
-          )}
-          <div className="ai-meta">
-            <span className="ai-analysis-time">{formatTime(analysis.analyzed_at)}</span>
-            {analysis.interval && (
-              <span className="ai-meta-item">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12,6 12,12 16,14" />
-                </svg>
-                {analysis.interval}
+      {analyses.map((analysis) => {
+        const isExpanded = expandedId === analysis.id
+        return (
+          <div key={analysis.id} className="ai-summary-card">
+            <div className="ai-summary-header">
+              <span className="ai-model-name">{analysis.model_used?.split('/').pop() || analysis.provider}</span>
+              <span className={`ai-badge ${getRecommendationClass(analysis.recommendation)}`}>
+                {getRecommendationText(analysis.recommendation)}
               </span>
+            </div>
+            <div className="ai-confidence">
+              置信度: {Math.round((analysis.confidence || 0) * 100)}% · {analysis.provider}
+            </div>
+            {analysis.summary && (
+              <div className={`ai-summary-text ${isExpanded ? 'expanded' : ''}`} style={{ marginTop: '0.5rem' }}>
+                {analysis.summary}
+              </div>
             )}
+            <div className="ai-meta">
+              <span className="ai-analysis-time">{formatTime(analysis.analyzed_at)}</span>
+              {analysis.interval && (
+                <span className="ai-meta-item">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12,6 12,12 16,14" />
+                  </svg>
+                  {analysis.interval}
+                </span>
+              )}
+              <button
+                className="ai-expand-btn"
+                onClick={() => toggleExpand(analysis.id)}
+              >
+                {isExpanded ? '收起 ▲' : '展開 ▼'}
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
