@@ -28,6 +28,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [mobileTab, setMobileTab] = useState(0)
 
   const { activeTask, isRunning, isCompleted, triggerAnalysis } = useAnalysisTask()
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false)
@@ -157,6 +158,10 @@ function App() {
         try {
           const ratings = await brokerRatingApi.list(stockId, 20)
           setBrokerRatings(prev => ({ ...prev, [symbol]: ratings }))
+          // Collapse if no ratings
+          if (ratings.length === 0) {
+            next.delete(symbol)
+          }
         } catch (err) {
           console.error('Failed to fetch broker ratings:', err)
         } finally {
@@ -167,6 +172,26 @@ function App() {
     setExpandedStocks(next)
   }
 
+  // Check ratings for new stocks
+  useEffect(() => {
+    stocks.forEach(stock => {
+      if (!brokerRatings[stock.symbol] && !loadingRatings[stock.symbol]) {
+        setLoadingRatings(prev => ({ ...prev, [stock.symbol]: true }))
+        brokerRatingApi.list(stock.id, 5).then(ratings => {
+          setBrokerRatings(prev => ({ ...prev, [stock.symbol]: ratings }))
+          if (ratings.length > 0) {
+            // Auto-expand if has ratings
+            setExpandedStocks(prev => new Set(prev).add(stock.symbol))
+          }
+        }).catch(() => {
+          setBrokerRatings(prev => ({ ...prev, [stock.symbol]: [] }))
+        }).finally(() => {
+          setLoadingRatings(prev => ({ ...prev, [stock.symbol]: false }))
+        })
+      }
+    })
+  }, [stocks])
+
   const stockPages = Math.ceil(stockTotal / PAGE_SIZE)
   const newsPages = Math.ceil(newsTotal / 20)
 
@@ -176,6 +201,15 @@ function App() {
     if (hours < 1) return '刚刚'
     if (hours < 24) return `${hours}h`
     return `${Math.floor(hours / 24)}d`
+  }
+
+  const scrollToTab = (index: number) => {
+    setMobileTab(index)
+    const grid = document.querySelector('.grid')
+    if (grid) {
+      const cardWidth = grid.clientWidth
+      grid.scrollTo({ left: cardWidth * index, behavior: 'smooth' })
+    }
   }
 
   return (
@@ -320,79 +354,92 @@ function App() {
                   </div>
                 ) : (
                   <>
-                    {stocks.map(stock => (
-                      <div key={stock.id}>
-                        <div
-                          className={`stock-item ${selectedSymbol === stock.symbol ? 'selected' : ''}`}
-                          onClick={() => handleSelectStock(stock.symbol)}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                            <button
-                              className="stock-expand-btn"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleExpandStock(stock.symbol, stock.id)
-                              }}
-                            >
-                              {expandedStocks.has(stock.symbol) ? '▼' : '▶'}
-                            </button>
-                            <div className="stock-info" style={{ flex: 1 }}>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <span className="stock-symbol">{stock.symbol}</span>
-                                  <span className={`market-tag ${stock.market.toLowerCase()}`}>{stock.market}</span>
+                    {stocks.map(stock => {
+                      const ratings = brokerRatings[stock.symbol]
+                      const isLoading = loadingRatings[stock.symbol]
+                      const hasRatingsData = ratings && ratings.length > 0
+                      const isExpanded = expandedStocks.has(stock.symbol)
+
+                      return (
+                        <div key={stock.id}>
+                          <div
+                            className={`stock-item ${selectedSymbol === stock.symbol ? 'selected' : ''}`}
+                            onClick={() => handleSelectStock(stock.symbol)}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                              {hasRatingsData ? (
+                                <button
+                                  className="stock-expand-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleExpandStock(stock.symbol, stock.id)
+                                  }}
+                                >
+                                  {isExpanded ? '▼' : '▶'}
+                                </button>
+                              ) : (
+                                <div style={{ width: '20px', flexShrink: 0 }} />
+                              )}
+                              <div className="stock-info" style={{ flex: 1 }}>
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span className="stock-symbol">{stock.symbol}</span>
+                                    <span className={`market-tag ${stock.market.toLowerCase()}`}>{stock.market}</span>
+                                    {isLoading && <div className="spinner-small" />}
+                                  </div>
+                                  <div className="stock-name">{stock.name}</div>
                                 </div>
-                                <div className="stock-name">{stock.name}</div>
                               </div>
                             </div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <AnalysisTriggerButton
-                              symbol={stock.symbol}
-                              market={stock.market}
-                              onTrigger={handleTriggerAnalysis}
-                              disabled={false}
-                              isRunning={isRunning && activeTask?.symbol === stock.symbol}
-                            />
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              fontSize: '0.6875rem',
-                              color: '#22c55e',
-                              fontFamily: 'JetBrains Mono, monospace'
-                            }}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
-                              </svg>
-                              {stock.positive_news_count}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <AnalysisTriggerButton
+                                symbol={stock.symbol}
+                                market={stock.market}
+                                onTrigger={handleTriggerAnalysis}
+                                disabled={false}
+                                isRunning={isRunning && activeTask?.symbol === stock.symbol}
+                              />
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.6875rem',
+                                color: '#22c55e',
+                                fontFamily: 'JetBrains Mono, monospace'
+                              }}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
+                                </svg>
+                                {stock.positive_news_count}
+                              </div>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.6875rem',
+                                color: '#ef4444',
+                                fontFamily: 'JetBrains Mono, monospace'
+                              }}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
+                                </svg>
+                                {stock.negative_news_count}
+                              </div>
+                              <span className="stock-time">{formatTime(stock.updated_at)}</span>
                             </div>
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              fontSize: '0.6875rem',
-                              color: '#ef4444',
-                              fontFamily: 'JetBrains Mono, monospace'
-                            }}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
-                              </svg>
-                              {stock.negative_news_count}
-                            </div>
-                            <span className="stock-time">{formatTime(stock.updated_at)}</span>
                           </div>
+                          {/* Show ratings if has data and expanded */}
+                          {hasRatingsData && isExpanded && (
+                            <div className="stock-expanded-content">
+                              <BrokerRatingsPanel
+                                ratings={ratings}
+                                loading={isLoading}
+                              />
+                            </div>
+                          )}
                         </div>
-                        {expandedStocks.has(stock.symbol) && (
-                          <div className="stock-expanded-content">
-                            <BrokerRatingsPanel
-                              ratings={brokerRatings[stock.symbol] || []}
-                              loading={loadingRatings[stock.symbol] || false}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    })}
                   </>
                 )}
 
@@ -578,6 +625,28 @@ function App() {
           </div>
         </footer>
       </main>
+
+      {/* Mobile Tab Indicator */}
+      <div className="mobile-tab-indicator">
+        <button className={`mobile-tab-btn ${mobileTab === 0 ? 'active' : ''}`} onClick={() => scrollToTab(0)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>Stocks</span>
+        </button>
+        <button className={`mobile-tab-btn ${mobileTab === 1 ? 'active' : ''}`} onClick={() => scrollToTab(1)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <span>AI</span>
+        </button>
+        <button className={`mobile-tab-btn ${mobileTab === 2 ? 'active' : ''}`} onClick={() => scrollToTab(2)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+          </svg>
+          <span>News</span>
+        </button>
+      </div>
     </div>
   )
 }

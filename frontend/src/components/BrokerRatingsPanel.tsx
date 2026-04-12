@@ -38,7 +38,7 @@ export function BrokerRatingsPanel({ ratings, loading }: BrokerRatingsPanelProps
   }
 
   if (!ratings.length) {
-    return <div className="empty-result">無券商評級數據</div>;
+    return null;
   }
 
   return (
