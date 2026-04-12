@@ -104,3 +104,23 @@ export interface AnalysisTaskStatus {
   started_at: string | null
   completed_at: string | null
 }
+
+// Broker Rating types
+export interface BrokerRating {
+  id: number
+  stock_id: number
+  broker: string
+  rating: string
+  last_rating: string | null
+  reason: string | null
+  rank: number | null
+  rating_date: string
+  created_at: string
+}
+
+export interface BrokerRatingConsensus {
+  rating: string | null
+  count: number
+  total_brokers: number
+  distribution: Record<string, number>
+}

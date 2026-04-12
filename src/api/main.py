@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.db.database import init_db, close_db
 from src.utils.logger import LoggerManager
-from src.api.routes import stocks, news, ai_analyses
+from src.api.routes import stocks, news, ai_analyses, broker_ratings
 
 
 logger = LoggerManager.get_logger("api.main")
@@ -57,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(stocks.router)
     app.include_router(news.router)
     app.include_router(ai_analyses.router)
+    app.include_router(broker_ratings.router)
 
     return app
 

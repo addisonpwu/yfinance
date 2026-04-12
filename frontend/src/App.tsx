@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { stockApi, newsApi, aiAnalysisApi } from './api/client'
+import { brokerRatingApi } from './api/brokerRatingApi'
 import { useAnalysisTask } from './hooks/useAnalysisTask'
 import { AnalysisTriggerButton } from './components/AnalysisTriggerButton'
 import { AnalysisProgressPanel } from './components/AnalysisProgressPanel'
 import { AnalysisResultViewer } from './components/AnalysisResultViewer'
 import { AIAnalysisViewer } from './components/AIAnalysisViewer'
-import type { Stock, News, AIAnalysis } from './types/api'
+import { BrokerRatingsPanel } from './components/BrokerRatingsPanel'
+import type { Stock, News, AIAnalysis, BrokerRating } from './types/api'
 
 const PAGE_SIZE = 20
 
@@ -30,6 +32,11 @@ function App() {
   const { activeTask, isRunning, isCompleted, triggerAnalysis } = useAnalysisTask()
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false)
   const [showResults, setShowResults] = useState(false)
+
+  // Broker ratings state
+  const [expandedStocks, setExpandedStocks] = useState<Set<string>>(new Set())
+  const [brokerRatings, setBrokerRatings] = useState<Record<string, BrokerRating[]>>({})
+  const [loadingRatings, setLoadingRatings] = useState<Record<string, boolean>>({})
 
   const fetchStocks = useCallback(async () => {
     setLoadingStocks(true)
@@ -137,6 +144,27 @@ function App() {
         setTimeout(() => fetchAiAnalyses(), 2000)
       }).catch(console.error)
     }
+  }
+
+  const toggleExpandStock = async (symbol: string, stockId: number) => {
+    const next = new Set(expandedStocks)
+    if (next.has(symbol)) {
+      next.delete(symbol)
+    } else {
+      next.add(symbol)
+      if (!brokerRatings[symbol]) {
+        setLoadingRatings(prev => ({ ...prev, [symbol]: true }))
+        try {
+          const ratings = await brokerRatingApi.list(stockId, 20)
+          setBrokerRatings(prev => ({ ...prev, [symbol]: ratings }))
+        } catch (err) {
+          console.error('Failed to fetch broker ratings:', err)
+        } finally {
+          setLoadingRatings(prev => ({ ...prev, [symbol]: false }))
+        }
+      }
+    }
+    setExpandedStocks(next)
   }
 
   const stockPages = Math.ceil(stockTotal / PAGE_SIZE)
@@ -291,59 +319,81 @@ function App() {
                     <p style={{ fontSize: '0.875rem' }}>No stocks found</p>
                   </div>
                 ) : (
-                  stocks.map(stock => (
-                    <div
-                      key={stock.id}
-                      className={`stock-item ${selectedSymbol === stock.symbol ? 'selected' : ''}`}
-                      onClick={() => handleSelectStock(stock.symbol)}
-                    >
-                      <div className="stock-info" style={{ flex: 1 }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span className="stock-symbol">{stock.symbol}</span>
-                            <span className={`market-tag ${stock.market.toLowerCase()}`}>{stock.market}</span>
+                  <>
+                    {stocks.map(stock => (
+                      <div key={stock.id}>
+                        <div
+                          className={`stock-item ${selectedSymbol === stock.symbol ? 'selected' : ''}`}
+                          onClick={() => handleSelectStock(stock.symbol)}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                            <button
+                              className="stock-expand-btn"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleExpandStock(stock.symbol, stock.id)
+                              }}
+                            >
+                              {expandedStocks.has(stock.symbol) ? '▼' : '▶'}
+                            </button>
+                            <div className="stock-info" style={{ flex: 1 }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span className="stock-symbol">{stock.symbol}</span>
+                                  <span className={`market-tag ${stock.market.toLowerCase()}`}>{stock.market}</span>
+                                </div>
+                                <div className="stock-name">{stock.name}</div>
+                              </div>
+                            </div>
                           </div>
-                          <div className="stock-name">{stock.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <AnalysisTriggerButton
+                              symbol={stock.symbol}
+                              market={stock.market}
+                              onTrigger={handleTriggerAnalysis}
+                              disabled={false}
+                              isRunning={isRunning && activeTask?.symbol === stock.symbol}
+                            />
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.6875rem',
+                              color: '#22c55e',
+                              fontFamily: 'JetBrains Mono, monospace'
+                            }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
+                              </svg>
+                              {stock.positive_news_count}
+                            </div>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.6875rem',
+                              color: '#ef4444',
+                              fontFamily: 'JetBrains Mono, monospace'
+                            }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
+                              </svg>
+                              {stock.negative_news_count}
+                            </div>
+                            <span className="stock-time">{formatTime(stock.updated_at)}</span>
+                          </div>
                         </div>
+                        {expandedStocks.has(stock.symbol) && (
+                          <div className="stock-expanded-content">
+                            <BrokerRatingsPanel
+                              ratings={brokerRatings[stock.symbol] || []}
+                              loading={loadingRatings[stock.symbol] || false}
+                            />
+                          </div>
+                        )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <AnalysisTriggerButton
-                          symbol={stock.symbol}
-                          market={stock.market}
-                          onTrigger={handleTriggerAnalysis}
-                          disabled={false}
-                          isRunning={isRunning && activeTask?.symbol === stock.symbol}
-                        />
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          fontSize: '0.6875rem',
-                          color: '#22c55e',
-                          fontFamily: 'JetBrains Mono, monospace'
-                        }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
-                          </svg>
-                          {stock.positive_news_count}
-                        </div>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          fontSize: '0.6875rem',
-                          color: '#ef4444',
-                          fontFamily: 'JetBrains Mono, monospace'
-                        }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
-                          </svg>
-                          {stock.negative_news_count}
-                        </div>
-                        <span className="stock-time">{formatTime(stock.updated_at)}</span>
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                  </>
                 )}
 
                 {stockPages > 1 && (

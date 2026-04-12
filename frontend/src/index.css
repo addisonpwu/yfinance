@@ -1054,3 +1054,87 @@ body {
   padding: 2rem 0;
   font-size: 0.875rem;
 }
+
+/* ========== Broker Ratings ========== */
+
+.broker-ratings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.broker-rating-item {
+  padding: 0.5rem 0.75rem;
+  background: rgba(18, 18, 18, 0.5);
+  border-radius: 8px;
+  border: 1px solid #2e2e2e;
+  transition: border-color 0.2s;
+}
+
+.broker-rating-item:hover {
+  border-color: #525252;
+}
+
+.broker-rating-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.broker-rating-broker {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #d4d4d4;
+}
+
+.broker-rating-badge {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.broker-rating-reason {
+  font-size: 0.6875rem;
+  color: #737373;
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+
+.broker-rating-date {
+  font-size: 0.625rem;
+  color: #525252;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stock-expand-btn {
+  background: transparent;
+  border: none;
+  color: #525252;
+  font-size: 0.625rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.15s;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stock-expand-btn:hover {
+  background: #1a1a1a;
+  color: #f97316;
+}
+
+.stock-expanded-content {
+  padding: 0.5rem 0.75rem 0.75rem 2.25rem;
+  background: rgba(234, 88, 12, 0.03);
+  border-left: 2px solid #ea580c;
+  margin-bottom: 0.25rem;
+  border-radius: 0 0 8px 8px;
+}
