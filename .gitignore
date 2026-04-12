@@ -19,6 +19,9 @@ logs/
 # Data cache
 data_cache/
 
+# Backups
+backups/
+
 # Reports output
 reports/
 

@@ -93,6 +93,35 @@ services:
       - stock_network
     restart: unless-stopped
 
+  # Database Backup - Hourly backup with 96h retention
+  backup:
+    image: postgres:15-alpine
+    container_name: stock_backup
+    volumes:
+      - ./backups:/backups
+    environment:
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=stock_password
+      - PGDATABASE=stock_analysis
+    command: >
+      sh -c "
+        while true; do
+          DATE=\$$(date +%Y%m%d_%H%M%S);
+          pg_dump -U postgres stock_analysis | gzip > /backups/stock_analysis_\$\$DATE.sql.gz;
+          echo \"[\$\$(date)] Backup created: stock_analysis_\$\$DATE.sql.gz\";
+          find /backups -name 'stock_analysis_*.sql.gz' -mtime +4 -delete;
+          echo \"[\$\$(date)] Cleanup: removed backups older than 96 hours\";
+          sleep 3600;
+        done
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - stock_network
+    restart: unless-stopped
+
 # Named volumes
 volumes:
   postgres_data:
