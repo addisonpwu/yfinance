@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AIAnalysis } from '../types/api'
+import { formatTime } from '../utils/time'
 
 interface AIAnalysisViewerProps {
   analyses: AIAnalysis[]
@@ -9,14 +10,6 @@ interface AIAnalysisViewerProps {
 
 export function AIAnalysisViewer({ analyses, loading, selectedSymbol }: AIAnalysisViewerProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
-
-  const formatTime = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const hours = Math.floor(diff / 3600000)
-    if (hours < 1) return '刚刚'
-    if (hours < 24) return `${hours}h`
-    return `${Math.floor(hours / 24)}d`
-  }
 
   const getRecommendationClass = (rec: string | null) => {
     if (!rec) return 'hold'

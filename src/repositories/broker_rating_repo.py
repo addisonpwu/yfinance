@@ -139,6 +139,30 @@ class BrokerRatingRepository(BaseRepository[BrokerRating]):
             "distribution": {r.rating: r.count for r in rows},
         }
 
+    async def get_by_stocks(
+        self,
+        stock_ids: List[int],
+        limit: int = 5,
+    ) -> Dict[int, List[BrokerRating]]:
+        """Get ratings for multiple stocks, ordered by date DESC.
+        
+        Returns a dict mapping stock_id to list of ratings.
+        """
+        result: Dict[int, List[BrokerRating]] = {sid: [] for sid in stock_ids}
+        
+        for stock_id in stock_ids:
+            rows = await self.session.execute(
+                select(BrokerRating)
+                .where(BrokerRating.stock_id == stock_id)
+                .order_by(BrokerRating.rating_date.desc())
+                .limit(limit)
+            )
+            records = list(rows.scalars().all())
+            if records:
+                result[stock_id] = records
+        
+        return result
+
     async def bulk_import(
         self,
         ratings_data: List[Dict[str, Any]],

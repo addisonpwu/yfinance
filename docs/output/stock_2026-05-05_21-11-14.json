@@ -1,0 +1,30 @@
+{
+  "task_executed_at": "2026-05-05T21:11:14+08:00",
+  "total_news_processed": 20,
+  "positive_news": 19,
+  "negative_news": 1,
+  "stocks_created": 4,
+  "stocks_existing": 10,
+  "news_items": [
+    {"stock_symbol": "1187.HK", "title": "可孚醫療(01187.HK)暗盤收報40.2元 高上市價2.2%", "sentiment": 1, "source": "stock_news"},
+    {"stock_symbol": "0100.HK", "title": "MINIMAX揚一成 高盛升評級至「買入」", "sentiment": 1, "source": "aastocks"},
+    {"stock_symbol": "1810.HK", "title": "小米4月交付量突破3萬輛 按月增50%", "sentiment": 1, "source": "aastocks"},
+    {"stock_symbol": "1810.HK", "title": "中銀國際：小米首季業績有望優於悲觀預期", "sentiment": 1, "source": "aastocks"},
+    {"stock_symbol": "1810.HK", "title": "大摩：料小米首季手機毛利率勝預期 平均售價創新高", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "1211.HK", "title": "比亞迪Q1海外銷量大增55% 毛利率超預期", "sentiment": 1, "source": "eastmoney"},
+    {"stock_symbol": "1211.HK", "title": "招商證券維持比亞迪股份買入評級 目標價125港元", "sentiment": 1, "source": "eastmoney"},
+    {"stock_symbol": "2338.HK", "title": "小摩：市場正重新估值濰柴動力 維持增持評級", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "2338.HK", "title": "大摩：料濰柴動力AIDC業務2028年將貢獻逾35%盈利 目標價升至47港元", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "1919.HK", "title": "小摩：中遠海控首季純利符預期 維持增持評級", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "3750.HK", "title": "小摩：寧德時代鈉離子電池具競爭優勢 維持增持評級", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "3750.HK", "title": "大摩：升寧德時代評級至增持 目標價上調至815港元", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "2331.HK", "title": "大摩：李寧品牌及產品競爭力被低估 維持增持評級", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "2628.HK", "title": "大摩：升中國人壽目標價至38.9港元 續予增持評級", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "0823.HK", "title": "大摩：料領展房產基金股價未來60天相對跑贏大市 評級增持", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "1876.HK", "title": "里昂：百威亞太首季中國銷量跌幅收窄 評級跑贏大市", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "1299.HK", "title": "友邦保險於5月4日斥資6099.4萬港元回購70.3萬股", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "1519.HK", "title": "極兔速遞-W於5月4日斥資1950.37萬港元回購196.8萬股", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "2190.HK", "title": "歸創通橋於5月4日斥資112.89萬港元回購4.95萬股", "sentiment": 1, "source": "sina"},
+    {"stock_symbol": "0005.HK", "title": "匯控首季税前盈利遜預期 股價跳水跌超4%", "sentiment": 0, "source": "aastocks"}
+  ]
+}

@@ -12,6 +12,7 @@ from src.api.schemas.broker_rating import (
     BrokerRatingListRequest,
     BrokerRatingLatestRequest,
     BrokerRatingConsensusRequest,
+    BrokerRatingBatchRequest,
     BrokerRatingResponse,
     BrokerRatingConsensus,
 )
@@ -64,3 +65,12 @@ async def get_consensus(
 ):
     """獲取某股票的共識評級（最多券商的評級）"""
     return await repo.get_consensus(req.stock_id)
+
+
+@router.post("/batch")
+async def get_batch_ratings(
+    req: BrokerRatingBatchRequest,
+    repo: BrokerRatingRepository = Depends(get_repo),
+):
+    """批量獲取多隻股票的評級"""
+    return await repo.get_by_stocks(req.stock_ids, req.limit)

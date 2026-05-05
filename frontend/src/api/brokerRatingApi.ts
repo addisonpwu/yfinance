@@ -1,6 +1,6 @@
 import type { BrokerRating, BrokerRatingConsensus } from '../types/api';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export const brokerRatingApi = {
   /**
@@ -26,6 +26,19 @@ export const brokerRatingApi = {
       body: JSON.stringify({ stock_id: stockId, limit }),
     });
     if (!res.ok) throw new Error('Failed to fetch ratings');
+    return res.json();
+  },
+
+  /**
+   * Get ratings for multiple stocks in one batch call
+   */
+  async listBatch(stockIds: number[], limit = 5): Promise<Record<number, BrokerRating[]>> {
+    const res = await fetch(`${API_BASE}/api/v1/broker-ratings/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stock_ids: stockIds, limit }),
+    });
+    if (!res.ok) throw new Error('Failed to fetch batch ratings');
     return res.json();
   },
 

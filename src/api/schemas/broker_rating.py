@@ -51,6 +51,12 @@ class BrokerRatingConsensusRequest(BaseModel):
     stock_id: int
 
 
+class BrokerRatingBatchRequest(BaseModel):
+    """Schema for batch fetching broker ratings"""
+    stock_ids: List[int]
+    limit: int = 5
+
+
 class BrokerRatingResponse(BaseModel):
     """Schema for broker rating response"""
     id: int

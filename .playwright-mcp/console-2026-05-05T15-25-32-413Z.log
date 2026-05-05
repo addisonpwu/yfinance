@@ -1,0 +1,5 @@
+[    1956ms] [ERROR] Framing 'https://ogs.google.com/' violates the following report-only Content Security Policy directive: "frame-ancestors 'self'". The violation has been logged, but no further action has been taken.
+ @ :0
+[    1957ms] [ERROR] Framing 'https://ogs.google.com/' violates the following report-only Content Security Policy directive: "frame-ancestors 'self'". The violation has been logged, but no further action has been taken.
+ @ :0
+[    1959ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://csp.withgoogle.com/csp/frame-ancestors/a00d54fdef4a77536baac3725d1409f8:0

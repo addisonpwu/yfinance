@@ -160,9 +160,9 @@
       "nvidia": {
         "default_model": "google/gemma-4-31b-it",
         "available_models": [
-          "meta/llama-3.3-70b-instruct",
-          "minimaxai/minimax-m2.5",
-          "google/gemma-4-31b-it"
+          "minimaxai/minimax-m2.7",
+          "google/gemma-4-31b-it",
+          "deepseek-ai/deepseek-v4-flash"
         ]
       },
       "gemini": {

@@ -1,0 +1,37 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - img [ref=e9]
+        - generic [ref=e11]:
+          - generic [ref=e12]: StockAnalysis
+          - generic [ref=e13]:
+            - generic [ref=e15]: System Online
+            - generic [ref=e16]: "|"
+            - generic [ref=e17]: 0 Assets
+      - generic [ref=e18]:
+        - img [ref=e19]
+        - generic [ref=e23]: PostgreSQL + FastAPI
+  - main [ref=e24]:
+    - generic [ref=e26]:
+      - generic [ref=e29]:
+        - img [ref=e30]
+        - text: Stocks
+      - generic [ref=e42]:
+        - generic [ref=e44]:
+          - img [ref=e46]
+          - generic [ref=e48]:
+            - generic [ref=e49]: AI Analysis
+            - text: Ready to analyze
+        - generic [ref=e51]:
+          - img [ref=e53]
+          - paragraph [ref=e55]: AI Analysis
+          - paragraph [ref=e56]: Select a stock to view AI analysis
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - img [ref=e60]
+          - text: News Feed
+        - generic [ref=e62]: "0"
+    - generic [ref=e72]:
+      - generic [ref=e73]: Stock Analysis System
+      - generic [ref=e74]: PostgreSQL + FastAPI + React

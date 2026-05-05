@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import type { Stock } from '../types/api'
+import { formatTime } from '../utils/time'
 
 interface StockTableProps {
   stocks: Stock[]
@@ -37,22 +38,6 @@ export function StockTable({
   }, [stocks, search])
 
   const totalPages = Math.ceil(total / pageSize)
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const days = Math.floor(hours / 24)
-
-    if (hours < 1) return '刚刚'
-    if (hours < 24) return `${hours}h ago`
-    if (days < 7) return `${days}d ago`
-    return date.toLocaleDateString('zh-CN', {
-      month: 'short',
-      day: 'numeric',
-    })
-  }
 
   if (loading) {
     return (
