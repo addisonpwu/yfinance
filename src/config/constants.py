@@ -116,39 +116,8 @@ STOCK_LIST_ENABLED = False  # 是否启用股票列表模式
 AI_API_TIMEOUT = 30
 AI_MAX_DATA_POINTS = 100
 
-# AI 提供商默认模型配置
-DEFAULT_AI_PROVIDERS = {
-    "iflow": {
-        "default_model": "deepseek-v3.2",
-        "available_models": [
-            "deepseek-v3.2",
-            "qwen3-max",
-            "tstars2.0",
-            "iflow-rome-30ba3b",
-            "qwen3-coder-plus",
-        ],
-    },
-    "nvidia": {
-        "default_model": "google/gemma-4-31b-it",
-        "available_models": [
-            "meta/llama-3.3-70b-instruct",
-            "minimaxai/minimax-m2.5",
-            "google/gemma-4-31b-it"
-        ],
-    },
-    "gemini": {
-        "default_model": "gemini-2.5-flash",
-        "available_models": [
-            "gemini-2.5-flash",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
-            "gemini-3-flash-preview",
-            "gemini-3-pro-preview",
-        ],
-    },
-    "opencode": {"default_model": "glm-5", "available_models": ["glm-5"]},
-}
+# AI 模型配置統一在 config.json 中設定
+# 各分析器有自身內部默認值作為 fallback
 
 # ============================================
 # 回测配置

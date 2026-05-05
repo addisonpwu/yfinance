@@ -47,6 +47,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY src/ ./src/
+COPY config.json .
 COPY pyproject.toml .
 
 # Create logs directory

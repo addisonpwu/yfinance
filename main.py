@@ -43,9 +43,14 @@ def main():
     
     # 根据首个提供商自动选择默认模型
     if args.model is None:
-        from src.config.constants import DEFAULT_AI_PROVIDERS
         first_provider = providers[0]
-        args.model = DEFAULT_AI_PROVIDERS.get(first_provider, {}).get('default_model', 'deepseek-v3.2')
+        default_models = {
+            "iflow": "deepseek-v3.2",
+            "nvidia": "google/gemma-4-31b-it",
+            "gemini": "gemini-2.5-flash",
+            "opencode": "kimi-k2.5",
+        }
+        args.model = default_models.get(first_provider, "deepseek-v3.2")
     
     # 启动验证（检查配置和敏感信息）
     if HAS_VALIDATOR and not args.skip_validation:

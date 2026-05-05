@@ -28,7 +28,7 @@ from src.config.constants import (
     # 新闻配置
     NEWS_TIMEOUT, NEWS_MAX_ITEMS, NEWS_DAYS_BACK, NEWS_CACHE_TTL_HOURS,
     # AI 配置
-    AI_API_TIMEOUT, AI_MAX_DATA_POINTS, DEFAULT_AI_PROVIDERS,
+    AI_API_TIMEOUT, AI_MAX_DATA_POINTS,
     # 股票列表配置
     STOCK_LIST_JSON_PATH, STOCK_LIST_ENABLED,
 )
@@ -216,31 +216,19 @@ class AIProvidersConfig:
     
     def __post_init__(self):
         if self.iflow is None:
-            self.iflow = AIProviderConfig(
-                default_model=DEFAULT_AI_PROVIDERS["iflow"]["default_model"],
-                available_models=DEFAULT_AI_PROVIDERS["iflow"]["available_models"]
-            )
+            self.iflow = AIProviderConfig()
         if self.nvidia is None:
-            self.nvidia = AIProviderConfig(
-                default_model=DEFAULT_AI_PROVIDERS["nvidia"]["default_model"],
-                available_models=DEFAULT_AI_PROVIDERS["nvidia"]["available_models"]
-            )
+            self.nvidia = AIProviderConfig()
         if self.gemini is None:
-            self.gemini = AIProviderConfig(
-                default_model=DEFAULT_AI_PROVIDERS["gemini"]["default_model"],
-                available_models=DEFAULT_AI_PROVIDERS["gemini"]["available_models"]
-            )
+            self.gemini = AIProviderConfig()
         if self.opencode is None:
-            self.opencode = AIProviderConfig(
-                default_model=DEFAULT_AI_PROVIDERS["opencode"]["default_model"],
-                available_models=DEFAULT_AI_PROVIDERS["opencode"]["available_models"]
-            )
+            self.opencode = AIProviderConfig()
 
 
 @dataclass
 class AIConfig:
     api_timeout: int = AI_API_TIMEOUT
-    model: str = DEFAULT_AI_PROVIDERS["iflow"]["default_model"]
+    model: str = "deepseek-v3.2"
     max_data_points: int = AI_MAX_DATA_POINTS
     providers: AIProvidersConfig = None
     
@@ -405,24 +393,24 @@ class ConfigManager:
             ),
             ai=AIConfig(
                 api_timeout=ai_config.get('api_timeout', AI_API_TIMEOUT),
-                model=ai_config.get('model', DEFAULT_AI_PROVIDERS["iflow"]["default_model"]),
+                model=ai_config.get('model', "deepseek-v3.2"),
                 max_data_points=ai_config.get('max_data_points', AI_MAX_DATA_POINTS),
                 providers=AIProvidersConfig(
                     iflow=AIProviderConfig(
-                        default_model=iflow_config.get('default_model', DEFAULT_AI_PROVIDERS["iflow"]["default_model"]),
-                        available_models=iflow_config.get('available_models', DEFAULT_AI_PROVIDERS["iflow"]["available_models"])
+                        default_model=iflow_config.get('default_model', ""),
+                        available_models=iflow_config.get('available_models', [])
                     ),
                     nvidia=AIProviderConfig(
-                        default_model=nvidia_config.get('default_model', DEFAULT_AI_PROVIDERS["nvidia"]["default_model"]),
-                        available_models=nvidia_config.get('available_models', DEFAULT_AI_PROVIDERS["nvidia"]["available_models"])
+                        default_model=nvidia_config.get('default_model', ""),
+                        available_models=nvidia_config.get('available_models', [])
                     ),
                     gemini=AIProviderConfig(
-                        default_model=gemini_config.get('default_model', DEFAULT_AI_PROVIDERS["gemini"]["default_model"]),
-                        available_models=gemini_config.get('available_models', DEFAULT_AI_PROVIDERS["gemini"]["available_models"])
+                        default_model=gemini_config.get('default_model', ""),
+                        available_models=gemini_config.get('available_models', [])
                     ),
                     opencode=AIProviderConfig(
-                        default_model=opencode_config.get('default_model', DEFAULT_AI_PROVIDERS["opencode"]["default_model"]),
-                        available_models=opencode_config.get('available_models', DEFAULT_AI_PROVIDERS["opencode"]["available_models"])
+                        default_model=opencode_config.get('default_model', ""),
+                        available_models=opencode_config.get('available_models', [])
                     )
                 )
             ),
@@ -554,9 +542,9 @@ class ConfigManager:
             },
             "ai": {
                 "api_timeout": AI_API_TIMEOUT,
-                "model": DEFAULT_AI_PROVIDERS["iflow"]["default_model"],
+                "model": "deepseek-v3.2",
                 "max_data_points": AI_MAX_DATA_POINTS,
-                "providers": DEFAULT_AI_PROVIDERS
+                "providers": {}
             }
         }
         

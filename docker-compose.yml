@@ -57,6 +57,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
+      - ./config.json:/app/config.json:ro
 
   # pgAdmin 4 - PostgreSQL Management Tool
   pgadmin:
