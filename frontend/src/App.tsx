@@ -3,9 +3,13 @@ import { stockApi, newsApi, aiAnalysisApi } from './api/client'
 import { brokerRatingApi } from './api/brokerRatingApi'
 import { useAnalysisTask } from './hooks/useAnalysisTask'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { HeaderPanel } from './components/HeaderPanel'
 import { AnalysisTriggerButton } from './components/AnalysisTriggerButton'
 import { AIAnalysisViewer } from './components/AIAnalysisViewer'
 import { BrokerRatingsPanel } from './components/BrokerRatingsPanel'
+import { ErrorBanner } from './components/ErrorBanner'
+import { FooterPanel } from './components/FooterPanel'
+import { MobileTabs } from './components/MobileTabs'
 import type { Stock, News, AIAnalysis, BrokerRating } from './types/api'
 import { formatTime } from './utils/time'
 
@@ -32,6 +36,7 @@ function App() {
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [mobileTab, setMobileTab] = useState(0)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const { activeTask, isRunning, isCompleted, triggerAnalysis } = useAnalysisTask()
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false)
@@ -55,6 +60,7 @@ function App() {
       setStocks(data.items)
       setStockTotal(data.total)
     } catch (err) {
+      setApiError('Failed to load stocks')
       console.error('Failed to fetch stocks:', err)
     } finally {
       setLoadingStocks(false)
@@ -72,6 +78,7 @@ function App() {
       setNews(data.items)
       setNewsTotal(data.total)
     } catch (err) {
+      setApiError('Failed to load news')
       console.error('Failed to fetch news:', err)
     } finally {
       setLoadingNews(false)
@@ -88,6 +95,7 @@ function App() {
       const data = await aiAnalysisApi.getHistory(selectedSymbol, 0, 20)
       setAiAnalyses(data.items)
     } catch (err) {
+      setApiError('Failed to load AI analyses')
       console.error('Failed to fetch AI analyses:', err)
       setAiAnalyses([])
     } finally {
@@ -98,6 +106,13 @@ function App() {
   useEffect(() => { fetchStocks() }, [fetchStocks])
   useEffect(() => { fetchNews() }, [fetchNews])
   useEffect(() => { fetchAiAnalyses() }, [fetchAiAnalyses])
+
+  useEffect(() => {
+    if (apiError) {
+      const timer = setTimeout(() => setApiError(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [apiError])
 
   const handleSelectStock = (symbol: string) => {
     setSelectedSymbol(selectedSymbol === symbol ? null : symbol)
@@ -196,36 +211,9 @@ function App() {
 
   return (
     <div>
-      <header className="header">
-        <div className="container">
-          <div className="header-content">
-            <div className="logo">
-              <div className="logo-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                  <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-              <div>
-                <span className="logo-text">Stock<span>Analysis</span></span>
-                <div className="status-badge">
-                  <span className="status-dot"></span>
-                  <span>System Online</span>
-                  <span style={{ color: '#404040' }}>|</span>
-                  <span>{stockTotal} Assets</span>
-                </div>
-              </div>
-            </div>
-            <div className="status-badge" style={{ fontSize: '0.6875rem', background: '#1a1a1a', padding: '0.375rem 0.75rem', borderRadius: '9999px', border: '1px solid #242424' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2">
-                <ellipse cx="12" cy="5" rx="9" ry="3" />
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-              </svg>
-              <span>PostgreSQL + FastAPI</span>
-            </div>
-          </div>
-        </div>
-      </header>
+      <HeaderPanel stockTotal={stockTotal} />
+
+        <ErrorBanner error={apiError} onDismiss={() => setApiError(null)} />
 
       <main className="main">
         <div className="container">
@@ -252,6 +240,7 @@ function App() {
                     placeholder="Search ticker..."
                     value={search}
                     onChange={e => handleSearchChange(e.target.value)}
+                    aria-label="Search stocks"
                   />
                 </div>
 
@@ -259,18 +248,21 @@ function App() {
                   <button
                     className={`filter-btn ${!currentMarket ? 'active' : ''}`}
                     onClick={() => handleMarketChange(null)}
+                    aria-label="Show all markets"
                   >
                     All ({stockTotal})
                   </button>
                   <button
                     className={`filter-btn ${currentMarket === 'HK' ? 'active' : ''}`}
                     onClick={() => handleMarketChange('HK')}
+                    aria-label="Show HK market"
                   >
                     HK
                   </button>
                   <button
                     className={`filter-btn ${currentMarket === 'US' ? 'active' : ''}`}
                     onClick={() => handleMarketChange('US')}
+                    aria-label="Show US market"
                   >
                     US
                   </button>
@@ -281,6 +273,7 @@ function App() {
                     className={`filter-btn ${sortBy === 'positive_news' ? 'active' : ''}`}
                     onClick={() => handleSortChange('positive_news')}
                     title="Sort by positive news"
+                    aria-label="Sort by positive news"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
                       <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
@@ -296,6 +289,7 @@ function App() {
                     className={`filter-btn ${sortBy === 'negative_news' ? 'active' : ''}`}
                     onClick={() => handleSortChange('negative_news')}
                     title="Sort by negative news"
+                    aria-label="Sort by negative news"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
                       <path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
@@ -311,6 +305,7 @@ function App() {
                     className={`filter-btn ${sortBy === 'created_at' ? 'active' : ''}`}
                     onClick={() => handleSortChange('created_at')}
                     title="Sort by creation time"
+                    aria-label="Sort by time"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.25rem' }}>
                       <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -425,6 +420,7 @@ function App() {
                         className="page-btn"
                         disabled={stockPage === 0}
                         onClick={() => setStockPage(p => p - 1)}
+                        aria-label="Previous page"
                       >
                         ‹
                       </button>
@@ -432,6 +428,7 @@ function App() {
                         className="page-btn"
                         disabled={stockPage >= stockPages - 1}
                         onClick={() => setStockPage(p => p + 1)}
+                        aria-label="Next page"
                       >
                         ›
                       </button>
@@ -533,6 +530,7 @@ function App() {
                         className="page-btn"
                         disabled={newsPage === 0}
                         onClick={() => setNewsPage(p => p - 1)}
+                        aria-label="Previous page"
                       >
                         ‹
                       </button>
@@ -540,6 +538,7 @@ function App() {
                         className="page-btn"
                         disabled={newsPage >= newsPages - 1}
                         onClick={() => setNewsPage(p => p + 1)}
+                        aria-label="Next page"
                       >
                         ›
                       </button>
@@ -585,37 +584,10 @@ function App() {
           </div>
         )}
 
-        <footer className="footer">
-          <div className="container">
-            <div className="footer-content">
-              <span>Stock Analysis System</span>
-              <span>PostgreSQL + FastAPI + React</span>
-            </div>
-          </div>
-        </footer>
+        <FooterPanel />
       </main>
 
-      {/* Mobile Tab Indicator */}
-      <div className="mobile-tab-indicator">
-        <button className={`mobile-tab-btn ${mobileTab === 0 ? 'active' : ''}`} onClick={() => scrollToTab(0)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          <span>Stocks</span>
-        </button>
-        <button className={`mobile-tab-btn ${mobileTab === 1 ? 'active' : ''}`} onClick={() => scrollToTab(1)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-          <span>AI</span>
-        </button>
-        <button className={`mobile-tab-btn ${mobileTab === 2 ? 'active' : ''}`} onClick={() => scrollToTab(2)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-          </svg>
-          <span>News</span>
-        </button>
-      </div>
+      <MobileTabs activeTab={mobileTab} onTabChange={scrollToTab} />
     </div>
   )
 }

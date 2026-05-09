@@ -2,7 +2,6 @@
 OpenCode AI 分析器
 
 使用 OpenCode API 进行股票分析
-- API 端点: https://opencode.ai/zen/go/v1/chat/completions
 - 环境变量: OPENCODE_API_KEY
 - 支持模型: glm-5
 """
@@ -20,6 +19,7 @@ from src.data.cache.cache_service import OptimizedCache
 from src.config.settings import config_manager
 from src.config.constants import VIX_LOW, VIX_NORMAL, VIX_HIGH
 from src.utils.logger import get_ai_logger
+from src.ai.analyzer.iflow_analyzer import AIAnalyzer
 
 # 尝试导入 OpenAI SDK
 try:
@@ -30,7 +30,7 @@ except ImportError:
     OpenAI = None
 
 
-class OpenCodeAIAnalyzer:
+class OpenCodeAIAnalyzer(AIAnalyzer):
     """
     OpenCode AI 分析器
     
@@ -43,57 +43,10 @@ class OpenCodeAIAnalyzer:
     
     # AI 分析缓存子目录
     AI_CACHE_SUBDIR = "ai_analysis_opencode"
-    
-    # API 配置
-    API_URL = "https://opencode.ai/zen/go/v1"
-    
-    # 支持的模型
+    API_URL = ""
     DEFAULT_MODEL = "glm-5"
     AVAILABLE_MODELS = ["glm-5"]
-    
-    # Few-shot 学习案例（复用 iFlow 的案例）
-    FEW_SHOT_EXAMPLES = """
-【历史成功预测案例】
 
-案例1: 超卖反弹型
-股票: AAPL (2024-01-15)
-- RSI=32, 价格低于MA50约8%
-- 成交量萎缩30%
-- MACD柱状线收窄，即将金叉
-- AI判断: 超卖反弹，建议买入
-- 实际结果: 2周后上涨11%
-- 关键特征: RSI超卖 + 量价背离 + MACD金叉信号
-
-案例2: 趋势延续型  
-股票: NVDA (2024-03-01)
-- 价格站上所有均线，多头排列
-- RSI=58，处于强势区但未超买
-- 成交量较20日均量放大40%
-- MACD持续走高，柱状线扩大
-- AI判断: 趋势延续，建议买入
-- 实际结果: 4周后上涨28%
-- 关键特征: 多头排列 + 量能配合 + MACD强势
-
-案例3: 风险警示型
-股票: XYZ (2024-02-20)
-- RSI=78, 明显超买
-- 价格与MACD出现顶背离
-- 成交量萎缩但价格上涨
-- AI判断: 高位风险，建议观望
-- 实际结果: 2周后下跌15%
-- 关键特征: RSI超买 + 顶背离 + 量价背离
-
-案例4: 突破确认型
-股票: TSM (2024-04-10)
-- 布林带收窄后突破上轨
-- 成交量放大至20日均量的2.5倍
-- RSI从45快速升至62
-- 价格突破前期高点
-- AI判断: 突破有效，建议买入
-- 实际结果: 3周后上涨18%
-- 关键特征: 布林带突破 + 放量 + RSI走强
-"""
-    
     def __init__(self, enable_cache: bool = False, enable_streaming: bool = False):
         """
         初始化 OpenCode AI 分析器
@@ -117,6 +70,8 @@ class OpenCodeAIAnalyzer:
         if config.ai.providers and hasattr(config.ai.providers, 'opencode') and config.ai.providers.opencode:
             self.default_model = config.ai.providers.opencode.default_model or self.DEFAULT_MODEL
             self.available_models = config.ai.providers.opencode.available_models or self.AVAILABLE_MODELS
+            if config.ai.providers.opencode.base_url:
+                self.API_URL = config.ai.providers.opencode.base_url
         else:
             self.default_model = self.DEFAULT_MODEL
             self.available_models = self.AVAILABLE_MODELS
@@ -343,24 +298,7 @@ class OpenCodeAIAnalyzer:
 请严格按照上述格式输出，AI分析结果将用于实盘交易决策，请务必严谨客观。
 """
         return prompt
-    
-    def _format_fundamentals(self, info: Dict) -> str:
-        """格式化基本面信息"""
-        def fmt(val, suffix="", decimals=2):
-            if isinstance(val, (int, float)) and val > 0:
-                return f"{val:.{decimals}f}{suffix}"
-            return "N/A"
-        
-        return f"""【基本面指标】
-- 市值: {fmt(info.get('marketCap'), suffix='', decimals=0) if info.get('marketCap') else 'N/A'}
-- 市盈率: {fmt(info.get('trailingPE'))}
-- PEG: {fmt(info.get('pegRatio'))}
-- 市净率: {fmt(info.get('priceToBook'))}
-- ROE: {fmt(info.get('returnOnEquity'), '%') if info.get('returnOnEquity') else 'N/A'}
-- 利润率: {fmt(info.get('profitMargins'), '%') if info.get('profitMargins') else 'N/A'}
-- 营收增长: {fmt(info.get('revenueGrowth'), '%') if info.get('revenueGrowth') else 'N/A'}
-- Beta: {fmt(info.get('beta'))}"""
-    
+
     def _get_technical_indicators(self, hist: pd.DataFrame) -> str:
         """获取技术指标"""
         if hist is None or hist.empty:
@@ -482,68 +420,3 @@ class OpenCodeAIAnalyzer:
         except Exception as e:
             self.logger.debug(f"获取历史摘要失败: {e}")
             return "数据解析失败"
-    
-    def _extract_direction_and_confidence(self, text: str) -> Tuple[str, float]:
-        """从分析结果中提取方向和置信度"""
-        direction = "中性"
-        confidence = 0.5
-        
-        # 优先从"短期走势判断"部分提取方向
-        short_term_section = ""
-        if "短期走势判断" in text:
-            match = re.search(r'短期走势判断[：:\s]*(.*?)(?=\n[═\-\s]{10,}|\n【|$)', text, re.DOTALL)
-            if match:
-                short_term_section = match.group(1)
-        
-        # 从短期走势判断部分提取方向
-        if short_term_section:
-            dir_match = re.search(r'方向[：:]\s*(看涨|看跌|中性|上升|下降|震荡)', short_term_section)
-            if dir_match:
-                dir_value = dir_match.group(1)
-                if dir_value in ['看涨', '上升']:
-                    direction = "看涨"
-                    confidence = 0.7
-                elif dir_value in ['看跌', '下降']:
-                    direction = "看跌"
-                    confidence = 0.7
-                elif dir_value in ['中性', '震荡']:
-                    direction = "中性"
-                    confidence = 0.5
-        
-        # 如果没有找到，尝试从"投资建议"部分提取
-        if direction == "中性" and "投资建议" in text:
-            advice_match = re.search(r'建议[：:]\s*(买入|卖出|持有|观望|增持|减持)', text)
-            if advice_match:
-                advice = advice_match.group(1)
-                if advice in ['买入', '增持']:
-                    direction = "看涨"
-                    confidence = 0.7
-                elif advice in ['卖出', '减持']:
-                    direction = "看跌"
-                    confidence = 0.7
-                elif advice in ['持有', '观望']:
-                    direction = "中性"
-                    confidence = 0.5
-        
-        # 如果还是没有找到，使用全文搜索
-        if direction == "中性":
-            if re.search(r'看涨|强烈买入|买入|上升', text):
-                direction = "看涨"
-                confidence = 0.7
-            elif re.search(r'看跌|强烈卖出|卖出|下降', text):
-                direction = "看跌"
-                confidence = 0.7
-            elif re.search(r'中性|持有|震荡', text):
-                direction = "中性"
-                confidence = 0.5
-        
-        # 提取置信度
-        conf_match = re.search(r'置信度[：:]\s*(高|中|低)', text)
-        if conf_match:
-            level = conf_match.group(1)
-            if level == '高':
-                confidence = min(confidence + 0.2, 0.95)
-            elif level == '低':
-                confidence = max(confidence - 0.2, 0.3)
-        
-        return direction, confidence

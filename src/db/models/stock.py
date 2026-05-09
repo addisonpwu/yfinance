@@ -42,7 +42,7 @@ class Stock(Base):
         comment="股票代码 (e.g., AAPL, 0700.HK)",
     )
     name: Mapped[str] = mapped_column(
-        String(STOCK_NAME_MAX_LENGTH), nullable=False, comment="股票名称"
+        String(STOCK_NAME_MAX_LENGTH), nullable=False, index=True, comment="股票名称"
     )
     market: Mapped[str] = mapped_column(
         String(STOCK_MARKET_MAX_LENGTH),

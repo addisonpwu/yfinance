@@ -8,7 +8,7 @@ services:
     container_name: stock_db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: stock_password
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-stock_password}
       POSTGRES_DB: stock_analysis
     ports:
       - "5432:5432"
@@ -38,7 +38,7 @@ services:
       DB_PORT: 5432
       DB_NAME: stock_analysis
       DB_USER: postgres
-      DB_PASSWORD: stock_password
+      DB_PASSWORD: ${DB_PASSWORD:-stock_password}
       DOCKER_ENV: "true"
       LOG_LEVEL: INFO
     ports:
@@ -65,7 +65,7 @@ services:
     container_name: stock_pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: pgadmin@stock.dev
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
       PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
     ports:
       - "5050:80"
@@ -103,7 +103,7 @@ services:
     environment:
       - PGHOST=db
       - PGUSER=postgres
-      - PGPASSWORD=stock_password
+      - PGPASSWORD=${DB_PASSWORD:-stock_password}
       - PGDATABASE=stock_analysis
     command: >
       sh -c "

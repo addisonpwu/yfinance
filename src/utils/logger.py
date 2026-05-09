@@ -29,6 +29,24 @@ class LoggerManager:
         
         logger.addHandler(console_handler)
 
+        # File logging with rotation
+        try:
+            import os
+            from logging.handlers import RotatingFileHandler
+            
+            os.makedirs("logs", exist_ok=True)
+            file_handler = RotatingFileHandler(
+                "logs/app.log",
+                maxBytes=10 * 1024 * 1024,  # 10MB
+                backupCount=5,
+                encoding="utf-8",
+            )
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+        except Exception as e:
+            logger.warning(f"Failed to set up file logging: {e}")
+
 # 为不同模块提供专门的logger
 def get_core_logger():
     return LoggerManager.get_logger("core")

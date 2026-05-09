@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from src.db.models.news import News
 from src.repositories.base import BaseRepository
 from src.utils.exceptions import NewsNotFoundException, DuplicateRecordException
@@ -30,6 +31,12 @@ class NewsRepository(BaseRepository[News]):
             raise NewsNotFoundException(f"News with id {news_id} not found")
         return news
 
+    async def get_by_id_with_stock(self, news_id: int) -> Optional[News]:
+        """Get news by ID with stock relationship eagerly loaded."""
+        query = select(News).options(selectinload(News.stock)).where(News.id == news_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def list(
         self,
         skip: int = 0,
@@ -40,7 +47,7 @@ class NewsRepository(BaseRepository[News]):
         end_time: Optional[datetime] = None,
         stock_id: Optional[int] = None,
     ) -> List[News]:
-        query = select(News).order_by(News.publish_time.desc())
+        query = select(News).options(selectinload(News.stock)).order_by(News.publish_time.desc())
 
         conditions = []
         if start_time:

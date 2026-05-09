@@ -38,3 +38,12 @@ reports/
 *.key
 secrets.json
 credentials.json
+
+# New entries
+.omi/
+.qwen/
+.playwright-mcp/
+.ruff_cache/
+docs/
+alembic/
+p0-p1-verify.png

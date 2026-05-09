@@ -155,7 +155,8 @@
     "providers": {
       "iflow": {
         "default_model": "deepseek-v3.2",
-        "available_models": ["deepseek-v3.2", "qwen3-max"]
+        "available_models": ["deepseek-v3.2", "qwen3-max"],
+        "base_url": "https://apis.iflow.cn/v1/chat/completions"
       },
       "nvidia": {
         "default_model": "google/gemma-4-31b-it",
@@ -163,17 +164,20 @@
           "minimaxai/minimax-m2.7",
           "google/gemma-4-31b-it",
           "deepseek-ai/deepseek-v4-flash"
-        ]
+        ],
+        "base_url": "https://integrate.api.nvidia.com/v1"
       },
       "gemini": {
         "default_model": "gemini-3-flash-preview",
         "available_models": [
           "gemini-3-flash-preview"
-        ]
+        ],
+        "base_url": ""
       },
       "opencode": {
         "default_model": "kimi-k2.5",
-        "available_models": ["kimi-k2.5"]
+        "available_models": ["kimi-k2.5"],
+        "base_url": "https://opencode.ai/zen/go/v1"
       }
     }
   }

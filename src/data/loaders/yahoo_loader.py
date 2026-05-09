@@ -138,7 +138,7 @@ class YahooFinanceRepository(StockRepository):
     def get_financial_info(self, symbol: str) -> Dict:
         try:
             cache_key = f"info_{symbol}"
-            cached_info = self.cache_service.get(cache_key)
+            cached_info = self.cache_service.get_json(cache_key)
             
             if cached_info is not None:
                 self.logger.info(f"从缓存获取 {symbol} 的财务信息")
@@ -170,7 +170,7 @@ class YahooFinanceRepository(StockRepository):
                     info[field] = None
             
             # 缓存信息
-            self.cache_service.set(cache_key, info)
+            self.cache_service.set_json(cache_key, info)
             
             return info
         except Exception as e:
@@ -306,7 +306,7 @@ class YahooFinanceRepository(StockRepository):
                 return None
 
             cache_key = f"finviz_{symbol}"
-            cached_data = self.cache_service.get(cache_key)
+            cached_data = self.cache_service.get_json(cache_key)
 
             if cached_data is not None:
                 self.logger.info(f"从缓存获取 {symbol} 的 Finviz 数据")
@@ -324,7 +324,7 @@ class YahooFinanceRepository(StockRepository):
 
             if data:
                 # 缓存数据
-                self.cache_service.set(cache_key, data)
+                self.cache_service.set_json(cache_key, data)
                 self.logger.info(f"成功获取 {symbol} 的 Finviz 数据")
                 return data
             else:

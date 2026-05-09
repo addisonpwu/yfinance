@@ -44,116 +44,55 @@ except ImportError:
 
 class NvidiaAIAnalyzer(AIAnalyzer):
     """NVIDIA API 分析器实现"""
-    
+
     # AI 分析缓存子目录（独立于 iFlow）
     AI_CACHE_SUBDIR = "ai_analysis_nvidia"
-    
+
     # NVIDIA API 配置
     NVIDIA_API_BASE_URL = "https://integrate.api.nvidia.com/v1"
-    
+
     # 默认模型（将在 __init__ 中从配置读取）
     DEFAULT_MODEL = "google/gemma-4-31b-it"
-    
+
     # 可用的 NVIDIA 模型列表（将在 __init__ 中从配置读取）
     AVAILABLE_MODELS = []
-    
-    # Few-shot 学习案例（复用 iFlow 的案例）
-    FEW_SHOT_EXAMPLES = """
-【历史成功预测案例】
 
-案例1: 超卖反弹型
-股票: AAPL (2024-01-15)
-- RSI=32, 价格低于MA50约8%
-- 成交量萎缩30%
-- MACD柱状线收窄，即将金叉
-- AI判断: 超卖反弹，建议买入
-- 实际结果: 2周后上涨11%
-- 关键特征: RSI超卖 + 量价背离 + MACD金叉信号
-
-案例2: 趋势延续型  
-股票: NVDA (2024-03-01)
-- 价格站上所有均线，多头排列
-- RSI=58，处于强势区但未超买
-- 成交量较20日均量放大40%
-- MACD持续走高，柱状线扩大
-- AI判断: 趋势延续，建议买入
-- 实际结果: 4周后上涨28%
-- 关键特征: 多头排列 + 量能配合 + MACD强势
-
-案例3: 风险警示型
-股票: XYZ (2024-02-20)
-- RSI=78, 明显超买
-- 价格与MACD出现顶背离
-- 成交量萎缩但价格上涨
-- AI判断: 高位风险，建议观望
-- 实际结果: 2周后下跌15%
-- 关键特征: RSI超买 + 顶背离 + 量价背离
-
-案例4: 突破确认型
-股票: TSM (2024-04-10)
-- 布林带收窄后突破上轨
-- 成交量放大至20日均量的2.5倍
-- RSI从45快速升至62
-- 价格突破前期高点
-- AI判断: 突破有效，建议买入
-- 实际结果: 3周后上涨18%
-- 关键特征: 布林带突破 + 放量 + RSI走强
-"""
-    
     def __init__(self, enable_cache: bool = True, enable_streaming: bool = False):
-        """
-        初始化 NVIDIA AI 分析器
-        
-        Args:
-            enable_cache: 是否启用缓存
-            enable_streaming: 是否启用流式响应
-        """
-        # 检查 OpenAI SDK
+        """初始化 NVIDIA AI 分析器"""
         if not HAS_OPENAI:
             raise ImportError("需要安装 openai 包: pip install openai")
-        
-        # 获取 API Key
+
         self.api_key = os.environ.get("NVIDIA_API_KEY", "")
-        
-        # 配置
         config = config_manager.get_config()
-        # 禁用 AI 分析缓存
         self.cache_service = OptimizedCache(enabled=False)
         self.config = config
         self.logger = get_ai_logger()
-        
-        # 从配置读取模型列表（配置为唯一数据源）
+
         if config.ai.providers and config.ai.providers.nvidia:
             self.DEFAULT_MODEL = config.ai.providers.nvidia.default_model
             self.AVAILABLE_MODELS = config.ai.providers.nvidia.available_models
+            if config.ai.providers.nvidia.base_url:
+                self.NVIDIA_API_BASE_URL = config.ai.providers.nvidia.base_url
         else:
-            # 后备：使用空列表，实际使用时会报错提示检查配置
             self.DEFAULT_MODEL = ""
             self.AVAILABLE_MODELS = []
-        
-        # 流式响应配置
+
         self.enable_streaming = enable_streaming
         self._use_color = sys.stdout.isatty() and os.getenv("NO_COLOR") is None
         self._reasoning_color = "\033[90m" if self._use_color else ""
         self._reset_color = "\033[0m" if self._use_color else ""
-        
-        # 初始化 OpenAI 客户端（设置 5 分钟超时，避免 NVIDIA API 504 错误）
+
         self.client = OpenAI(
             base_url=self.NVIDIA_API_BASE_URL,
             api_key=self.api_key,
-            timeout=300.0  # 5 分钟超时
+            timeout=300.0
         )
-        
-        # 预测追踪器
+
         self.prediction_tracker = PredictionTracker()
-        
-        # 多时间框架数据缓存
         self._multi_timeframe_cache: Dict[str, Dict] = {}
-        
-        # 市场情绪缓存
         self._market_sentiment_cache: Dict = {}
         self._sentiment_last_update: Optional[datetime] = None
-    
+
     def analyze(self, stock_data: Dict, hist: pd.DataFrame, **kwargs) -> Optional[AIAnalysisResult]:
         """
         分析单只股票

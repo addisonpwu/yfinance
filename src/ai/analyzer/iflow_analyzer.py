@@ -155,26 +155,12 @@ class PredictionTracker:
 
 class AIAnalyzer(ABC):
     """AI 分析器抽象基类"""
-    
-    @abstractmethod
-    def analyze(self, stock_data: Dict, hist: pd.DataFrame, **kwargs) -> Optional[AIAnalysisResult]:
-        pass
 
+    # Class-level defaults (overridden by subclasses)
+    DEFAULT_MODEL: str = ""
+    AVAILABLE_MODELS: list = []
 
-class IFlowAIAnalyzer(AIAnalyzer):
-    """心流 AI 分析器实现 - 增强版"""
-    
-    # AI 分析缓存子目录
-    AI_CACHE_SUBDIR = "ai_analysis"
-    
-    # 类级别速率限制（同一 provider 内的所有 API 调用共享）
-    _last_api_call_time: float = 0.0
-    _rate_limit_lock = None  # 延迟初始化，避免多进程问题
-    
-    # API 调用最小间隔（秒）
-    MIN_API_INTERVAL = 0.5
-    
-    # Few-shot 学习案例（历史成功预测）
+    # Few-shot examples for consistent output format
     FEW_SHOT_EXAMPLES = """
 【历史成功预测案例】
 
@@ -187,7 +173,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
 - 实际结果: 2周后上涨11%
 - 关键特征: RSI超卖 + 量价背离 + MACD金叉信号
 
-案例2: 趋势延续型  
+案例2: 趋势延续型
 股票: NVDA (2024-03-01)
 - 价格站上所有均线，多头排列
 - RSI=58，处于强势区但未超买
@@ -216,7 +202,393 @@ class IFlowAIAnalyzer(AIAnalyzer):
 - 实际结果: 3周后上涨18%
 - 关键特征: 布林带突破 + 放量 + RSI走强
 """
-    
+
+    @abstractmethod
+    def analyze(self, stock_data: Dict, hist: pd.DataFrame, **kwargs) -> Optional[AIAnalysisResult]:
+        pass
+
+    def _format_fundamentals(self, info: Dict) -> str:
+        """格式化基本面信息"""
+        def fmt(val, suffix="", decimals=2):
+            if isinstance(val, (int, float)) and val > 0:
+                return f"{val:.{decimals}f}{suffix}"
+            return "N/A"
+
+        return f"""【基本面指标】
+- 市值: {fmt(info.get('marketCap'), suffix='', decimals=0) if info.get('marketCap') else 'N/A'}
+- 市盈率: {fmt(info.get('trailingPE'))}
+- PEG: {fmt(info.get('pegRatio'))}
+- 市净率: {fmt(info.get('priceToBook'))}
+- ROE: {fmt(info.get('returnOnEquity'), '%') if info.get('returnOnEquity') else 'N/A'}
+- 利润率: {fmt(info.get('profitMargins'), '%') if info.get('profitMargins') else 'N/A'}
+- 营收增长: {fmt(info.get('revenueGrowth'), '%') if info.get('revenueGrowth') else 'N/A'}
+- Beta: {fmt(info.get('beta'))}"""
+
+    def _extract_direction_and_confidence(self, text: str) -> Tuple[str, float]:
+        """从分析结果中提取方向和置信度"""
+        direction = "中性"
+        confidence = 0.5
+
+        # 优先从"短期走势判断"部分提取方向（更精确）
+        short_term_section = ""
+        if "短期走势判断" in text:
+            # 提取"短期走势判断"部分到下一个大标题之前的内容
+            match = re.search(r'短期走势判断[：:\s]*(.*?)(?=\n[═\-\s]{10,}|\n【|$)', text, re.DOTALL)
+            if match:
+                short_term_section = match.group(1)
+
+        # 从短期走势判断部分提取方向
+        if short_term_section:
+            dir_match = re.search(r'方向[：:]\s*(看涨|看跌|中性|上升|下降|震荡)', short_term_section)
+            if dir_match:
+                dir_value = dir_match.group(1)
+                if dir_value in ['看涨', '上升']:
+                    direction = "看涨"
+                    confidence = 0.7
+                elif dir_value in ['看跌', '下降']:
+                    direction = "看跌"
+                    confidence = 0.7
+                elif dir_value in ['中性', '震荡']:
+                    direction = "中性"
+                    confidence = 0.5
+
+        # 如果没有找到，尝试从"投资建议"部分提取
+        if direction == "中性" and "投资建议" in text:
+            # 提取投资建议部分的"建议:"值
+            advice_match = re.search(r'建议[：:]\s*(买入|卖出|持有|观望|增持|减持)', text)
+            if advice_match:
+                advice = advice_match.group(1)
+                if advice in ['买入', '增持']:
+                    direction = "看涨"
+                    confidence = 0.7
+                elif advice in ['卖出', '减持']:
+                    direction = "看跌"
+                    confidence = 0.7
+                elif advice in ['持有', '观望']:
+                    direction = "中性"
+                    confidence = 0.5
+
+        # 如果还是没有找到，使用全文搜索（备选方案）
+        if direction == "中性":
+            if re.search(r'看涨|强烈买入|买入|上升', text):
+                direction = "看涨"
+                confidence = 0.7
+            elif re.search(r'看跌|强烈卖出|卖出|下降', text):
+                direction = "看跌"
+                confidence = 0.7
+            elif re.search(r'中性|持有|震荡', text):
+                direction = "中性"
+                confidence = 0.5
+
+        # 提取置信度
+        conf_match = re.search(r'置信度[：:]\s*(高|中|低)', text)
+        if conf_match:
+            level = conf_match.group(1)
+            if level == '高':
+                confidence = min(confidence + 0.2, 0.95)
+            elif level == '低':
+                confidence = max(confidence - 0.2, 0.3)
+
+        return direction, confidence
+
+    def _get_technical_indicators(self, hist: pd.DataFrame) -> str:
+        """获取技术指标摘要"""
+        if hist is None or hist.empty:
+            return "无技术指标数据"
+
+        recent_data = hist.tail(100)
+
+        def format_value(val, decimals=2):
+            if isinstance(val, (int, float)):
+                return f"{val:.{decimals}f}"
+            return str(val)
+
+        # 尝试使用预计算的指标
+        if 'RSI_14' in hist.columns:
+            latest_rsi = hist['RSI_14'].iloc[-1]
+        else:
+            # 后备计算
+            delta = recent_data['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+            rs = gain / loss
+            latest_rsi = (100 - (100 / (1 + rs))).iloc[-1] if not rs.empty else "N/A"
+
+        if 'MACD' in hist.columns and 'MACD_Signal' in hist.columns:
+            latest_macd = hist['MACD'].iloc[-1]
+            latest_signal = hist['MACD_Signal'].iloc[-1]
+        else:
+            exp12 = recent_data['Close'].ewm(span=12, adjust=False).mean()
+            exp26 = recent_data['Close'].ewm(span=26, adjust=False).mean()
+            macd = exp12 - exp26
+            signal = macd.ewm(span=9, adjust=False).mean()
+            latest_macd = macd.iloc[-1] if not macd.empty else "N/A"
+            latest_signal = signal.iloc[-1] if not signal.empty else "N/A"
+
+        if 'ATR_14' in hist.columns:
+            latest_atr = hist['ATR_14'].iloc[-1]
+        else:
+            high_low = recent_data['High'] - recent_data['Low']
+            high_close = abs(recent_data['High'] - recent_data['Close'].shift())
+            low_close = abs(recent_data['Low'] - recent_data['Close'].shift())
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            latest_atr = tr.rolling(window=14, min_periods=1).mean().iloc[-1] if not tr.empty else "N/A"
+
+        if 'BB_Upper' in hist.columns and 'BB_Lower' in hist.columns:
+            latest_upper = hist['BB_Upper'].iloc[-1]
+            latest_lower = hist['BB_Lower'].iloc[-1]
+        else:
+            sma20 = recent_data['Close'].rolling(window=20, min_periods=1).mean()
+            std20 = recent_data['Close'].rolling(window=20, min_periods=1).std()
+            latest_upper = (sma20 + std20 * 2).iloc[-1] if not sma20.empty else "N/A"
+            latest_lower = (sma20 - std20 * 2).iloc[-1] if not sma20.empty else "N/A"
+
+        latest_close = hist['Close'].iloc[-1] if not hist.empty else "N/A"
+
+        # 移动平均线
+        ma_values = {}
+        for period in [20, 50, 200]:
+            col_name = f'MA_{period}'
+            if col_name in hist.columns:
+                ma_values[period] = hist[col_name].iloc[-1]
+            else:
+                ma_values[period] = recent_data['Close'].rolling(window=period, min_periods=1).mean().iloc[-1]
+
+        # 威廉指标
+        if 'WilliamsR_14' in hist.columns:
+            latest_williams_r = hist['WilliamsR_14'].iloc[-1]
+        else:
+            highest_high = recent_data['High'].rolling(window=14, min_periods=1).max()
+            lowest_low = recent_data['Low'].rolling(window=14, min_periods=1).min()
+            williams_r = ((highest_high - recent_data['Close']) / (highest_high - lowest_low)) * -100
+            latest_williams_r = williams_r.iloc[-1] if not williams_r.empty else "N/A"
+
+        # 成交量均线
+        if 'Volume_MA_20' in hist.columns:
+            latest_volume_sma = hist['Volume_MA_20'].iloc[-1]
+        else:
+            latest_volume_sma = recent_data['Volume'].rolling(window=20, min_periods=1).mean().iloc[-1]
+
+        # ADX 趋势强度
+        if 'ADX_14' in hist.columns:
+            latest_adx = hist['ADX_14'].iloc[-1]
+            latest_plus_di = hist['Plus_DI_14'].iloc[-1]
+            latest_minus_di = hist['Minus_DI_14'].iloc[-1]
+        else:
+            # 后备计算 ADX
+            high_low = recent_data['High'] - recent_data['Low']
+            high_close = abs(recent_data['High'] - recent_data['Close'].shift())
+            low_close = abs(recent_data['Low'] - recent_data['Close'].shift())
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            diff_high = recent_data['High'].diff()
+            diff_low = -recent_data['Low'].diff()
+            plus_dm = diff_high.where((diff_high > diff_low) & (diff_high > 0), 0)
+            minus_dm = diff_low.where((diff_low > diff_high) & (diff_low > 0), 0)
+            plus_di = 100 * (plus_dm.rolling(window=14, min_periods=1).mean() / tr)
+            minus_di = 100 * (minus_dm.rolling(window=14, min_periods=1).mean() / tr)
+            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di + 1e-10)
+            latest_adx = dx.rolling(window=14, min_periods=1).mean().iloc[-1] if not dx.empty else "N/A"
+            latest_plus_di = plus_di.iloc[-1] if not plus_di.empty else "N/A"
+            latest_minus_di = minus_di.iloc[-1] if not minus_di.empty else "N/A"
+
+        # CMF 资金流量
+        if 'CMF_20' in hist.columns:
+            latest_cmf = hist['CMF_20'].iloc[-1]
+        else:
+            # 后备计算 CMF
+            mf_multiplier = ((recent_data['Close'] - recent_data['Low']) - (recent_data['High'] - recent_data['Close'])) / \
+                           (recent_data['High'] - recent_data['Low'] + 1e-10)
+            mf_volume = mf_multiplier * recent_data['Volume']
+            latest_cmf = mf_volume.rolling(window=20, min_periods=1).sum().iloc[-1] / \
+                        recent_data['Volume'].rolling(window=20, min_periods=1).sum().iloc[-1] if not recent_data.empty else "N/A"
+
+        # VWAP 成交量加权均价
+        if 'VWAP' in hist.columns:
+            latest_vwap = hist['VWAP'].iloc[-1]
+        else:
+            # 后备计算 VWAP
+            typical_price = (recent_data['High'] + recent_data['Low'] + recent_data['Close']) / 3
+            latest_vwap = (typical_price * recent_data['Volume']).cumsum().iloc[-1] / \
+                         recent_data['Volume'].cumsum().iloc[-1] if not recent_data.empty else "N/A"
+
+        # Stochastic RSI
+        if 'Stoch_RSI_K_14' in hist.columns:
+            latest_stoch_rsi_k = hist['Stoch_RSI_K_14'].iloc[-1]
+            latest_stoch_rsi_d = hist['Stoch_RSI_D_14'].iloc[-1]
+        elif 'RSI_14' in hist.columns:
+            # 后备计算 Stochastic RSI
+            rsi_values = hist['RSI_14']
+            rsi_min = rsi_values.rolling(window=14, min_periods=1).min()
+            rsi_max = rsi_values.rolling(window=14, min_periods=1).max()
+            stoch_rsi_k = 100 * (rsi_values - rsi_min) / (rsi_max - rsi_min + 1e-10)
+            latest_stoch_rsi_k = stoch_rsi_k.rolling(window=3, min_periods=1).mean().iloc[-1] if not stoch_rsi_k.empty else "N/A"
+            latest_stoch_rsi_d = latest_stoch_rsi_k  # 简化
+        else:
+            latest_stoch_rsi_k = "N/A"
+            latest_stoch_rsi_d = "N/A"
+
+        return f"""
+【技术指标】
+- RSI (14): {format_value(latest_rsi)}
+- MACD: {format_value(latest_macd)} / Signal: {format_value(latest_signal)}
+- ATR (14): {format_value(latest_atr)}
+- 布林带上轨: {format_value(latest_upper)} / 下轨: {format_value(latest_lower)} / 当前价: {format_value(latest_close)}
+- 移动平均线: MA20: {format_value(ma_values[20])}, MA50: {format_value(ma_values[50])}, MA200: {format_value(ma_values[200])}
+- 威廉指标 (14): {format_value(latest_williams_r)}
+- 平均成交量 (20日): {format_value(latest_volume_sma, 0)}
+- ADX (14): {format_value(latest_adx)} / +DI: {format_value(latest_plus_di)} / -DI: {format_value(latest_minus_di)}
+- CMF (20): {format_value(latest_cmf)}
+- VWAP: {format_value(latest_vwap)}
+- Stochastic RSI: K: {format_value(latest_stoch_rsi_k)} / D: {format_value(latest_stoch_rsi_d)}
+"""
+
+    def _get_hist_summary(self, hist: pd.DataFrame) -> str:
+        """获取历史数据摘要（90天压缩摘要）"""
+        if hist is None or hist.empty:
+            return "无历史数据"
+
+        # 取最近90天数据
+        hist_90 = hist.tail(90) if len(hist) >= 90 else hist
+
+        # ===== 第一部分：90天关键统计 =====
+        current_price = hist_90['Close'].iloc[-1]
+        high_90 = hist_90['High'].max()
+        low_90 = hist_90['Low'].min()
+        avg_price = hist_90['Close'].mean()
+        price_volatility = hist_90['Close'].pct_change().std() * (252**0.5) * 100  # 年化波动率
+
+        # 计算各期间涨跌幅
+        periods = {
+            '5日': min(5, len(hist_90)),
+            '10日': min(10, len(hist_90)),
+            '20日': min(20, len(hist_90)),
+            '60日': min(60, len(hist_90)),
+            '90日': len(hist_90)
+        }
+
+        changes = {}
+        for name, days in periods.items():
+            if days >= 2:
+                start_price = hist_90['Close'].iloc[-days]
+                changes[name] = ((current_price - start_price) / start_price) * 100
+            else:
+                changes[name] = 0
+
+        # ===== 第二部分：周度数据（压缩） =====
+        weekly_data = []
+        # 按周分组，每周取最后一个交易日
+        hist_weekly = hist_90.resample('W-FRI').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last',
+            'Volume': 'sum'
+        }).tail(13)  # 最近13周
+
+        for idx, row in hist_weekly.iterrows():
+            week_str = idx.strftime('%Y-%m-%d')
+            weekly_data.append({
+                'date': week_str,
+                'open': row['Open'],
+                'high': row['High'],
+                'low': row['Low'],
+                'close': row['Close'],
+                'volume': row['Volume'],
+                'change': ((row['Close'] - row['Open']) / row['Open']) * 100 if row['Open'] > 0 else 0
+            })
+
+        # ===== 第三部分：关键价位区域（支撑/阻力） =====
+        resistance_levels = []
+        support_levels = []
+
+        if len(hist_90) >= 20:
+            for i in range(10, len(hist_90) - 10):
+                window = hist_90['High'].iloc[i-10:i+10]
+                if hist_90['High'].iloc[i] == window.max():
+                    resistance_levels.append(hist_90['High'].iloc[i])
+                window = hist_90['Low'].iloc[i-10:i+10]
+                if hist_90['Low'].iloc[i] == window.min():
+                    support_levels.append(hist_90['Low'].iloc[i])
+
+        # 取最近的3个支撑和阻力位
+        resistance_levels = sorted(set(resistance_levels), reverse=True)[:3] if resistance_levels else [high_90]
+        support_levels = sorted(set(support_levels), reverse=True)[:3] if support_levels else [low_90]
+
+        # ===== 第四部分：成交量分析 =====
+        avg_volume_20 = hist_90['Volume'].tail(20).mean()
+        avg_volume_90 = hist_90['Volume'].mean()
+        recent_volume = hist_90['Volume'].iloc[-1]
+        volume_trend = "放量" if recent_volume > avg_volume_20 * 1.3 else ("缩量" if recent_volume < avg_volume_20 * 0.7 else "正常")
+
+        # ===== 第五部分：近期每日数据（最近10天详细） =====
+        recent_daily = []
+        for idx, row in hist_90.tail(10).iterrows():
+            date_str = idx.strftime('%m-%d')
+            close = row.get('Close', 0)
+            volume = row.get('Volume', 0)
+            high = row.get('High', 0)
+            low = row.get('Low', 0)
+
+            # 计算日内波幅
+            intraday_range = ((high - low) / close * 100) if close > 0 else 0
+
+            recent_daily.append(
+                f"{date_str}: 收{close:.2f} 高{high:.2f} 低{low:.2f} "
+                f"波幅{intraday_range:.1f}% 量{volume/1e6:.1f}M"
+            )
+
+        # ===== 构建输出 =====
+        output = f"""【90天关键统计】
+- 当前价: {current_price:.2f}
+- 90日最高: {high_90:.2f} ({((current_price - high_90) / high_90 * 100):.1f}%)
+- 90日最低: {low_90:.2f} ({((current_price - low_90) / low_90 * 100):.1f}%)
+- 90日均价: {avg_price:.2f}
+- 年化波动率: {price_volatility:.1f}%
+
+【各期间涨跌幅】
+- 5日: {changes['5日']:+.1f}%
+- 10日: {changes['10日']:+.1f}%
+- 20日: {changes['20日']:+.1f}%
+- 60日: {changes['60日']:+.1f}%
+- 90日: {changes['90日']:+.1f}%
+
+【关键价位】
+- 阻力位: {', '.join([f'{r:.2f}' for r in resistance_levels])}
+- 支撑位: {', '.join([f'{s:.2f}' for s in support_levels])}
+
+【成交量分析】
+- 当日成交量: {recent_volume/1e6:.1f}M
+- 20日均量: {avg_volume_20/1e6:.1f}M
+- 90日均量: {avg_volume_90/1e6:.1f}M
+- 量能状态: {volume_trend}
+
+【周度数据（最近13周）】
+"""
+        # 添加周度数据表头
+        output += "日期        开盘     最高     最低     收盘     周涨跌幅\n"
+        output += "-" * 60 + "\n"
+
+        for week in weekly_data:
+            output += f"{week['date']}  {week['open']:.2f}   {week['high']:.2f}   {week['low']:.2f}   {week['close']:.2f}   {week['change']:+.1f}%\n"
+
+        output += f"""
+【近10日详细数据】
+"""
+        output += "\n".join(recent_daily)
+
+        return output
+
+
+class IFlowAIAnalyzer(AIAnalyzer):
+    """心流 AI 分析器实现 - 增强版"""
+
+    AI_CACHE_SUBDIR = "ai_analysis"
+
+    _last_api_call_time: float = 0.0
+    _rate_limit_lock = None
+
+    MIN_API_INTERVAL = 0.5
+
     def __init__(self):
         self.api_key = os.environ.get("IFLOW_API_KEY", "")
         config = config_manager.get_config()
@@ -224,7 +596,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
         self.cache_service = OptimizedCache(enabled=False)
         self.config = config
         self.logger = get_ai_logger()
-        self.api_url = "https://apis.iflow.cn/v1/chat/completions"
+        self.api_url = config.ai.providers.iflow.base_url if config.ai.providers and config.ai.providers.iflow and config.ai.providers.iflow.base_url else "https://apis.iflow.cn/v1/chat/completions"
         
         # 从配置读取模型列表（配置为唯一数据源）
         if config.ai.providers and config.ai.providers.iflow:
@@ -1096,91 +1468,7 @@ class IFlowAIAnalyzer(AIAnalyzer):
         lines.append(f"- 风险等级: {data.get('risk_level', '中')}")
         
         return "\n".join(lines)
-    
-    def _format_fundamentals(self, info: Dict) -> str:
-        """格式化基本面信息"""
-        def fmt(val, suffix="", decimals=2):
-            if isinstance(val, (int, float)) and val > 0:
-                return f"{val:.{decimals}f}{suffix}"
-            return "N/A"
-        
-        return f"""【基本面指标】
-- 市值: {fmt(info.get('marketCap'), suffix='', decimals=0) if info.get('marketCap') else 'N/A'}
-- 市盈率: {fmt(info.get('trailingPE'))}
-- PEG: {fmt(info.get('pegRatio'))}
-- 市净率: {fmt(info.get('priceToBook'))}
-- ROE: {fmt(info.get('returnOnEquity'), '%') if info.get('returnOnEquity') else 'N/A'}
-- 利润率: {fmt(info.get('profitMargins'), '%') if info.get('profitMargins') else 'N/A'}
-- 营收增长: {fmt(info.get('revenueGrowth'), '%') if info.get('revenueGrowth') else 'N/A'}
-- Beta: {fmt(info.get('beta'))}"""
-    
-    def _extract_direction_and_confidence(self, text: str) -> Tuple[str, float]:
-        """从分析结果中提取方向和置信度"""
-        direction = "中性"
-        confidence = 0.5
-        
-        # 优先从"短期走势判断"部分提取方向（更精确）
-        short_term_section = ""
-        if "短期走势判断" in text:
-            # 提取"短期走势判断"部分到下一个大标题之前的内容
-            match = re.search(r'短期走势判断[：:\s]*(.*?)(?=\n[═\-\s]{10,}|\n【|$)', text, re.DOTALL)
-            if match:
-                short_term_section = match.group(1)
-        
-        # 从短期走势判断部分提取方向
-        if short_term_section:
-            dir_match = re.search(r'方向[：:]\s*(看涨|看跌|中性|上升|下降|震荡)', short_term_section)
-            if dir_match:
-                dir_value = dir_match.group(1)
-                if dir_value in ['看涨', '上升']:
-                    direction = "看涨"
-                    confidence = 0.7
-                elif dir_value in ['看跌', '下降']:
-                    direction = "看跌"
-                    confidence = 0.7
-                elif dir_value in ['中性', '震荡']:
-                    direction = "中性"
-                    confidence = 0.5
-        
-        # 如果没有找到，尝试从"投资建议"部分提取
-        if direction == "中性" and "投资建议" in text:
-            # 提取投资建议部分的"建议:"值
-            advice_match = re.search(r'建议[：:]\s*(买入|卖出|持有|观望|增持|减持)', text)
-            if advice_match:
-                advice = advice_match.group(1)
-                if advice in ['买入', '增持']:
-                    direction = "看涨"
-                    confidence = 0.7
-                elif advice in ['卖出', '减持']:
-                    direction = "看跌"
-                    confidence = 0.7
-                elif advice in ['持有', '观望']:
-                    direction = "中性"
-                    confidence = 0.5
-        
-        # 如果还是没有找到，使用全文搜索（备选方案）
-        if direction == "中性":
-            if re.search(r'看涨|强烈买入|买入|上升', text):
-                direction = "看涨"
-                confidence = 0.7
-            elif re.search(r'看跌|强烈卖出|卖出|下降', text):
-                direction = "看跌"
-                confidence = 0.7
-            elif re.search(r'中性|持有|震荡', text):
-                direction = "中性"
-                confidence = 0.5
-        
-        # 提取置信度
-        conf_match = re.search(r'置信度[：:]\s*(高|中|低)', text)
-        if conf_match:
-            level = conf_match.group(1)
-            if level == '高':
-                confidence = min(confidence + 0.2, 0.95)
-            elif level == '低':
-                confidence = max(confidence - 0.2, 0.3)
-        
-        return direction, confidence
-    
+
     def _record_prediction(self, stock_data: Dict, result: AIAnalysisResult, model: str):
         """记录预测结果"""
         try:
@@ -1553,164 +1841,7 @@ AI分析结果将用于实盘交易决策，请务必严谨客观。
 - VWAP: {format_value(latest_vwap)}
 - Stochastic RSI: K: {format_value(latest_stoch_rsi_k)} / D: {format_value(latest_stoch_rsi_d)}
 """
-    
-    def _get_hist_summary(self, hist: pd.DataFrame) -> str:
-        """
-        获取历史数据摘要（90天压缩摘要）
-        
-        优化策略：
-        1. 提供关键统计数据（高点、低点、波动率等）
-        2. 提供周度收盘数据（约13周）
-        3. 提供关键价位区域
-        4. 避免逐行列出导致 token 过长
-        """
-        if hist is None or hist.empty:
-            return "无历史数据"
-        
-        # 取最近90天数据
-        hist_90 = hist.tail(90) if len(hist) >= 90 else hist
-        
-        # ===== 第一部分：90天关键统计 =====
-        current_price = hist_90['Close'].iloc[-1]
-        high_90 = hist_90['High'].max()
-        low_90 = hist_90['Low'].min()
-        avg_price = hist_90['Close'].mean()
-        price_volatility = hist_90['Close'].pct_change().std() * (252**0.5) * 100  # 年化波动率
-        
-        # 计算各期间涨跌幅
-        periods = {
-            '5日': min(5, len(hist_90)),
-            '10日': min(10, len(hist_90)),
-            '20日': min(20, len(hist_90)),
-            '60日': min(60, len(hist_90)),
-            '90日': len(hist_90)
-        }
-        
-        changes = {}
-        for name, days in periods.items():
-            if days >= 2:
-                start_price = hist_90['Close'].iloc[-days]
-                changes[name] = ((current_price - start_price) / start_price) * 100
-            else:
-                changes[name] = 0
-        
-        # ===== 第二部分：周度数据（压缩） =====
-        weekly_data = []
-        # 按周分组，每周取最后一个交易日
-        hist_weekly = hist_90.resample('W-FRI').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last',
-            'Volume': 'sum'
-        }).tail(13)  # 最近13周
-        
-        for idx, row in hist_weekly.iterrows():
-            week_str = idx.strftime('%Y-%m-%d')
-            weekly_data.append({
-                'date': week_str,
-                'open': row['Open'],
-                'high': row['High'],
-                'low': row['Low'],
-                'close': row['Close'],
-                'volume': row['Volume'],
-                'change': ((row['Close'] - row['Open']) / row['Open']) * 100 if row['Open'] > 0 else 0
-            })
-        
-        # ===== 第三部分：关键价位区域（支撑/阻力） =====
-        # 使用成交量加权找出关键价位
-        price_levels = []
-        
-        # 找出近期高点和低点区域
-        recent_20 = hist_90.tail(20)
-        recent_high = recent_20['High'].max()
-        recent_low = recent_20['Low'].min()
-        
-        # 找出90天内的关键价位（近似支撑阻力）
-        # 使用滚动窗口找局部高低点
-        resistance_levels = []
-        support_levels = []
-        
-        if len(hist_90) >= 20:
-            # 简单方法：找出近90天的明显高低点
-            for i in range(10, len(hist_90) - 10):
-                window = hist_90['High'].iloc[i-10:i+10]
-                if hist_90['High'].iloc[i] == window.max():
-                    resistance_levels.append(hist_90['High'].iloc[i])
-                window = hist_90['Low'].iloc[i-10:i+10]
-                if hist_90['Low'].iloc[i] == window.min():
-                    support_levels.append(hist_90['Low'].iloc[i])
-        
-        # 取最近的3个支撑和阻力位
-        resistance_levels = sorted(set(resistance_levels), reverse=True)[:3] if resistance_levels else [high_90]
-        support_levels = sorted(set(support_levels), reverse=True)[:3] if support_levels else [low_90]
-        
-        # ===== 第四部分：成交量分析 =====
-        avg_volume_20 = hist_90['Volume'].tail(20).mean()
-        avg_volume_90 = hist_90['Volume'].mean()
-        recent_volume = hist_90['Volume'].iloc[-1]
-        volume_trend = "放量" if recent_volume > avg_volume_20 * 1.3 else ("缩量" if recent_volume < avg_volume_20 * 0.7 else "正常")
-        
-        # ===== 第五部分：近期每日数据（最近10天详细） =====
-        recent_daily = []
-        for idx, row in hist_90.tail(10).iterrows():
-            date_str = idx.strftime('%m-%d')
-            close = row.get('Close', 0)
-            volume = row.get('Volume', 0)
-            high = row.get('High', 0)
-            low = row.get('Low', 0)
-            
-            # 计算日内波幅
-            intraday_range = ((high - low) / close * 100) if close > 0 else 0
-            
-            recent_daily.append(
-                f"{date_str}: 收{close:.2f} 高{high:.2f} 低{low:.2f} "
-                f"波幅{intraday_range:.1f}% 量{volume/1e6:.1f}M"
-            )
-        
-        # ===== 构建输出 =====
-        output = f"""【90天关键统计】
-- 当前价: {current_price:.2f}
-- 90日最高: {high_90:.2f} ({((current_price - high_90) / high_90 * 100):.1f}%)
-- 90日最低: {low_90:.2f} ({((current_price - low_90) / low_90 * 100):.1f}%)
-- 90日均价: {avg_price:.2f}
-- 年化波动率: {price_volatility:.1f}%
 
-【各期间涨跌幅】
-- 5日: {changes['5日']:+.1f}%
-- 10日: {changes['10日']:+.1f}%
-- 20日: {changes['20日']:+.1f}%
-- 60日: {changes['60日']:+.1f}%
-- 90日: {changes['90日']:+.1f}%
-
-【关键价位】
-- 阻力位: {', '.join([f'{r:.2f}' for r in resistance_levels])}
-- 支撑位: {', '.join([f'{s:.2f}' for s in support_levels])}
-- 近20日高点: {recent_high:.2f}
-- 近20日低点: {recent_low:.2f}
-
-【成交量分析】
-- 当日成交量: {recent_volume/1e6:.1f}M
-- 20日均量: {avg_volume_20/1e6:.1f}M
-- 90日均量: {avg_volume_90/1e6:.1f}M
-- 量能状态: {volume_trend}
-
-【周度数据（最近13周）】
-"""
-        # 添加周度数据表头
-        output += "日期        开盘     最高     最低     收盘     周涨跌幅\n"
-        output += "-" * 60 + "\n"
-        
-        for week in weekly_data:
-            output += f"{week['date']}  {week['open']:.2f}   {week['high']:.2f}   {week['low']:.2f}   {week['close']:.2f}   {week['change']:+.1f}%\n"
-        
-        output += f"""
-【近10日详细数据】
-"""
-        output += "\n".join(recent_daily)
-        
-        return output
-    
     def _call_iflow_api(self, prompt: str, model_name: str, max_retries: int = 3) -> tuple[Optional[str], Optional[str]]:
         """
         调用心流 API，带有自动重试机制

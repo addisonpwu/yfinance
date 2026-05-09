@@ -17,7 +17,6 @@ from src.config.constants import (
     DB_PORT,
     DB_NAME,
     DB_USER,
-    DB_PASSWORD,
     DB_POOL_SIZE,
     DB_MAX_OVERFLOW,
     DB_POOL_TIMEOUT,
@@ -49,7 +48,7 @@ def get_database_url() -> str:
     db_port = os.getenv("DB_PORT", str(DB_PORT))
     db_name = os.getenv("DB_NAME", DB_NAME)
     db_user = os.getenv("DB_USER", DB_USER)
-    db_password = os.getenv("DB_PASSWORD", DB_PASSWORD)
+    db_password = os.getenv("DB_PASSWORD", "stock_password")
 
     return f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 

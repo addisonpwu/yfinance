@@ -98,6 +98,18 @@ class AnalysisTriggerService:
         self._global_lock = asyncio.Lock()
         self._executor = ThreadPoolExecutor(max_workers=2)
 
+    def _cleanup_old_tasks(self):
+        """Remove tasks older than 1 hour to prevent memory leak."""
+        cutoff = datetime.now().timestamp() - 3600
+        to_remove = [
+            task_id for task_id, state in self._tasks.items()
+            if state.completed_at is not None and state.completed_at.timestamp() < cutoff
+        ]
+        for task_id in to_remove:
+            del self._tasks[task_id]
+        if to_remove:
+            logger.info(f"Cleaned up {len(to_remove)} old tasks")
+
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get task status by ID."""
         state = self._tasks.get(task_id)
@@ -252,6 +264,8 @@ class AnalysisTriggerService:
             task_state.completed_at = datetime.now()
             logger.error(f"[{task_state.task_id}] Task failed for {symbol}: {e}")
 
+        self._cleanup_old_tasks()
+
     async def _analyze_single_model(
         self,
         stock_data: Dict[str, Any],
@@ -308,7 +322,7 @@ class AnalysisTriggerService:
                     provider=result["provider"],
                     model_used=result["model_used"],
                     interval=interval,
-                    summary=result["summary"][:4000],  # Truncate if too long
+                    summary=result["summary"][:2000],  # Truncate if too long
                     confidence=result["confidence"],
                     recommendation=result.get("detailed_analysis", {}).get("recommendation") if result.get("detailed_analysis") else None,
                     detailed_analysis=result.get("detailed_analysis"),

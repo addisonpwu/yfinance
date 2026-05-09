@@ -4,7 +4,7 @@ News API Routes
 
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.database import get_session
 from src.repositories.news_repo import NewsRepository
@@ -94,7 +94,7 @@ async def create_news(
 )
 async def list_news(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(100, le=1000),
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     stock_symbol: Optional[str] = None,
@@ -129,12 +129,11 @@ async def list_news(
 
     items = []
     for n in news_list:
-        stock = await stock_repo.get_by_id(n.stock_id)
         items.append(
             NewsResponse(
                 id=n.id,
                 stock_id=n.stock_id,
-                stock_symbol=stock.symbol if stock else "",
+                stock_symbol=n.stock.symbol if n.stock else "",
                 title=n.title,
                 content=n.content,
                 sentiment=n.sentiment,
@@ -156,7 +155,6 @@ async def list_news(
 async def get_news(
     news_id: int,
     news_repo: NewsRepository = Depends(get_news_repo),
-    stock_repo: StockRepository = Depends(get_stock_repo),
 ):
     """
     Get news by ID
@@ -164,12 +162,13 @@ async def get_news(
     - **news_id**: News ID
     """
     try:
-        news = await news_repo.get_by_id_or_raise(news_id)
-        stock = await stock_repo.get_by_id(news.stock_id)
+        news = await news_repo.get_by_id_with_stock(news_id)
+        if news is None:
+            raise NewsNotFoundException(f"News with id {news_id} not found")
         return NewsResponse(
             id=news.id,
             stock_id=news.stock_id,
-            stock_symbol=stock.symbol if stock else "",
+            stock_symbol=news.stock.symbol if news.stock else "",
             title=news.title,
             content=news.content,
             sentiment=news.sentiment,

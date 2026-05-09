@@ -40,8 +40,7 @@ python3 main.py --market HK
 -   `main.py`: 專案的主入口，負責解析參數、調度分析並輸出結果。
 -   `data_loader/`: 負責從不同來源獲取股票代碼列表（美股從 statementdog.com，港股從 hkex.com.hk）。
 -   `strategies/`: 存放所有選股策略。您可以輕鬆地在此處添加自己的策略。
--   `analysis/`: 核心分析引擎，負責執行所有策略並篩選股票。
--   `news_analyzer.py`: 新聞情感分析模組，使用 Playwright 從雅虎財經抓取並分析新聞。
+
 -   `backtest/`: 回測引擎模組，包含回測指標計算和蒙特卡洛驗證。
 -   `risk/`: 風險管理模組，包含動態倉位計算和風險評估。
 -   `data_cache/`: 用於緩存股票數據，提升重複運行效率。

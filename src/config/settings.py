@@ -200,6 +200,7 @@ class AIProviderConfig:
     """单个 AI 提供商配置"""
     default_model: str = ""
     available_models: List[str] = None
+    base_url: str = ""
     
     def __post_init__(self):
         if self.available_models is None:
@@ -398,19 +399,23 @@ class ConfigManager:
                 providers=AIProvidersConfig(
                     iflow=AIProviderConfig(
                         default_model=iflow_config.get('default_model', ""),
-                        available_models=iflow_config.get('available_models', [])
+                        available_models=iflow_config.get('available_models', []),
+                        base_url=iflow_config.get('base_url', "")
                     ),
                     nvidia=AIProviderConfig(
                         default_model=nvidia_config.get('default_model', ""),
-                        available_models=nvidia_config.get('available_models', [])
+                        available_models=nvidia_config.get('available_models', []),
+                        base_url=nvidia_config.get('base_url', "")
                     ),
                     gemini=AIProviderConfig(
                         default_model=gemini_config.get('default_model', ""),
-                        available_models=gemini_config.get('available_models', [])
+                        available_models=gemini_config.get('available_models', []),
+                        base_url=gemini_config.get('base_url', "")
                     ),
                     opencode=AIProviderConfig(
                         default_model=opencode_config.get('default_model', ""),
-                        available_models=opencode_config.get('available_models', [])
+                        available_models=opencode_config.get('available_models', []),
+                        base_url=opencode_config.get('base_url', "")
                     )
                 )
             ),

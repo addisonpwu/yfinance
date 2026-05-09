@@ -144,22 +144,27 @@ class BrokerRatingRepository(BaseRepository[BrokerRating]):
         stock_ids: List[int],
         limit: int = 5,
     ) -> Dict[int, List[BrokerRating]]:
-        """Get ratings for multiple stocks, ordered by date DESC.
+        """Get ratings for multiple stocks in a single query."""
+        from collections import defaultdict
         
-        Returns a dict mapping stock_id to list of ratings.
-        """
         result: Dict[int, List[BrokerRating]] = {sid: [] for sid in stock_ids}
+        if not stock_ids:
+            return result
         
-        for stock_id in stock_ids:
-            rows = await self.session.execute(
-                select(BrokerRating)
-                .where(BrokerRating.stock_id == stock_id)
-                .order_by(BrokerRating.rating_date.desc())
-                .limit(limit)
-            )
-            records = list(rows.scalars().all())
-            if records:
-                result[stock_id] = records
+        all_ratings = await self.session.execute(
+            select(BrokerRating)
+            .where(BrokerRating.stock_id.in_(stock_ids))
+            .order_by(BrokerRating.stock_id, BrokerRating.rating_date.desc())
+        )
+        
+        stock_buckets: Dict[int, List[BrokerRating]] = defaultdict(list)
+        for rating in all_ratings.scalars().all():
+            if len(stock_buckets[rating.stock_id]) < limit:
+                stock_buckets[rating.stock_id].append(rating)
+        
+        for sid in stock_ids:
+            if sid in stock_buckets:
+                result[sid] = stock_buckets[sid]
         
         return result
 

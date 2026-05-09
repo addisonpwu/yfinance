@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "yfinace"
+name = "yfinance"
 version = "1.0.0"
 description = "A stock screening and analysis system with AI integration"
 readme = "README.md"
@@ -42,7 +42,7 @@ dev = [
 ]
 
 [project.scripts]
-yfinace = "main:main"
+yfinance = "main:main"
 
 [project.urls]
 Homepage = "https://github.com/addisonpwu/yfinance"

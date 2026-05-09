@@ -35,6 +35,7 @@ class AIAnalysis(Base):
     model_used: Mapped[str] = mapped_column(
         String(AI_ANALYSIS_MODEL_MAX_LENGTH),
         nullable=False,
+        index=True,
     )
 
     interval: Mapped[str] = mapped_column(
